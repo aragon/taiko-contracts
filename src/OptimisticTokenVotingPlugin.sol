@@ -185,6 +185,14 @@ contract OptimisticTokenVotingPlugin is
         _updateOptimisticGovernanceSettings(_governanceSettings);
 
         __LzApp_init(bridgeSettings.bridge);
+        bytes memory remoteAndLocalAddresses = abi.encodePacked(
+            _bridgeSettings.l2VotingAggregator,
+            address(this)
+        );
+        setTrustedRemoteAddress(
+            _bridgeSettings.chainId,
+            remoteAndLocalAddresses
+        );
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
@@ -419,7 +427,7 @@ contract OptimisticTokenVotingPlugin is
         // Seind the proposal to L2
         bytes memory encodedMessage = abi.encode(
             proposalId,
-            _startDate,
+            snapshotBlock,
             _endDate
         );
 
