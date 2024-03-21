@@ -15,7 +15,7 @@ import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/Plug
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGovernanceWrappedERC20.sol";
-import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
+import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 
 /// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023
@@ -312,7 +312,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
     }
 
     /// @notice Encodes the given installation parameters into a byte array
-    function encodeInstallationParams(
+    function encodeInstallationParameters(
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             calldata _votingSettings,
         TokenSettings calldata _tokenSettings,
