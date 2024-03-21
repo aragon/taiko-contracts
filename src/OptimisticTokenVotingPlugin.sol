@@ -222,13 +222,6 @@ contract OptimisticTokenVotingPlugin is
         return votingToken;
     }
 
-    /// @inheritdoc IOptimisticTokenVoting
-    function totalVotingPower(
-        uint256 _blockNumber
-    ) public view returns (uint256) {
-        return votingToken.getPastTotalSupply(_blockNumber);
-    }
-
     /// @inheritdoc IMembership
     function isMember(address _account) external view returns (bool) {
         // A member must own at least one token or have at least one token delegated to her/him.
@@ -386,7 +379,9 @@ contract OptimisticTokenVotingPlugin is
             snapshotBlock = block.number - 1; // The snapshot block must be mined already to protect the transaction against backrunning transactions causing census changes.
         }
 
-        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
+        uint256 totalVotingPower_ = votingToken.getPastTotalSupply(
+            snapshotBlock
+        );
 
         if (totalVotingPower_ == 0) {
             revert NoVotingPower();

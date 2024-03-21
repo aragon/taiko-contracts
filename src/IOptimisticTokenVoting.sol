@@ -14,13 +14,6 @@ interface IOptimisticTokenVoting {
     /// @return The token used for voting.
     function getVotingToken() external view returns (IVotesUpgradeable);
 
-    /// @notice Returns the total voting power checkpointed for a specific block number.
-    /// @param _blockNumber The block number.
-    /// @return The total voting power.
-    function totalVotingPower(
-        uint256 _blockNumber
-    ) external view returns (uint256);
-
     /// @notice Returns the veto ratio parameter stored in the optimistic governance settings.
     /// @return The veto ratio parameter.
     function minVetoRatio() external view returns (uint32);

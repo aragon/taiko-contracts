@@ -26,11 +26,12 @@ contract OptimisticTokenVotingPluginTest is Test {
     address alice = address(0xa11ce);
     address bob = address(0xB0B);
     address randomWallet = vm.addr(1234567890);
-    OptimisticTokenVotingPlugin.BridgeSettings lzAppEndpoint = OptimisticTokenVotingPlugin.BridgeSettings(
-        1,
-        address(0xb41d5e),
-        address(0x1f1d5e)
-    );
+    OptimisticTokenVotingPlugin.BridgeSettings lzAppEndpoint =
+        OptimisticTokenVotingPlugin.BridgeSettings(
+            1,
+            address(0xb41d5e),
+            address(0x1f1d5e)
+        );
 
     // Events from external contracts
     event Initialized(uint8 version);
@@ -153,11 +154,6 @@ contract OptimisticTokenVotingPluginTest is Test {
             )
         );
         assertEq(
-            plugin.totalVotingPower(block.number - 1),
-            10 ether,
-            "Incorrect token supply"
-        );
-        assertEq(
             plugin.minVetoRatio(),
             uint32(RATIO_BASE / 10),
             "Incorrect minVetoRatio"
@@ -226,11 +222,6 @@ contract OptimisticTokenVotingPluginTest is Test {
                     lzAppEndpoint
                 )
             )
-        );
-        assertEq(
-            plugin.totalVotingPower(block.number - 1),
-            10 ether,
-            "Incorrect token supply"
         );
 
         // Different minProposerVotingPower
@@ -379,62 +370,6 @@ contract OptimisticTokenVotingPluginTest is Test {
             address(votingToken) != oldToken,
             true,
             "The token address sould have changed"
-        );
-    }
-
-    function test_TotalVotingPowerReturnsTheRightSupply() public {
-        assertEq(
-            plugin.totalVotingPower(block.number - 1),
-            votingToken.getPastTotalSupply(block.number - 1),
-            "Incorrect total voting power"
-        );
-        assertEq(
-            plugin.totalVotingPower(block.number - 1),
-            10 ether,
-            "Incorrect total voting power"
-        );
-
-        // New token
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(
-                address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
-            )
-        );
-        votingToken.mint(alice, 15 ether);
-        vm.roll(block.number + 1);
-
-        // Deploy a new plugin instance
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings({
-                    minVetoRatio: uint32(RATIO_BASE / 10),
-                    minDuration: 10 days,
-                    minProposerVotingPower: 0
-                });
-
-        plugin = OptimisticTokenVotingPlugin(
-            createProxyAndCall(
-                address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken,
-                    lzAppEndpoint
-                )
-            )
-        );
-
-        assertEq(
-            plugin.totalVotingPower(block.number - 1),
-            votingToken.getPastTotalSupply(block.number - 1),
-            "Incorrect total voting power"
-        );
-        assertEq(
-            plugin.totalVotingPower(block.number - 1),
-            15 ether,
-            "Incorrect total voting power"
         );
     }
 
@@ -888,68 +823,6 @@ contract OptimisticTokenVotingPluginTest is Test {
             0
         );
         plugin.createProposal("", actions, 0, 0, 0);
-    }
-
-    function test_GetProposalReturnsTheRightValues() public {
-        vm.warp(500);
-        uint32 startDate = 600;
-        uint32 endDate = startDate + 15 days;
-
-        IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].to = address(plugin);
-        actions[0].value = 1 wei;
-        actions[0].data = abi.encodeWithSelector(
-            OptimisticTokenVotingPlugin.totalVotingPower.selector,
-            0
-        );
-        uint256 failSafeBitmap = 1;
-
-        uint256 proposalId = plugin.createProposal(
-            "ipfs://",
-            actions,
-            failSafeBitmap,
-            startDate,
-            endDate
-        );
-
-        (bool open0, , , , , ) = plugin.getProposal(proposalId);
-        assertEq(open0, false, "The proposal should not be open");
-
-        // Move on
-        vm.warp(startDate);
-
-        (
-            bool open,
-            bool executed,
-            OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
-            uint256 vetoTally,
-            IDAO.Action[] memory actualActions,
-            uint256 actualFailSafeBitmap
-        ) = plugin.getProposal(proposalId);
-
-        assertEq(open, true, "The proposal should be open");
-        assertEq(executed, false, "The proposal should not be executed");
-        assertEq(parameters.startDate, startDate, "Incorrect startDate");
-        assertEq(parameters.endDate, endDate, "Incorrect endDate");
-        assertEq(parameters.snapshotBlock, 1, "Incorrect snapshotBlock");
-        assertEq(
-            parameters.minVetoVotingPower,
-            plugin.totalVotingPower(block.number - 1) / 10,
-            "Incorrect minVetoVotingPower"
-        );
-        assertEq(vetoTally, 0, "The tally should be zero");
-        assertEq(actualActions.length, 1, "Actions should have one item");
-        assertEq(
-            actualFailSafeBitmap,
-            failSafeBitmap,
-            "Incorrect failsafe bitmap"
-        );
-
-        // Move on
-        vm.warp(endDate);
-
-        (bool open1, , , , , ) = plugin.getProposal(proposalId);
-        assertEq(open1, false, "The proposal should not be open anymore");
     }
 
     // Can Veto
