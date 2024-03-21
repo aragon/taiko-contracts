@@ -26,7 +26,11 @@ contract OptimisticTokenVotingPluginTest is Test {
     address alice = address(0xa11ce);
     address bob = address(0xB0B);
     address randomWallet = vm.addr(1234567890);
-    address lzAppEndpoint = address(0xDAD);
+    OptimisticTokenVotingPlugin.BridgeSettings lzAppEndpoint = OptimisticTokenVotingPlugin.BridgeSettings(
+        1,
+        address(0xb41d5e),
+        address(0x1f1d5e)
+    );
 
     // Events from external contracts
     event Initialized(uint8 version);

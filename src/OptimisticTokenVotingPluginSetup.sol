@@ -90,7 +90,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
             address[] memory proposers,
-            address _lzAppEndpoint
+            OptimisticTokenVotingPlugin.BridgeSettings memory _lzAppEndpoint
         ) = decodeInstallationParams(_installParameters);
 
         if (proposers.length == 0) {
@@ -102,7 +102,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // Prepare helpers.
         address[] memory helpers = new address[](1);
 
-        if (token != address(0)) {
+        if (token != address(0x0)) {
             if (!token.isContract()) {
                 revert TokenNotContract(token);
             }
@@ -163,7 +163,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // Prepare permissions
         PermissionLib.MultiTargetPermission[]
             memory permissions = new PermissionLib.MultiTargetPermission[](
-                tokenSettings.addr != address(0)
+                tokenSettings.addr != address(0x0)
                     ? 3 + proposers.length
                     : 4 + proposers.length
             );
@@ -215,7 +215,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             }
         }
 
-        if (tokenSettings.addr == address(0)) {
+        if (tokenSettings.addr == address(0x0)) {
             bytes32 tokenMintPermission = GovernanceERC20(token)
                 .MINT_PERMISSION_ID();
 
@@ -319,7 +319,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // only used for GovernanceERC20 (when a token is not passed)
         GovernanceERC20.MintSettings calldata _mintSettings,
         address[] calldata _proposers,
-        address _lzAppEndpoint
+        OptimisticTokenVotingPlugin.BridgeSettings calldata _lzAppEndpoint
     ) external pure returns (bytes memory) {
         return
             abi.encode(
@@ -344,7 +344,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
             address[] memory proposers,
-            address _lzAppEndpoint
+            OptimisticTokenVotingPlugin.BridgeSettings memory _lzAppEndpoint
         )
     {
         (
@@ -360,7 +360,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 TokenSettings,
                 GovernanceERC20.MintSettings,
                 address[],
-                address
+                OptimisticTokenVotingPlugin.BridgeSettings
             )
         );
     }

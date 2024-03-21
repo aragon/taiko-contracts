@@ -180,6 +180,7 @@ contract OptimisticTokenVotingPlugin is
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
+        bridgeSettings = _bridgeSettings;
         votingToken = _token;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
@@ -193,6 +194,7 @@ contract OptimisticTokenVotingPlugin is
             _bridgeSettings.chainId,
             remoteAndLocalAddresses
         );
+
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
