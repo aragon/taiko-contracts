@@ -89,7 +89,8 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
-            address[] memory proposers
+            address[] memory proposers,
+            address _lzAppEndpoint
         ) = decodeInstallationParams(_installParameters);
 
         if (proposers.length == 0) {
@@ -150,7 +151,12 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             address(optimisticTokenVotingPluginBase),
             abi.encodeCall(
                 OptimisticTokenVotingPlugin.initialize,
-                (IDAO(_dao), votingSettings, IVotesUpgradeable(token))
+                (
+                    IDAO(_dao),
+                    votingSettings,
+                    IVotesUpgradeable(token),
+                    _lzAppEndpoint
+                )
             )
         );
 
@@ -312,14 +318,16 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         TokenSettings calldata _tokenSettings,
         // only used for GovernanceERC20 (when a token is not passed)
         GovernanceERC20.MintSettings calldata _mintSettings,
-        address[] calldata _proposers
+        address[] calldata _proposers,
+        address _lzAppEndpoint
     ) external pure returns (bytes memory) {
         return
             abi.encode(
                 _votingSettings,
                 _tokenSettings,
                 _mintSettings,
-                _proposers
+                _proposers,
+                _lzAppEndpoint
             );
     }
 
@@ -335,16 +343,24 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
-            address[] memory proposers
+            address[] memory proposers,
+            address _lzAppEndpoint
         )
     {
-        (votingSettings, tokenSettings, mintSettings, proposers) = abi.decode(
+        (
+            votingSettings,
+            tokenSettings,
+            mintSettings,
+            proposers,
+            _lzAppEndpoint
+        ) = abi.decode(
             _data,
             (
                 OptimisticTokenVotingPlugin.OptimisticGovernanceSettings,
                 TokenSettings,
                 GovernanceERC20.MintSettings,
-                address[]
+                address[],
+                address
             )
         );
     }

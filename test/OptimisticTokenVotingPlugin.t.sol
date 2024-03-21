@@ -26,6 +26,7 @@ contract OptimisticTokenVotingPluginTest is Test {
     address alice = address(0xa11ce);
     address bob = address(0xB0B);
     address randomWallet = vm.addr(1234567890);
+    address lzAppEndpoint = address(0xDAD);
 
     // Events from external contracts
     event Initialized(uint8 version);
@@ -97,7 +98,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -122,7 +124,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.expectRevert(
             bytes("Initializable: contract is already initialized")
         );
-        plugin.initialize(dao, settings, votingToken);
+        plugin.initialize(dao, settings, votingToken, lzAppEndpoint);
     }
 
     function test_InitializeSetsTheProperValues() public {
@@ -141,7 +143,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -171,7 +174,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -190,7 +194,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -213,7 +218,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -232,7 +238,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -262,7 +269,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -352,7 +360,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -407,7 +416,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -447,7 +457,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -478,7 +489,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -519,7 +531,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -567,7 +580,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -680,7 +694,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -831,7 +846,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );
@@ -1520,7 +1536,8 @@ contract OptimisticTokenVotingPluginTest is Test {
                     OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken
+                    votingToken,
+                    lzAppEndpoint
                 )
             )
         );

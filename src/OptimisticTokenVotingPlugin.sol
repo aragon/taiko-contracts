@@ -157,13 +157,16 @@ contract OptimisticTokenVotingPlugin is
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
-        IVotesUpgradeable _token
+        IVotesUpgradeable _token,
+        address _lzEndpoint
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         votingToken = _token;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
+
+        // __LzApp_init(_lzEndpoint);
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
@@ -554,6 +557,20 @@ contract OptimisticTokenVotingPlugin is
             }
         }
     }
+
+    // This function is called when data is received. It overrides the equivalent function in the parent contract.
+    // This function should only be called from the L2 to send the aggregated votes and nothing else
+    /*
+    function _nonBlockingLzReceive(
+        uint16 _srcChainId,
+        bytes memory _srcAddress,
+        uint64 _nonce,
+        bytes memory _payload
+    ) internal override {
+        // The LayerZero _payload (message) is decoded as a string and stored in the "data" variable.
+        string memory data = abi.decode(_payload, (string));
+    }
+    */
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
     uint256[50] private __gap;
