@@ -15,6 +15,8 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
+import {NonblockingLzApp} from "@layerzero/lzApp//NonblockingLzApp.sol";
+
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023
 /// @notice The abstract implementation of optimistic majority plugins.
