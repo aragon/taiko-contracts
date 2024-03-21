@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {VetoToken} from "../src/VetoToken.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/OptimisticTokenVotingPluginSetup.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
@@ -88,9 +87,6 @@ contract Deploy is Script {
 
         // 5. Deploying the DAO
         daoFactory.createDao(daoSettings, pluginSettings);
-
-        // Deploy the ERC-20 token
-        VetoToken _token = new VetoToken();
 
         vm.stopBroadcast();
     }

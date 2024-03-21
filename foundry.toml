@@ -8,7 +8,7 @@ evm_version = "shanghai"
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"
-taiko= "${TAIKO_RPC_URL}"
+taiko = "${TAIKO_RPC_URL}"
 
 
 
