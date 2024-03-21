@@ -1,0 +1,12 @@
+.vscode/
+node_modules
+.openzeppelin
+.env
+coverage
+coverage.json
+typechain
+docs/osx/03-reference-guide
+
+#Hardhat files
+cache
+artifacts

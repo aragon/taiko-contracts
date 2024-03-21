@@ -1,0 +1,12 @@
+# env
+.env
+
+# tests
+tests/bin
+artifacts
+
+# generated
+deploy-output.txt
+dev-data
+tests/.latest.json
+tests/helpers/extended-schema.ts

@@ -1,0 +1,53 @@
+name: Documentation Update
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - develop
+
+jobs:
+  update_docs:
+    permissions: read-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          cache: 'yarn'
+          node-version: 16
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Generate Docs
+        run: yarn run docgen
+        working-directory: packages/contracts/
+      - name: Format with prettier
+        run: yarn run prettier 'packages/contracts/docs/osx/03-reference-guide/**/*.md' --write
+      - name: Checkout builders-portal
+        uses: actions/checkout@v3
+        with:
+          repository: aragon/builders-portal
+          ref: staging
+          path: builders-portal
+          token: ${{ secrets.ARABOT_PAT }}
+      - name: Remove the docs/osx folder in the builders-portal
+        run: rm -rf $GITHUB_WORKSPACE/builders-portal/docs/osx
+      - name: Copy the docs/osx folder to the builders-portal
+        run: cp -R packages/contracts/docs/osx $GITHUB_WORKSPACE/builders-portal/docs/osx
+      - name: Get short commit hash
+        id: hash
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.ARABOT_PAT }}
+          path: builders-portal
+          commit-message: 'Update the Aragon OSx docs by commit ${{ steps.hash.outputs.sha_short }}'
+          committer: 'Arabot <arabot-1@users.noreply.github.com>'
+          branch: patch/aragon-osx-docs
+          delete-branch: true
+          title: Update the Aragon OSx docs
+          body: 'Automated update by Github actions (Run: [${{ github.run_id }}](https://github.com/aragon/osx/actions/runs/${{ github.run_id }}))'
+          reviewers: ${{ github.actor }}
+          team-reviewers: devrel
