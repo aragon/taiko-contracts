@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {ERC20} from "../src/VetoToken.sol";
+import {VetoToken} from "../src/VetoToken.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/OptimisticTokenVotingPluginSetup.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
@@ -25,8 +25,6 @@ contract Deploy is Script {
         // 0. Setting up foundry
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
-
-        vm.createSelectFork(vm.rpcUrl("sepholia"));
 
         // 1. Deploying the Plugin Setup
         OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
@@ -91,10 +89,8 @@ contract Deploy is Script {
         // 5. Deploying the DAO
         daoFactory.createDao(daoSettings, pluginSettings);
 
-        vm.createSelectFork(vm.rpcUrl("taiko"));
-
         // Deploy the ERC-20 token
-        ERC20 _token = new ERC20();
+        VetoToken _token = new VetoToken();
 
         vm.stopBroadcast();
     }
