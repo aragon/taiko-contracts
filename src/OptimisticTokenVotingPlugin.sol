@@ -180,11 +180,13 @@ contract OptimisticTokenVotingPlugin is
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
+        bridgeSettings = _bridgeSettings;
         votingToken = _token;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
 
         __LzApp_init(bridgeSettings.bridge);
+        setTrustedRemoteAddress(_bridgeSettings.chainId, abi.encodePacked(_bridgeSettings.l2VotingAggregator)); // Is this correct?
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
