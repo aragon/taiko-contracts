@@ -28,7 +28,8 @@ contract OptimisticTokenVotingPlugin is
     Initializable,
     ERC165Upgradeable,
     PluginUUPSUpgradeable,
-    ProposalUpgradeable
+    ProposalUpgradeable,
+    NonblockingLzApp
 {
     using SafeCastUpgradeable for uint256;
 
@@ -70,6 +71,16 @@ contract OptimisticTokenVotingPlugin is
         uint256 minVetoVotingPower;
     }
 
+    /// @notice A container for the majority voting bridge settings that will be required when bridging and receiving the proposals from other chains
+    /// @param chainID A parameter to select the id of the destination chain
+    /// @param bridge A parameter to select the address of the bridge you want to interact with
+    /// @param l2vVotingAggregator A parameter to select the address of the voting contract that will live in the L2
+    struct BridgeSettings {
+        uint16 chainId;
+        address bridge;
+        address l2VotingAggregator;
+    }
+
     /// @notice The ID of the permission required to create a proposal.
     bytes32 public constant PROPOSER_PERMISSION_ID =
         keccak256("PROPOSER_PERMISSION");
@@ -85,6 +96,10 @@ contract OptimisticTokenVotingPlugin is
             this.getProposal.selector ^
             this.updateOptimisticGovernanceSettings.selector;
 
+    /// @notice The ID of the permission required to call the `updateBridgeSettings` function.
+    bytes32 public constant UPDATE_BRIDGE_SETTINGS_PERMISSION_ID =
+        keccak256("UPDATE_BRIDGE_SETTINGS_PERMISSION");
+
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
 
@@ -93,6 +108,9 @@ contract OptimisticTokenVotingPlugin is
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
+
+    /// @notice The struct storing the bridge settings.
+    BridgeSettings public bridgeSettings;
 
     /// @notice Emitted when the vetoing settings are updated.
     /// @param minVetoRatio The support threshold value.
@@ -158,7 +176,7 @@ contract OptimisticTokenVotingPlugin is
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
-        address _lzEndpoint
+        BridgeSettings calldata _bridgeSettings
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
@@ -166,7 +184,7 @@ contract OptimisticTokenVotingPlugin is
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
 
-        // __LzApp_init(_lzEndpoint);
+        __LzApp_init(bridgeSettings.bridge);
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
@@ -397,6 +415,22 @@ contract OptimisticTokenVotingPlugin is
                 ++i;
             }
         }
+
+        // Seind the proposal to L2
+        bytes memory encodedMessage = abi.encode(
+            proposalId,
+            _startDate,
+            _endDate
+        );
+
+        _lzSend({
+            _dstChainId: bridgeSettings.chainId,
+            _payload: encodedMessage,
+            _refundAddress: payable(msg.sender),
+            _zroPaymentAddress: address(0),
+            _adapterParams: bytes(""),
+            _nativeFee: address(this).balance
+        });
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -560,17 +594,37 @@ contract OptimisticTokenVotingPlugin is
 
     // This function is called when data is received. It overrides the equivalent function in the parent contract.
     // This function should only be called from the L2 to send the aggregated votes and nothing else
-    /*
-    function _nonBlockingLzReceive(
+    function _nonblockingLzReceive(
         uint16 _srcChainId,
         bytes memory _srcAddress,
         uint64 _nonce,
         bytes memory _payload
     ) internal override {
         // The LayerZero _payload (message) is decoded as a string and stored in the "data" variable.
+        require(
+            _msgSender() == address(this),
+            "NonblockingLzApp: caller must be LzApp"
+        );
         string memory data = abi.decode(_payload, (string));
+        // This is where we get the data for the proposal aggregation
     }
-    */
+
+    /// @notice Updates the bridge settings.
+    /// @param _bridgeSettings The new voting settings.
+    function updateBridgeSettings(
+        BridgeSettings calldata _bridgeSettings
+    ) external virtual auth(UPDATE_BRIDGE_SETTINGS_PERMISSION_ID) {
+        bridgeSettings = _bridgeSettings;
+        setLzEndpoint(_bridgeSettings.bridge);
+        bytes memory remoteAndLocalAddresses = abi.encodePacked(
+            _bridgeSettings.l2VotingAggregator,
+            address(this)
+        );
+        setTrustedRemoteAddress(
+            _bridgeSettings.chainId,
+            remoteAndLocalAddresses
+        );
+    }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
     uint256[50] private __gap;
