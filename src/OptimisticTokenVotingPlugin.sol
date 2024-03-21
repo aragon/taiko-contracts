@@ -452,8 +452,6 @@ contract OptimisticTokenVotingPlugin is
             proposal_.parameters.snapshotBlock
         );
 
-        // Not checking if the voter already voted, since canVeto() above already did
-
         // Write the updated tally.
         proposal_.vetoTally += votingPower;
         proposal_.vetoVoters[_voter] = true;
@@ -462,6 +460,23 @@ contract OptimisticTokenVotingPlugin is
             proposalId: _proposalId,
             voter: _voter,
             votingPower: votingPower
+        });
+    }
+
+    function _vetoFromL2(uint256 _proposalId, uint256 _votingPower) internal {
+        address _voter = _msgSender();
+
+        // TODO: Check it can actually veto
+        Proposal storage proposal_ = proposals[_proposalId];
+
+        // TODO: We should check wether this is the first time this gets called
+        proposal_.vetoTally += _votingPower;
+        proposal_.vetoVoters[_voter] = true;
+
+        emit VetoCast({
+            proposalId: _proposalId,
+            voter: _voter,
+            votingPower: _votingPower
         });
     }
 
@@ -605,8 +620,13 @@ contract OptimisticTokenVotingPlugin is
             _msgSender() == address(this),
             "NonblockingLzApp: caller must be LzApp"
         );
-        string memory data = abi.decode(_payload, (string));
+        (uint256 proposalId, uint256 votingPower) = abi.decode(
+            _payload,
+            (uint256, uint256)
+        );
+
         // This is where we get the data for the proposal aggregation
+        _vetoFromL2(proposalId, votingPower);
     }
 
     /// @notice Updates the bridge settings.
