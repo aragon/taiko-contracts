@@ -186,13 +186,12 @@ contract OptimisticTokenVotingPlugin is
         _updateOptimisticGovernanceSettings(_governanceSettings);
 
         __LzApp_init(bridgeSettings.bridge);
-        bytes memory remoteAndLocalAddresses = abi.encodePacked(
-            _bridgeSettings.l2VotingAggregator,
-            address(this)
+        bytes memory remoteAddresses = abi.encodePacked(
+            _bridgeSettings.l2VotingAggregator
         );
         setTrustedRemoteAddress(
             _bridgeSettings.chainId,
-            remoteAndLocalAddresses
+            remoteAddresses
         );
 
         emit MembershipContractAnnounced({definingContract: address(_token)});
