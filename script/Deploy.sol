@@ -79,15 +79,11 @@ contract Deploy is Script {
             IPluginSetup.PreparedSetupData memory preparedSetupData2
         ) = prepareEmergencyMultisig(dao);
 
-        address[] memory proposerPlugins = new address[](2);
-        proposerPlugins[0] = p1;
-        proposerPlugins[1] = p2;
-
         (
             address p3,
             PluginRepo pr3,
             IPluginSetup.PreparedSetupData memory preparedSetupData3
-        ) = prepareOptimisticTokenVoting(dao, proposerPlugins);
+        ) = prepareOptimisticTokenVoting(dao, p1, p2);
 
         // Apply installations
         dao.grant(
@@ -249,7 +245,8 @@ contract Deploy is Script {
 
     function prepareOptimisticTokenVoting(
         DAO dao,
-        address[] memory _allowedProposerPlugins
+        address stdProposer,
+        address emergencyProposer
     )
         internal
         returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
@@ -273,7 +270,11 @@ contract Deploy is Script {
         // Plugin settings
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory votingSettings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 4, 0);
+                .OptimisticGovernanceSettings(
+                    200000, // minVetoRatio - 20%
+                    0, // minDuration (the condition will enforce it)
+                    0 // minProposerVotingPower
+                );
 
         OptimisticTokenVotingPluginSetup.TokenSettings
             memory tokenSettings = OptimisticTokenVotingPluginSetup
@@ -288,7 +289,8 @@ contract Deploy is Script {
             votingSettings,
             tokenSettings,
             mintSettings,
-            _allowedProposerPlugins,
+            stdProposer,
+            emergencyProposer,
             lzAppEndpoint
         );
 
