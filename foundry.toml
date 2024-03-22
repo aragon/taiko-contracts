@@ -12,8 +12,9 @@ optimizer-runs = 10_000_000
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"
 sepolia_base = "${SEPOLIA_BASE_RPC_URL}"
+mumbai = "${MUMBAI_RPC_URL}"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
 sepolia_base = { key = "${ETHERSCAN_API_KEY}" }
-taiko = "${TAIKO_RPC_URL}"
+mumbai = { key = "${ETHERSCAN_API_KEY}" }

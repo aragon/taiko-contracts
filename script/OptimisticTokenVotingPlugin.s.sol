@@ -47,7 +47,7 @@ contract OptimisticTokenVotingPluginScript is Script {
         // 2. // 2. Publishing it in the Aragon OSx Protocol
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
             .createPluginRepoWithFirstVersion(
-                "optimisticCrosschain1",
+                "optimistic-crosschain69",
                 address(pluginSetup),
                 msg.sender,
                 "0x00", // TODO: Give these actual values on prod
@@ -58,7 +58,7 @@ contract OptimisticTokenVotingPluginScript is Script {
         DAOFactory.DAOSettings memory daoSettings = DAOFactory.DAOSettings(
             address(0),
             "",
-            "optimisticCrosschain1", // This should be changed on each deployment
+            "optimistic-crosschain69", // This should be changed on each deployment
             ""
         );
 

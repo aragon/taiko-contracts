@@ -299,21 +299,6 @@ contract OptimisticTokenVotingPlugin is
         return proposal_.vetoTally >= proposal_.parameters.minVetoVotingPower;
     }
 
-    /// @inheritdoc IOptimisticTokenVoting
-    function minVetoRatio() public view virtual returns (uint32) {
-        return governanceSettings.minVetoRatio;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minDuration() public view virtual returns (uint64) {
-        return governanceSettings.minDuration;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minProposerVotingPower() public view virtual returns (uint256) {
-        return governanceSettings.minProposerVotingPower;
-    }
-
     /// @notice Returns all information for a proposal vote by its ID.
     /// @param _proposalId The ID of the proposal.
     /// @return open Whether the proposal is open or not.
@@ -357,7 +342,8 @@ contract OptimisticTokenVotingPlugin is
     ) external auth(PROPOSER_PERMISSION_ID) returns (uint256 proposalId) {
         // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
         {
-            uint256 minProposerVotingPower_ = minProposerVotingPower();
+            uint256 minProposerVotingPower_ = governanceSettings
+                .minProposerVotingPower;
 
             if (minProposerVotingPower_ != 0) {
                 // Because of the checks in `OptimisticTokenVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
@@ -406,7 +392,7 @@ contract OptimisticTokenVotingPlugin is
         proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
         proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(
             totalVotingPower_,
-            minVetoRatio()
+            governanceSettings.minVetoRatio
         );
 
         // Save gas

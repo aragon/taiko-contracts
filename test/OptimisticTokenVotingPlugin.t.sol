@@ -153,17 +153,6 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
-        assertEq(
-            plugin.minVetoRatio(),
-            uint32(RATIO_BASE / 10),
-            "Incorrect minVetoRatio"
-        );
-        assertEq(plugin.minDuration(), 10 days, "Incorrect minDuration");
-        assertEq(
-            plugin.minProposerVotingPower(),
-            0,
-            "Incorrect minProposerVotingPower"
-        );
 
         // Different minVetoRatio
         settings.minVetoRatio = uint32(RATIO_BASE / 5);
@@ -178,11 +167,6 @@ contract OptimisticTokenVotingPluginTest is Test {
                     lzAppEndpoint
                 )
             )
-        );
-        assertEq(
-            plugin.minVetoRatio(),
-            uint32(RATIO_BASE / 5),
-            "Incorrect minVetoRatio"
         );
 
         // Different minDuration
@@ -199,7 +183,6 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
-        assertEq(plugin.minDuration(), 25 days, "Incorrect minDuration");
 
         // A token with 10 eth supply
         votingToken = ERC20VotesMock(
@@ -237,11 +220,6 @@ contract OptimisticTokenVotingPluginTest is Test {
                     lzAppEndpoint
                 )
             )
-        );
-        assertEq(
-            plugin.minProposerVotingPower(),
-            1 ether,
-            "Incorrect minProposerVotingPower"
         );
     }
 
@@ -374,12 +352,6 @@ contract OptimisticTokenVotingPluginTest is Test {
     }
 
     function test_MinVetoRatioReturnsTheRightValue() public {
-        assertEq(
-            plugin.minVetoRatio(),
-            uint32(RATIO_BASE / 10),
-            "Incorrect minVetoRatio"
-        );
-
         // New plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory settings = OptimisticTokenVotingPlugin
@@ -401,17 +373,9 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
-
-        assertEq(
-            plugin.minVetoRatio(),
-            uint32(RATIO_BASE / 5),
-            "Incorrect minVetoRatio"
-        );
     }
 
     function test_MinDurationReturnsTheRightValue() public {
-        assertEq(plugin.minDuration(), 10 days, "Incorrect minDuration");
-
         // New plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory settings = OptimisticTokenVotingPlugin
@@ -432,54 +396,6 @@ contract OptimisticTokenVotingPluginTest is Test {
                     lzAppEndpoint
                 )
             )
-        );
-
-        assertEq(plugin.minDuration(), 25 days, "Incorrect minDuration");
-    }
-
-    function test_MinProposerVotingPowerReturnsTheRightValue() public {
-        assertEq(
-            plugin.minProposerVotingPower(),
-            0,
-            "Incorrect minProposerVotingPower"
-        );
-
-        // New token
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(
-                address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
-            )
-        );
-        votingToken.mint(alice, 10 ether);
-        vm.roll(block.number + 1);
-
-        // Deploy a new plugin instance
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings({
-                    minVetoRatio: uint32(RATIO_BASE / 10),
-                    minDuration: 10 days,
-                    minProposerVotingPower: 1 ether
-                });
-
-        plugin = OptimisticTokenVotingPlugin(
-            createProxyAndCall(
-                address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken,
-                    lzAppEndpoint
-                )
-            )
-        );
-
-        assertEq(
-            plugin.minProposerVotingPower(),
-            1 ether,
-            "Incorrect minProposerVotingPower"
         );
     }
 
