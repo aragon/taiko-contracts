@@ -19,9 +19,6 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
 
-uint16 constant MIN_EMERGENCY_APPROVALS = 11;
-uint16 constant MIN_STD_APPROVALS = 7;
-
 contract Deploy is Script {
     DAO daoImplementation;
     Multisig multisigImplementation;
@@ -32,6 +29,9 @@ contract Deploy is Script {
     address pluginRepoFactory;
     address tokenAddress;
     address[] multisigMembers;
+
+    uint16 minStdApprovals;
+    uint16 minEmergencyApprovals;
 
     address lzAppEndpoint;
 
@@ -50,6 +50,10 @@ contract Deploy is Script {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
 
+        minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
+        minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));
+
+        // JSON list of members
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/utils/members.json");
         string memory json = vm.readFile(path);
@@ -174,7 +178,7 @@ contract Deploy is Script {
             multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
-                MIN_STD_APPROVALS // minAppovals
+                minStdApprovals // minAppovals
             ),
             lzAppEndpoint
         );
@@ -221,7 +225,7 @@ contract Deploy is Script {
             multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
-                MIN_EMERGENCY_APPROVALS // minAppovals
+                minEmergencyApprovals // minAppovals
             ),
             lzAppEndpoint
         );
