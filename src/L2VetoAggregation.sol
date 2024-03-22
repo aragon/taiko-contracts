@@ -59,13 +59,12 @@ contract L2VetoAggregation is NonblockingLzApp {
         bridgeSettings = _bridgeSettings;
         __LzApp_init(bridgeSettings.bridge);
 
-        bytes memory remoteAndLocalAddresses = abi.encodePacked(
-            _bridgeSettings.l1Plugin,
-            address(this)
+        bytes memory remoteAddresses = abi.encodePacked(
+            _bridgeSettings.l1Plugin
         );
         setTrustedRemoteAddress(
             _bridgeSettings.chainId,
-            remoteAndLocalAddresses
+            remoteAddresses
         );
     }
 
