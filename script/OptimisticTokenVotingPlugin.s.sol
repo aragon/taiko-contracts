@@ -75,8 +75,9 @@ contract OptimisticTokenVotingPluginScript is Script {
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
             .MintSettings(holders, amounts);
 
-        address[] memory proposers = new address[](1);
+        address[] memory proposers = new address[](2);
         proposers[0] = 0x8bF1e340055c7dE62F11229A149d3A1918de3d74;
+        proposers[1] = 0x35911Cc89aaBe7Af6726046823D5b678B6A1498d;
 
         OptimisticTokenVotingPlugin.BridgeSettings
             memory bridgeSettings = OptimisticTokenVotingPlugin.BridgeSettings(
