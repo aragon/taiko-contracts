@@ -181,8 +181,8 @@ abstract contract LzApp is
     // this function set the trusted path for the cross-chain communication
     function setTrustedRemote(
         uint16 _remoteChainId,
-        bytes calldata _path
-    ) external onlyOwner {
+        bytes memory _path
+    ) internal {
         trustedRemoteLookup[_remoteChainId] = _path;
         emit SetTrustedRemote(_remoteChainId, _path);
     }

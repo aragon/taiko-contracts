@@ -27,7 +27,7 @@ interface IOptimisticTokenVoting {
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate
-    ) external returns (uint256 proposalId);
+    ) external payable returns (uint256 proposalId);
 
     /// @notice Checks if an account can participate on an optimistic proposal. This can be because the proposal
     /// - has not started,

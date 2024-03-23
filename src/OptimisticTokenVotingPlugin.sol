@@ -187,12 +187,10 @@ contract OptimisticTokenVotingPlugin is
 
         __LzApp_init(bridgeSettings.bridge);
         bytes memory remoteAddresses = abi.encodePacked(
-            _bridgeSettings.l2VotingAggregator
+            _bridgeSettings.l2VotingAggregator,
+            address(this)
         );
-        setTrustedRemoteAddress(
-            _bridgeSettings.chainId,
-            remoteAddresses
-        );
+        setTrustedRemote(_bridgeSettings.chainId, remoteAddresses);
 
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
@@ -338,7 +336,12 @@ contract OptimisticTokenVotingPlugin is
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate
-    ) external auth(PROPOSER_PERMISSION_ID) returns (uint256 proposalId) {
+    )
+        external
+        payable
+        auth(PROPOSER_PERMISSION_ID)
+        returns (uint256 proposalId)
+    {
         // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
         {
             uint256 minProposerVotingPower_ = governanceSettings

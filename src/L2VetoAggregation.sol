@@ -62,10 +62,7 @@ contract L2VetoAggregation is NonblockingLzApp {
         bytes memory remoteAddresses = abi.encodePacked(
             _bridgeSettings.l1Plugin
         );
-        setTrustedRemoteAddress(
-            _bridgeSettings.chainId,
-            remoteAddresses
-        );
+        setTrustedRemoteAddress(_bridgeSettings.chainId, remoteAddresses);
     }
 
     // This function is called when data is received. It overrides the equivalent function in the parent contract.
