@@ -22,7 +22,7 @@ contract OptimisticTokenVotingPluginTest is Test {
     address immutable pluginBase = address(new OptimisticTokenVotingPlugin());
     address votingTokenBase = address(new ERC20VotesMock());
     LZEndpointMock l1EndpointMock = new LZEndpointMock(1);
-    address l2EndpointMock = address(new LZEndpointMock(5));
+    LZEndpointMock l2EndpointMock = new LZEndpointMock(5);
     L2VetoAggregation l2VetoAggregation =
         new L2VetoAggregation(IVotesUpgradeable(votingTokenBase));
 
@@ -73,7 +73,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.deal(bob, 1000 ether);
         l1EndpointMock.setDestLzEndpoint(
             address(l2VetoAggregation),
-            l2EndpointMock
+            address(l2EndpointMock)
         );
 
         // Deploy a DAO with Alice as root
@@ -134,10 +134,15 @@ contract OptimisticTokenVotingPluginTest is Test {
         L2VetoAggregation.BridgeSettings
             memory l2bridgeSettings = L2VetoAggregation.BridgeSettings(
                 1,
-                l2EndpointMock,
+                address(l2EndpointMock),
                 address(plugin)
             );
         l2VetoAggregation.initialize(l2bridgeSettings);
+
+        l2EndpointMock.setDestLzEndpoint(
+            address(plugin),
+            address(l1EndpointMock)
+        );
     }
 
     // Initialize
@@ -1992,6 +1997,14 @@ contract OptimisticTokenVotingPluginTest is Test {
         L2VetoAggregation.Proposal memory l2proposal = l2VetoAggregation
             .getProposal(proposalId);
         assertEq(l2proposal.endDate, endDate);
+
+        l2VetoAggregation.veto(proposalId);
+
+        l2proposal = l2VetoAggregation.getProposal(proposalId);
+        assertEq(l2proposal.vetoes, 0);
+
+        vm.warp(10 days);
+        l2VetoAggregation.bridgeResults{value: 0.1 ether}(proposalId);
     }
 
     // HELPERS

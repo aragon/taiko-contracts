@@ -16,7 +16,11 @@ contract L2VetoAggregation is NonblockingLzApp {
     struct Proposal {
         uint256 startDate;
         uint64 endDate;
+        uint256 vetoes;
+        bool bridged;
     }
+    /// @notice A mapping for the addresses that have vetoed
+    mapping(uint256 => mapping(address => bool)) vetoed;
 
     /// @notice A container for the majority voting bridge settings that will be required when bridging and receiving the proposals from other chains
     /// @param chainID A parameter to select the id of the destination chain
@@ -34,17 +38,8 @@ contract L2VetoAggregation is NonblockingLzApp {
     /// @notice A mapping for the live proposals
     mapping(uint256 => Proposal) internal liveProposals;
 
-    /// @notice A mapping for the live proposals
-    mapping(uint256 => uint256) internal proposalVetoes;
-
-    /// @notice A mapping for the addresses that have voted
-    mapping(address => bool) internal voted;
-
-    /// @notice A mapping for the addresses that have voted
-    mapping(uint256 => bool) internal proposalBridged;
-
     error ProposalEnded();
-    error UserAlreadyVoted();
+    error UserAlreadyVetoed();
     error ProposalAlreadyBridged();
     error BridgeAlreadySet();
 
@@ -84,41 +79,39 @@ contract L2VetoAggregation is NonblockingLzApp {
             (uint256, uint256, uint64)
         );
 
-        liveProposals[proposalId] = Proposal(startDate, endDate);
+        liveProposals[proposalId] = Proposal(startDate, endDate, 0, false);
     }
 
-    function vote(uint256 _proposalId) external {
+    function veto(uint256 _proposalId) external {
         address _voter = _msgSender();
 
         Proposal storage proposal_ = liveProposals[_proposalId];
-        if (proposal_.endDate > block.timestamp) {
+        if (proposal_.endDate < block.timestamp) {
             revert ProposalEnded();
         }
 
-        if (voted[_voter] == true) {
-            revert UserAlreadyVoted();
+        if (vetoed[_proposalId][_voter] == true) {
+            revert UserAlreadyVetoed();
         }
 
-        voted[_voter] = true;
+        vetoed[_proposalId][_voter] = true;
 
         uint256 votingPower = votingToken.getPastVotes(
             _voter,
             proposal_.startDate
         );
 
-        proposalVetoes[_proposalId] += votingPower;
+        proposal_.vetoes += votingPower;
     }
 
-    function bridgeResults(uint256 _proposalId) external {
-        if (proposalBridged[_proposalId]) {
+    function bridgeResults(uint256 _proposalId) external payable {
+        Proposal storage proposal_ = liveProposals[_proposalId];
+        if (proposal_.bridged) {
             revert ProposalAlreadyBridged();
         }
-        bytes memory encodedMessage = abi.encode(
-            _proposalId,
-            proposalVetoes[_proposalId]
-        );
+        bytes memory encodedMessage = abi.encode(_proposalId, proposal_.vetoes);
 
-        proposalBridged[_proposalId] = true;
+        proposal_.bridged = true;
 
         _lzSend({
             _dstChainId: bridgeSettings.chainId,
