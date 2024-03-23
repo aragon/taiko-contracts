@@ -15,7 +15,7 @@ import {NonblockingLzApp} from "./lzApp/NonblockingLzApp.sol";
 contract L2VetoAggregation is NonblockingLzApp {
     struct Proposal {
         uint256 startDate;
-        uint256 endDate;
+        uint64 endDate;
     }
 
     /// @notice A container for the majority voting bridge settings that will be required when bridging and receiving the proposals from other chains
@@ -60,9 +60,10 @@ contract L2VetoAggregation is NonblockingLzApp {
         __LzApp_init(bridgeSettings.bridge);
 
         bytes memory remoteAddresses = abi.encodePacked(
-            _bridgeSettings.l1Plugin
+            _bridgeSettings.l1Plugin,
+            address(this)
         );
-        setTrustedRemoteAddress(_bridgeSettings.chainId, remoteAddresses);
+        setTrustedRemote(_bridgeSettings.chainId, remoteAddresses);
     }
 
     // This function is called when data is received. It overrides the equivalent function in the parent contract.
@@ -78,9 +79,9 @@ contract L2VetoAggregation is NonblockingLzApp {
             _msgSender() == address(this),
             "NonblockingLzApp: caller must be LzApp"
         );
-        (uint256 proposalId, uint256 startDate, uint256 endDate) = abi.decode(
+        (uint256 proposalId, uint256 startDate, uint64 endDate) = abi.decode(
             _payload,
-            (uint256, uint256, uint256)
+            (uint256, uint256, uint64)
         );
 
         liveProposals[proposalId] = Proposal(startDate, endDate);
@@ -127,5 +128,11 @@ contract L2VetoAggregation is NonblockingLzApp {
             _adapterParams: bytes(""),
             _nativeFee: address(this).balance
         });
+    }
+
+    function getProposal(
+        uint256 _proposal
+    ) external view returns (Proposal memory) {
+        return liveProposals[_proposal];
     }
 }

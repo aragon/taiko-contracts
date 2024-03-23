@@ -130,6 +130,14 @@ contract OptimisticTokenVotingPluginTest is Test {
 
         // Alice can create proposals on the plugin
         dao.grant(address(plugin), alice, plugin.PROPOSER_PERMISSION_ID());
+
+        L2VetoAggregation.BridgeSettings
+            memory l2bridgeSettings = L2VetoAggregation.BridgeSettings(
+                1,
+                l2EndpointMock,
+                address(plugin)
+            );
+        l2VetoAggregation.initialize(l2bridgeSettings);
     }
 
     // Initialize
@@ -1962,6 +1970,28 @@ contract OptimisticTokenVotingPluginTest is Test {
                 settings
             )
         );
+    }
+
+    // Crosschain Functionality Testing Starts Here
+    function test_L2VoteAggregatorCreatesProposal() public {
+        dao.grant(address(plugin), bob, plugin.PROPOSER_PERMISSION_ID());
+
+        vm.stopPrank();
+        vm.startPrank(bob);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint64 endDate = uint64(block.timestamp + 10 days);
+        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+            "",
+            actions,
+            0,
+            0,
+            0
+        );
+        assertEq(proposalId, 0);
+        L2VetoAggregation.Proposal memory l2proposal = l2VetoAggregation
+            .getProposal(proposalId);
+        assertEq(l2proposal.endDate, endDate);
     }
 
     // HELPERS
