@@ -12,7 +12,7 @@ contract L2VetoAggregationDeployment is Script {
         votingToken = vm.envAddress("L2_TOKEN_ADDRESS");
     }
 
-    function run() public {
+    function run() public returns (address) {
         // 0. Setting up Foundry
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
@@ -20,7 +20,9 @@ contract L2VetoAggregationDeployment is Script {
         L2VetoAggregation l2VetoAggregation = new L2VetoAggregation(
             IVotesUpgradeable(votingToken)
         );
-
         vm.stopBroadcast();
+
+        console2.log("L2VetoAggregation: ", address(l2VetoAggregation));
+        return address(l2VetoAggregation);
     }
 }
