@@ -128,4 +128,8 @@ contract L2VetoAggregation is NonblockingLzApp {
     ) external view returns (Proposal memory) {
         return liveProposals[_proposal];
     }
+
+    function getVotingToken() public view returns (IVotesUpgradeable) {
+        return votingToken;
+    }
 }

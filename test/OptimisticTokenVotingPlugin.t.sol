@@ -1978,11 +1978,16 @@ contract OptimisticTokenVotingPluginTest is Test {
     }
 
     // Crosschain Functionality Testing Starts Here
-    function test_L2VoteAggregatorCreatesProposal() public {
+    function test_CroscchainHappyPath() public {
         dao.grant(address(plugin), bob, plugin.PROPOSER_PERMISSION_ID());
+        IVotesUpgradeable _token = l2VetoAggregation.getVotingToken();
+        ERC20VotesMock(address(_token)).mint(bob, 1 ether);
 
         vm.stopPrank();
         vm.startPrank(bob);
+
+        ERC20VotesMock(address(_token)).delegate(bob);
+        vm.roll(block.number + 10);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint64 endDate = uint64(block.timestamp + 10 days);
@@ -1997,14 +2002,18 @@ contract OptimisticTokenVotingPluginTest is Test {
         L2VetoAggregation.Proposal memory l2proposal = l2VetoAggregation
             .getProposal(proposalId);
         assertEq(l2proposal.endDate, endDate);
-
-        l2VetoAggregation.veto(proposalId);
-
-        l2proposal = l2VetoAggregation.getProposal(proposalId);
         assertEq(l2proposal.vetoes, 0);
 
-        vm.warp(10 days);
+        vm.warp(1 days);
+        l2VetoAggregation.veto(proposalId);
+        l2proposal = l2VetoAggregation.getProposal(proposalId);
+        assertEq(l2proposal.vetoes, 1 ether);
+        vm.warp(9 days);
         l2VetoAggregation.bridgeResults{value: 0.1 ether}(proposalId);
+
+        (, , , uint256 vetoTally, , uint256 _allowFailureMap) = plugin
+            .getProposal(proposalId);
+        assertEq(vetoTally, 1 ether, "Vetos were not bridged");
     }
 
     // HELPERS
