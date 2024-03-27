@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {OptimisticTokenVotingPluginSetup} from "../src/OptimisticTokenVotingPluginSetup.sol";
-import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {OptimisticLzVotingPluginSetup} from "../src/OptimisticLzVotingPluginSetup.sol";
+import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
@@ -46,7 +46,7 @@ contract Deploy is Script {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
         // 1. Deploying the Plugin Setup
-        OptimisticTokenVotingPluginSetup pluginSetup = deployPluginSetup();
+        OptimisticLzVotingPluginSetup pluginSetup = deployPluginSetup();
 
         // 2. Publishing it in the Aragon OSx Protocol
         PluginRepo pluginRepo = deployPluginRepo(address(pluginSetup));
@@ -94,9 +94,9 @@ contract Deploy is Script {
 
     function deployPluginSetup()
         public
-        returns (OptimisticTokenVotingPluginSetup)
+        returns (OptimisticLzVotingPluginSetup)
     {
-        OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
+        OptimisticLzVotingPluginSetup pluginSetup = new OptimisticLzVotingPluginSetup(
                 GovernanceERC20(governanceERC20Base),
                 GovernanceWrappedERC20(governanceWrappedERC20Base)
             );
@@ -127,12 +127,15 @@ contract Deploy is Script {
     function getPluginSettings(
         PluginRepo pluginRepo
     ) public view returns (DAOFactory.PluginSettings[] memory pluginSettings) {
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory votingSettings = OptimisticTokenVotingPlugin
+        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
+            memory votingSettings = OptimisticLzVotingPlugin
                 .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 4, 0);
-        OptimisticTokenVotingPluginSetup.TokenSettings
-            memory tokenSettings = OptimisticTokenVotingPluginSetup
-                .TokenSettings(tokenAddress, "", "");
+        OptimisticLzVotingPluginSetup.TokenSettings
+            memory tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings(
+                tokenAddress,
+                "",
+                ""
+            );
 
         address[] memory holders = new address[](0);
         uint256[] memory amounts = new uint256[](0);
@@ -143,8 +146,8 @@ contract Deploy is Script {
         proposers[0] = 0x8bF1e340055c7dE62F11229A149d3A1918de3d74;
         proposers[1] = 0x35911Cc89aaBe7Af6726046823D5b678B6A1498d;
 
-        OptimisticTokenVotingPlugin.BridgeSettings
-            memory bridgeSettings = OptimisticTokenVotingPlugin.BridgeSettings(
+        OptimisticLzVotingPlugin.BridgeSettings
+            memory bridgeSettings = OptimisticLzVotingPlugin.BridgeSettings(
                 l2ChainId,
                 lzEndpoint,
                 l2VotingAggregator

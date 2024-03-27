@@ -22,7 +22,7 @@ import {NonblockingLzApp} from "./lzApp/NonblockingLzApp.sol";
 /// @notice The abstract implementation of optimistic majority plugins.
 ///
 /// @dev This contract implements the `IOptimisticTokenVoting` interface.
-contract OptimisticTokenVotingPlugin is
+contract OptimisticLzVotingPlugin is
     IOptimisticTokenVoting,
     IMembership,
     Initializable,

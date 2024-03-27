@@ -47,6 +47,8 @@ contract L2VetoAggregation is NonblockingLzApp {
         votingToken = _votingToken;
     }
 
+    /// @notice A function to initialize the bridge settings
+    /// @param _bridgeSettings A parameter to set the bridge settings
     function initialize(BridgeSettings memory _bridgeSettings) public {
         if (bridgeSettings.chainId != 0) {
             revert BridgeAlreadySet();
@@ -63,6 +65,11 @@ contract L2VetoAggregation is NonblockingLzApp {
 
     // This function is called when data is received. It overrides the equivalent function in the parent contract.
     // This function should only be called from the L2 to send the aggregated votes and nothing else
+    /// @notice A function to receive the data from the L1
+    /// @param _srcChainId A parameter to select the id of the source chain
+    /// @param _srcAddress A parameter to select the address of the source
+    /// @param _nonce A parameter to select the nonce
+    /// @param _payload A parameter to select the payload
     function _nonblockingLzReceive(
         uint16 _srcChainId,
         bytes memory _srcAddress,
@@ -82,6 +89,8 @@ contract L2VetoAggregation is NonblockingLzApp {
         liveProposals[proposalId] = Proposal(startDate, endDate, 0, false);
     }
 
+    /// @notice A function to create a new proposal
+    /// @param _proposalId The id of the proposal to be vetoed
     function veto(uint256 _proposalId) external {
         address _voter = _msgSender();
 
@@ -104,7 +113,10 @@ contract L2VetoAggregation is NonblockingLzApp {
         proposal_.vetoes += votingPower;
     }
 
+    /// @notice A function to bridge the results of a proposal
+    /// @param _proposalId The id of the proposal to be bridged
     function bridgeResults(uint256 _proposalId) external payable {
+        // TODO: We should allow the bridging of the results to be open any time
         Proposal storage proposal_ = liveProposals[_proposalId];
         if (proposal_.bridged) {
             revert ProposalAlreadyBridged();
@@ -123,12 +135,17 @@ contract L2VetoAggregation is NonblockingLzApp {
         });
     }
 
+    /// @notice A function to get the proposal
+    /// @param _proposal The id of the proposal to be fetched
+    /// @return Proposal The proposal
     function getProposal(
         uint256 _proposal
     ) external view returns (Proposal memory) {
         return liveProposals[_proposal];
     }
 
+    /// @notice A function to get the voting token
+    /// @return IVotesUpgradeable The voting token
     function getVotingToken() public view returns (IVotesUpgradeable) {
         return votingToken;
     }
