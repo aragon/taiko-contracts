@@ -428,57 +428,6 @@ contract OptimisticLzVotingPluginTest is Test {
         );
     }
 
-    function test_TokenHoldersAreMembers() public {
-        assertEq(plugin.isMember(alice), true, "Alice should not be a member");
-        assertEq(plugin.isMember(bob), false, "Bob should not be a member");
-        assertEq(
-            plugin.isMember(randomWallet),
-            false,
-            "Random wallet should not be a member"
-        );
-
-        // New token
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(
-                address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
-            )
-        );
-        votingToken.mint(alice, 10 ether);
-        votingToken.mint(bob, 5 ether);
-        vm.roll(block.number + 1);
-
-        // Deploy a new plugin instance
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
-                .OptimisticGovernanceSettings({
-                    minVetoRatio: uint32(RATIO_BASE / 10),
-                    minDuration: 10 days,
-                    minProposerVotingPower: 1 ether
-                });
-
-        plugin = OptimisticLzVotingPlugin(
-            createProxyAndCall(
-                address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken,
-                    lzAppEndpoint
-                )
-            )
-        );
-
-        assertEq(plugin.isMember(alice), true, "Alice should be a member");
-        assertEq(plugin.isMember(bob), true, "Bob should be a member");
-        assertEq(
-            plugin.isMember(randomWallet),
-            false,
-            "Random wallet should not be a member"
-        );
-    }
-
     // Create proposal
     function test_CreateProposalRevertsWhenCalledByANonProposer() public {
         vm.stopPrank();

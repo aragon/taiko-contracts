@@ -20,7 +20,7 @@ contract Deploy is Script {
     uint16 l2ChainId;
     address lzEndpoint;
     address tokenAddress;
-    address l2VotingAggregator;
+    address l2VetoAggregation;
     string entropyName;
     address[] pluginAddress;
 
@@ -34,7 +34,7 @@ contract Deploy is Script {
         l2ChainId = uint16(vm.envUint("L2_CHAIN_ID"));
         lzEndpoint = vm.envAddress("LZ_L1_ENDPOINT");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
-        l2VotingAggregator = vm.envAddress("L2_VOTING_AGG");
+        l2VetoAggregation = vm.envAddress("L2_VETO_AGGREGATION");
         entropyName = string.concat(
             "optimistic-crosschain-",
             vm.toString(block.timestamp)
@@ -129,7 +129,7 @@ contract Deploy is Script {
     ) public view returns (DAOFactory.PluginSettings[] memory pluginSettings) {
         OptimisticLzVotingPlugin.OptimisticGovernanceSettings
             memory votingSettings = OptimisticLzVotingPlugin
-                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 4, 0);
+                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 6, 0);
         OptimisticLzVotingPluginSetup.TokenSettings
             memory tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings(
                 tokenAddress,
@@ -142,15 +142,16 @@ contract Deploy is Script {
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
             .MintSettings(holders, amounts);
 
-        address[] memory proposers = new address[](2);
+        address[] memory proposers = new address[](3);
         proposers[0] = 0x8bF1e340055c7dE62F11229A149d3A1918de3d74;
         proposers[1] = 0x35911Cc89aaBe7Af6726046823D5b678B6A1498d;
+        proposers[2] = 0xa722c2c1f2218929945737EbdB8cB0f228E43265;
 
         OptimisticLzVotingPlugin.BridgeSettings
             memory bridgeSettings = OptimisticLzVotingPlugin.BridgeSettings(
                 l2ChainId,
                 lzEndpoint,
-                l2VotingAggregator
+                l2VetoAggregation
             );
 
         bytes memory pluginSettingsData = abi.encode(

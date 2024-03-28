@@ -24,7 +24,6 @@ import {NonblockingLzApp} from "./lzApp/NonblockingLzApp.sol";
 /// @dev This contract implements the `IOptimisticTokenVoting` interface.
 contract OptimisticLzVotingPlugin is
     IOptimisticTokenVoting,
-    IMembership,
     Initializable,
     ERC165Upgradeable,
     PluginUUPSUpgradeable,
@@ -191,8 +190,6 @@ contract OptimisticLzVotingPlugin is
             address(this)
         );
         setTrustedRemote(_bridgeSettings.chainId, remoteAddresses);
-
-        emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -217,14 +214,6 @@ contract OptimisticLzVotingPlugin is
     /// @inheritdoc IOptimisticTokenVoting
     function getVotingToken() public view returns (IVotesUpgradeable) {
         return votingToken;
-    }
-
-    /// @inheritdoc IMembership
-    function isMember(address _account) external view returns (bool) {
-        // A member must own at least one token or have at least one token delegated to her/him.
-        return
-            votingToken.getVotes(_account) > 0 ||
-            IERC20Upgradeable(address(votingToken)).balanceOf(_account) > 0;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -272,11 +261,12 @@ contract OptimisticLzVotingPlugin is
         Proposal storage proposal_ = proposals[_proposalId];
 
         // Verify that the vote has not been executed already.
+        uint64 currentTime = block.timestamp.toUint64();
         if (proposal_.executed) {
             return false;
         }
         // Check that the proposal vetoing time frame already expired
-        else if (!_isProposalEnded(proposal_)) {
+        else if (currentTime < proposal_.parameters.endDate) {
             return false;
         }
         // Check that not enough voters have vetoed the proposal
@@ -549,17 +539,6 @@ contract OptimisticLzVotingPlugin is
             !proposal_.executed;
     }
 
-    /// @notice Internal function to check if a proposal already ended.
-    /// @param proposal_ The proposal struct.
-    /// @return True if the end date of the proposal is already in the past, false otherwise.
-    function _isProposalEnded(
-        Proposal storage proposal_
-    ) internal view virtual returns (bool) {
-        uint64 currentTime = block.timestamp.toUint64();
-
-        return currentTime >= proposal_.parameters.endDate;
-    }
-
     /// @notice Validates and returns the proposal vote dates.
     /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
@@ -640,5 +619,6 @@ contract OptimisticLzVotingPlugin is
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
-    uint256[50] private __gap;
+    // TODO: Add this back in once deployment works
+    // uint256[50] private __gap;
 }

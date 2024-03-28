@@ -5,7 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {L2VetoAggregation} from "../src/L2VetoAggregation.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-contract L2VetoAggregationDeployment is Script {
+contract Deploy is Script {
     address votingToken;
 
     function setUp() public {
