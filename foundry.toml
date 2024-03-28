@@ -3,11 +3,18 @@ src = "src"
 out = "out"
 libs = ["lib"]
 evm_version = "shanghai"
+optimizer = true
+optimizer-runs = 10_000_000
+
 # solc = "0.8.20"
 
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"
+base_sepolia = "${SEPOLIA_BASE_RPC_URL}"
+mumbai = "${MUMBAI_RPC_URL}"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+mumbai = { key = "${ETHERSCAN_API_KEY}" }
