@@ -288,7 +288,7 @@ contract Deploy is Script {
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
             .MintSettings(holders, amounts);
 
-        bytes memory settingsData = pluginSetup.encodeInstallationParameters(
+        bytes memory settingsData = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
