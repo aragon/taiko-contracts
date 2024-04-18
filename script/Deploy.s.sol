@@ -19,9 +19,6 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
 
-uint16 constant MIN_EMERGENCY_APPROVALS = 11;
-uint16 constant MIN_STD_APPROVALS = 7;
-
 contract Deploy is Script {
     DAO daoImplementation;
     Multisig multisigImplementation;
@@ -32,6 +29,9 @@ contract Deploy is Script {
     address pluginRepoFactory;
     address tokenAddress;
     address[] multisigMembers;
+
+    uint16 minStdApprovals;
+    uint16 minEmergencyApprovals;
 
     address lzAppEndpoint;
 
@@ -50,6 +50,10 @@ contract Deploy is Script {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
 
+        minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
+        minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));
+
+        // JSON list of members
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/utils/members.json");
         string memory json = vm.readFile(path);
@@ -75,15 +79,11 @@ contract Deploy is Script {
             IPluginSetup.PreparedSetupData memory preparedSetupData2
         ) = prepareEmergencyMultisig(dao);
 
-        address[] memory proposerPlugins = new address[](2);
-        proposerPlugins[0] = p1;
-        proposerPlugins[1] = p2;
-
         (
             address p3,
             PluginRepo pr3,
             IPluginSetup.PreparedSetupData memory preparedSetupData3
-        ) = prepareOptimisticTokenVoting(dao, proposerPlugins);
+        ) = prepareOptimisticTokenVoting(dao, p1, p2);
 
         // Apply installations
         dao.grant(
@@ -174,7 +174,7 @@ contract Deploy is Script {
             multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
-                MIN_STD_APPROVALS // minAppovals
+                minStdApprovals // minAppovals
             ),
             lzAppEndpoint
         );
@@ -221,7 +221,7 @@ contract Deploy is Script {
             multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
-                MIN_EMERGENCY_APPROVALS // minAppovals
+                minEmergencyApprovals // minAppovals
             ),
             lzAppEndpoint
         );
@@ -245,7 +245,8 @@ contract Deploy is Script {
 
     function prepareOptimisticTokenVoting(
         DAO dao,
-        address[] memory _allowedProposerPlugins
+        address stdProposer,
+        address emergencyProposer
     )
         internal
         returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
@@ -269,7 +270,11 @@ contract Deploy is Script {
         // Plugin settings
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory votingSettings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 4, 0);
+                .OptimisticGovernanceSettings(
+                    200000, // minVetoRatio - 20%
+                    0, // minDuration (the condition will enforce it)
+                    0 // minProposerVotingPower
+                );
 
         OptimisticTokenVotingPluginSetup.TokenSettings
             memory tokenSettings = OptimisticTokenVotingPluginSetup
@@ -284,7 +289,8 @@ contract Deploy is Script {
             votingSettings,
             tokenSettings,
             mintSettings,
-            _allowedProposerPlugins,
+            stdProposer,
+            emergencyProposer,
             lzAppEndpoint
         );
 

@@ -68,15 +68,6 @@ contract MultisigPluginSetup is PluginSetup {
             multisigBase.UPGRADE_PLUGIN_PERMISSION_ID()
         );
 
-        // Grant `EXECUTE_PERMISSION` of the DAO to the plugin.
-        permissions[2] = PermissionLib.MultiTargetPermission(
-            PermissionLib.Operation.Grant,
-            _dao,
-            plugin,
-            PermissionLib.NO_CONDITION,
-            DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
-        );
-
         preparedSetupData.permissions = permissions;
     }
 
@@ -122,14 +113,6 @@ contract MultisigPluginSetup is PluginSetup {
             _dao,
             PermissionLib.NO_CONDITION,
             multisigBase.UPGRADE_PLUGIN_PERMISSION_ID()
-        );
-
-        permissions[2] = PermissionLib.MultiTargetPermission(
-            PermissionLib.Operation.Revoke,
-            _dao,
-            _payload.plugin,
-            PermissionLib.NO_CONDITION,
-            DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         );
     }
 
