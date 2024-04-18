@@ -15,7 +15,7 @@ import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/Plug
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGovernanceWrappedERC20.sol";
-import {OptimisticLzVotingPlugin} from "./OptimisticLzVotingPlugin.sol";
+import {OptimisticLzVotingPlugin} from "../OptimisticLzVotingPlugin.sol";
 
 /// @title OptimisticLzVotingPluginSetup
 /// @author Aragon Association - 2022-2023

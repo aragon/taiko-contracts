@@ -1,0 +1,316 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import {Script, console2} from "forge-std/Script.sol";
+import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
+import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
+import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
+import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
+import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
+import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+import {Multisig} from "@aragon/osx/plugins/governance/multisig/Multisig.sol";
+import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
+import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
+import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
+
+uint16 constant MIN_EMERGENCY_APPROVALS = 11;
+uint16 constant MIN_STD_APPROVALS = 7;
+
+contract Deploy is Script {
+    DAO daoImplementation;
+    Multisig multisigImplementation;
+
+    address governanceERC20Base;
+    address governanceWrappedERC20Base;
+    PluginSetupProcessor pluginSetupProcessor;
+    address pluginRepoFactory;
+    address tokenAddress;
+    address[] multisigMembers;
+
+    address lzAppEndpoint;
+
+    constructor() {
+        // Implementations
+        daoImplementation = new DAO();
+        multisigImplementation = new Multisig();
+
+        governanceERC20Base = vm.envAddress("GOVERNANCE_ERC20_BASE");
+        governanceWrappedERC20Base = vm.envAddress(
+            "GOVERNANCE_WRAPPED_ERC20_BASE"
+        );
+        pluginSetupProcessor = PluginSetupProcessor(
+            vm.envAddress("PLUGIN_SETUP_PROCESSOR")
+        );
+        pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
+        tokenAddress = vm.envAddress("TOKEN_ADDRESS");
+        multisigMembers = vm.parseJsonAddressArray(
+            vm.envString("MULTISIG_MEMBERS_JSON"),
+            "MULTISIG_MEMBERS"
+        );
+
+        lzAppEndpoint = vm.envAddress("LZ_APP_ENTRY_POINT");
+    }
+
+    function run() public {
+        // Deploy a raw DAO
+        DAO dao = prepareDao();
+
+        // Prepare plugins
+        (
+            address p1,
+            PluginRepo pr1,
+            IPluginSetup.PreparedSetupData memory preparedSetupData1
+        ) = prepareMultisig(dao);
+
+        (
+            address p2,
+            PluginRepo pr2,
+            IPluginSetup.PreparedSetupData memory preparedSetupData2
+        ) = prepareEmergencyMultisig(dao);
+
+        address[] memory proposerPlugins = new address[](2);
+        proposerPlugins[0] = p1;
+        proposerPlugins[1] = p2;
+
+        (
+            address p3,
+            PluginRepo pr3,
+            IPluginSetup.PreparedSetupData memory preparedSetupData3
+        ) = prepareOptimisticTokenVoting(dao, proposerPlugins);
+
+        // Apply installations
+        dao.grant(
+            address(dao),
+            address(pluginSetupProcessor),
+            dao.ROOT_PERMISSION_ID()
+        );
+
+        applyPluginInstallation(dao, p1, pr1, preparedSetupData1);
+        applyPluginInstallation(dao, p2, pr2, preparedSetupData2);
+        applyPluginInstallation(dao, p3, pr3, preparedSetupData3);
+
+        dao.revoke(
+            address(dao),
+            address(pluginSetupProcessor),
+            dao.ROOT_PERMISSION_ID()
+        );
+
+        // Remove ourselves as root
+
+        dao.revoke(address(dao), getDeployerWallet(), dao.ROOT_PERMISSION_ID());
+    }
+
+    // Helpers
+
+    function prepareDeployerWallet() internal {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
+        // vm.stopBroadcast();
+    }
+
+    function getDeployerWallet() private returns (address) {
+        return msg.sender;
+    }
+
+    function prepareDao() internal returns (DAO dao) {
+        dao = DAO(
+            payable(
+                createERC1967Proxy(
+                    address(daoImplementation),
+                    abi.encodeWithSelector(
+                        DAO.initialize.selector,
+                        "", // Metadata URI
+                        getDeployerWallet(),
+                        address(0x0),
+                        "" // DAO URI
+                    )
+                )
+            )
+        );
+    }
+
+    function prepareMultisig(
+        DAO dao
+    )
+        internal
+        returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
+    {
+        // Deploy plugin setup
+        MultisigPluginSetup pluginSetup = new MultisigPluginSetup(
+            multisigImplementation
+        );
+
+        // Publish repo
+        PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
+            .createPluginRepoWithFirstVersion(
+                "ens-of-the-multisig",
+                address(pluginSetup),
+                msg.sender,
+                "0x",
+                "0x"
+            );
+
+        bytes memory settingsData = pluginSetup.encodeInstallationParameters(
+            multisigMembers,
+            Multisig.MultisigSettings(
+                true, // onlyListed
+                MIN_STD_APPROVALS // minAppovals
+            ),
+            lzAppEndpoint
+        );
+
+        (
+            address plugin,
+            IPluginSetup.PreparedSetupData memory preparedSetupData
+        ) = pluginSetupProcessor.prepareInstallation(
+                address(dao),
+                PluginSetupProcessor.PrepareInstallationParams(
+                    PluginSetupRef(
+                        PluginRepo.Tag(1, 1),
+                        PluginRepo(pluginRepo)
+                    ),
+                    settingsData
+                )
+            );
+
+        return (plugin, pluginRepo, preparedSetupData);
+    }
+
+    function prepareEmergencyMultisig(
+        DAO dao
+    )
+        internal
+        returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
+    {
+        // Deploy plugin setup
+        EmergencyMultisigPluginSetup pluginSetup = new EmergencyMultisigPluginSetup(
+                multisigImplementation
+            );
+
+        // Publish repo
+        PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
+            .createPluginRepoWithFirstVersion(
+                "ens-of-the-emergency-multisig",
+                address(pluginSetup),
+                msg.sender,
+                "0x",
+                "0x"
+            );
+
+        bytes memory settingsData = pluginSetup.encodeInstallationParameters(
+            multisigMembers,
+            Multisig.MultisigSettings(
+                true, // onlyListed
+                MIN_EMERGENCY_APPROVALS // minAppovals
+            ),
+            lzAppEndpoint
+        );
+
+        (
+            address plugin,
+            IPluginSetup.PreparedSetupData memory preparedSetupData
+        ) = pluginSetupProcessor.prepareInstallation(
+                address(dao),
+                PluginSetupProcessor.PrepareInstallationParams(
+                    PluginSetupRef(
+                        PluginRepo.Tag(1, 1),
+                        PluginRepo(pluginRepo)
+                    ),
+                    settingsData
+                )
+            );
+
+        return (plugin, pluginRepo, preparedSetupData);
+    }
+
+    function prepareOptimisticTokenVoting(
+        DAO dao,
+        address[] memory _allowedProposerPlugins
+    )
+        internal
+        returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
+    {
+        // Deploy plugin setup
+        OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
+                GovernanceERC20(governanceERC20Base),
+                GovernanceWrappedERC20(governanceWrappedERC20Base)
+            );
+
+        // Publish repo
+        PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
+            .createPluginRepoWithFirstVersion(
+                "ens-of-the-optimistic-token-voting",
+                address(pluginSetup),
+                msg.sender,
+                "0x",
+                "0x"
+            );
+
+        // Plugin settings
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory votingSettings = OptimisticTokenVotingPlugin
+                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 4, 0);
+
+        OptimisticTokenVotingPluginSetup.TokenSettings
+            memory tokenSettings = OptimisticTokenVotingPluginSetup
+                .TokenSettings(tokenAddress, "", "");
+
+        address[] memory holders = new address[](0);
+        uint256[] memory amounts = new uint256[](0);
+        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
+            .MintSettings(holders, amounts);
+
+        bytes memory settingsData = pluginSetup.encodeInstallationParameters(
+            votingSettings,
+            tokenSettings,
+            mintSettings,
+            _allowedProposerPlugins,
+            lzAppEndpoint
+        );
+
+        (
+            address plugin,
+            IPluginSetup.PreparedSetupData memory preparedSetupData
+        ) = pluginSetupProcessor.prepareInstallation(
+                address(dao),
+                PluginSetupProcessor.PrepareInstallationParams(
+                    PluginSetupRef(
+                        PluginRepo.Tag(1, 1),
+                        PluginRepo(pluginRepo)
+                    ),
+                    settingsData
+                )
+            );
+
+        return (plugin, pluginRepo, preparedSetupData);
+    }
+
+    function applyPluginInstallation(
+        DAO dao,
+        address plugin,
+        PluginRepo pluginRepo,
+        IPluginSetup.PreparedSetupData memory preparedSetupData
+    ) internal {
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0] = IDAO.Action(
+            address(dao),
+            0,
+            abi.encodeWithSelector(
+                PluginSetupProcessor.applyInstallation.selector,
+                dao,
+                PluginSetupProcessor.ApplyInstallationParams(
+                    PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo),
+                    plugin,
+                    preparedSetupData.permissions,
+                    preparedSetupData.helpers
+                )
+            )
+        );
+        dao.execute(0x1, actions, 0);
+    }
+}
