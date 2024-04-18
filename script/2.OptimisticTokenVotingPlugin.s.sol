@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {OptimisticLzVotingPluginSetup} from "../src/OptimisticLzVotingPluginSetup.sol";
+import {OptimisticLzVotingPluginSetup} from "../src/setup/OptimisticLzVotingPluginSetup.sol";
 import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";

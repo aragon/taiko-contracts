@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
-import {OptimisticLzVotingPluginSetup} from "../src/OptimisticLzVotingPluginSetup.sol";
+import {OptimisticLzVotingPluginSetup} from "../src/setup/OptimisticLzVotingPluginSetup.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";

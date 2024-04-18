@@ -5,7 +5,8 @@ pragma solidity ^0.8.17;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondition.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
+import {OptimisticLzVotingPlugin} from "../OptimisticLzVotingPlugin.sol";
+
 // import {PermissionCondition} from "@aragon/osx/core/permission/PermissionCondition.sol";
 
 /// @title PermissionCondition
@@ -44,7 +45,7 @@ contract StandardProposalCondition is ERC165, IPermissionCondition {
         // Is it createProposal()?
         if (
             _getSelector(_data) !=
-            OptimisticTokenVotingPlugin.createProposal.selector
+            OptimisticLzVotingPlugin.createProposal.selector
         ) {
             return false;
         }

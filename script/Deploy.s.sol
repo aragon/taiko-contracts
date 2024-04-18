@@ -3,10 +3,10 @@ pragma solidity ^0.8.13;
 
 import {VmSafe} from "forge-std/Vm.sol";
 import {Script, console2} from "forge-std/Script.sol";
-import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
+import {OptimisticLzVotingPluginSetup} from "../src/setup/OptimisticLzVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
 import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
-import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
@@ -252,7 +252,7 @@ contract Deploy is Script {
         returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
         // Deploy plugin setup
-        OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
+        OptimisticLzVotingPluginSetup pluginSetup = new OptimisticLzVotingPluginSetup(
                 GovernanceERC20(governanceERC20Base),
                 GovernanceWrappedERC20(governanceWrappedERC20Base)
             );
@@ -268,17 +268,20 @@ contract Deploy is Script {
             );
 
         // Plugin settings
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory votingSettings = OptimisticTokenVotingPlugin
+        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
+            memory votingSettings = OptimisticLzVotingPlugin
                 .OptimisticGovernanceSettings(
                     200000, // minVetoRatio - 20%
                     0, // minDuration (the condition will enforce it)
                     0 // minProposerVotingPower
                 );
 
-        OptimisticTokenVotingPluginSetup.TokenSettings
-            memory tokenSettings = OptimisticTokenVotingPluginSetup
-                .TokenSettings(tokenAddress, "", "");
+        OptimisticLzVotingPluginSetup.TokenSettings
+            memory tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings(
+                tokenAddress,
+                "",
+                ""
+            );
 
         address[] memory holders = new address[](0);
         uint256[] memory amounts = new uint256[](0);
