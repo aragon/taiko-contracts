@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import {VmSafe} from "forge-std/Vm.sol";
 import {Script, console2} from "forge-std/Script.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
@@ -48,10 +49,11 @@ contract Deploy is Script {
         );
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
-        multisigMembers = vm.parseJsonAddressArray(
-            vm.envString("MULTISIG_MEMBERS_JSON"),
-            "MULTISIG_MEMBERS"
-        );
+
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, "/utils/members.json");
+        string memory json = vm.readFile(path);
+        multisigMembers = vm.parseJsonAddressArray(json, "$.addresses");
 
         lzAppEndpoint = vm.envAddress("LZ_APP_ENTRY_POINT");
     }
@@ -114,7 +116,20 @@ contract Deploy is Script {
     }
 
     function getDeployerWallet() private returns (address) {
-        return msg.sender;
+        VmSafe.Wallet memory wallet = vm.createWallet(
+            vm.envUint("PRIVATE_KEY")
+        );
+
+        return
+            address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            abi.encode(wallet.publicKeyX, wallet.publicKeyY)
+                        )
+                    )
+                )
+            );
     }
 
     function prepareDao() internal returns (DAO dao) {
@@ -307,10 +322,10 @@ contract Deploy is Script {
                     PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo),
                     plugin,
                     preparedSetupData.permissions,
-                    preparedSetupData.helpers
+                    hashHelpers(preparedSetupData.helpers)
                 )
             )
         );
-        dao.execute(0x1, actions, 0);
+        dao.execute(bytes32(uint256(0x1)), actions, 0);
     }
 }
