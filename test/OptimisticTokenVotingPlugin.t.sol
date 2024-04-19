@@ -6,6 +6,7 @@ import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.so
 import {IOptimisticTokenVoting} from "../src/IOptimisticTokenVoting.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
 import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
@@ -13,6 +14,7 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ERC20VotesMock} from "./mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
+import {IERC1822ProxiableUpgradeable} from "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
 
 contract OptimisticTokenVotingPluginTest is Test {
     address immutable daoBase = address(new DAO());
@@ -315,10 +317,19 @@ contract OptimisticTokenVotingPluginTest is Test {
         supported = plugin.supportsInterface(bytes4(0xffffffff));
         assertEq(supported, false, "Should not support any other interface");
 
-        // Some fuzzing values are expected to be true
-        if (_randomInterfaceId == bytes4(0x52d1902d)) {
+        // Certain fuzzing values are expected to be true
+        if (
+            _randomInterfaceId == plugin.OPTIMISTIC_GOVERNANCE_INTERFACE_ID() ||
+            _randomInterfaceId == type(IERC165Upgradeable).interfaceId ||
+            _randomInterfaceId == type(IPlugin).interfaceId ||
+            _randomInterfaceId == type(IProposal).interfaceId ||
+            _randomInterfaceId ==
+            type(IERC1822ProxiableUpgradeable).interfaceId ||
+            _randomInterfaceId == type(IOptimisticTokenVoting).interfaceId ||
+            _randomInterfaceId == type(IMembership).interfaceId
+        ) {
             supported = plugin.supportsInterface(_randomInterfaceId);
-            assertEq(supported, true, "proxiableUUID should be supported");
+            assertEq(supported, true, "Interface should be supported");
             return;
         }
 

@@ -191,7 +191,6 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // Deploy the Std proposal condition
         StandardProposalCondition stdProposalCondition = new StandardProposalCondition(
                 address(_dao),
-                address(plugin),
                 MIN_DELAY
             );
 

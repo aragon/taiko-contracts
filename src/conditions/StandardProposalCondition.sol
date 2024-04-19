@@ -14,12 +14,15 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 /// @notice An abstract contract for non-upgradeable contracts instantiated via the `new` keyword  to inherit from to support customary permissions depending on arbitrary on-chain state.
 contract StandardProposalCondition is ERC165, IPermissionCondition {
     address dao;
-    address targetPlugin;
     uint256 minDelay;
 
-    constructor(address _dao, address _targetPlugin, uint256 _minDelay) {
+    /**
+     *
+     * @param _dao The address of the DAO on which permissions are defined
+     * @param _minDelay The minimum amount of seconds to enforce for proposals created
+     */
+    constructor(address _dao, uint256 _minDelay) {
         dao = _dao;
-        targetPlugin = _targetPlugin;
         minDelay = _minDelay;
     }
 
