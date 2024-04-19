@@ -13,12 +13,11 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ERC20VotesMock} from "./mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
-import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 contract OptimisticTokenVotingPluginTest is Test {
     address immutable daoBase = address(new DAO());
     address immutable pluginBase = address(new OptimisticTokenVotingPlugin());
-    address votingTokenBase = address(new ERC20VotesMock());
+    address immutable votingTokenBase = address(new ERC20VotesMock());
 
     DAO public dao;
     OptimisticTokenVotingPlugin public plugin;
@@ -54,8 +53,6 @@ contract OptimisticTokenVotingPluginTest is Test {
 
     function setUp() public {
         vm.startPrank(alice);
-        vm.deal(alice, 1000 ether);
-        vm.deal(bob, 1000 ether);
 
         // Deploy a DAO with Alice as root
         dao = DAO(
@@ -148,6 +145,22 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
+        assertEq(
+            plugin.totalVotingPower(block.number - 1),
+            10 ether,
+            "Incorrect token supply"
+        );
+        assertEq(
+            plugin.minVetoRatio(),
+            uint32(RATIO_BASE / 10),
+            "Incorrect minVetoRatio"
+        );
+        assertEq(plugin.minDuration(), 10 days, "Incorrect minDuration");
+        assertEq(
+            plugin.minProposerVotingPower(),
+            0,
+            "Incorrect minProposerVotingPower"
+        );
 
         // Different minVetoRatio
         settings.minVetoRatio = uint32(RATIO_BASE / 5);
@@ -161,6 +174,11 @@ contract OptimisticTokenVotingPluginTest is Test {
                     votingToken
                 )
             )
+        );
+        assertEq(
+            plugin.minVetoRatio(),
+            uint32(RATIO_BASE / 5),
+            "Incorrect minVetoRatio"
         );
 
         // Different minDuration
@@ -176,6 +194,7 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
+        assertEq(plugin.minDuration(), 25 days, "Incorrect minDuration");
 
         // A token with 10 eth supply
         votingToken = ERC20VotesMock(
@@ -198,6 +217,11 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
+        assertEq(
+            plugin.totalVotingPower(block.number - 1),
+            10 ether,
+            "Incorrect token supply"
+        );
 
         // Different minProposerVotingPower
         settings.minProposerVotingPower = 1 ether;
@@ -211,6 +235,11 @@ contract OptimisticTokenVotingPluginTest is Test {
                     votingToken
                 )
             )
+        );
+        assertEq(
+            plugin.minProposerVotingPower(),
+            1 ether,
+            "Incorrect minProposerVotingPower"
         );
     }
 
@@ -240,7 +269,7 @@ contract OptimisticTokenVotingPluginTest is Test {
     }
 
     // Getters
-    function test_SupportsOptimisticGovernanceInterface() public {
+    function test_SupportsOptimisticGovernanceInterface() public view {
         bool supported = plugin.supportsInterface(
             plugin.OPTIMISTIC_GOVERNANCE_INTERFACE_ID()
         );
@@ -251,26 +280,26 @@ contract OptimisticTokenVotingPluginTest is Test {
         );
     }
 
-    function test_SupportsIOptimisticTokenVotingInterface() public {
+    function test_SupportsIOptimisticTokenVotingInterface() public view {
         bool supported = plugin.supportsInterface(
             type(IOptimisticTokenVoting).interfaceId
         );
         assertEq(supported, true, "Should support IOptimisticTokenVoting");
     }
 
-    function test_SupportsIMembershipInterface() public {
+    function test_SupportsIMembershipInterface() public view {
         bool supported = plugin.supportsInterface(
             type(IMembership).interfaceId
         );
         assertEq(supported, true, "Should support IMembership");
     }
 
-    function test_SupportsIProposalInterface() public {
+    function test_SupportsIProposalInterface() public view {
         bool supported = plugin.supportsInterface(type(IProposal).interfaceId);
         assertEq(supported, true, "Should support IProposal");
     }
 
-    function test_SupportsIERC165UpgradeableInterface() public {
+    function test_SupportsIERC165UpgradeableInterface() public view {
         bool supported = plugin.supportsInterface(
             type(IERC165Upgradeable).interfaceId
         );
@@ -279,12 +308,19 @@ contract OptimisticTokenVotingPluginTest is Test {
 
     function testFuzz_SupportsInterfaceReturnsFalseOtherwise(
         bytes4 _randomInterfaceId
-    ) public {
+    ) public view {
         bool supported = plugin.supportsInterface(bytes4(0x000000));
         assertEq(supported, false, "Should not support any other interface");
 
         supported = plugin.supportsInterface(bytes4(0xffffffff));
         assertEq(supported, false, "Should not support any other interface");
+
+        // Some fuzzing values are expected to be true
+        if (_randomInterfaceId == bytes4(0x52d1902d)) {
+            supported = plugin.supportsInterface(_randomInterfaceId);
+            assertEq(supported, true, "proxiableUUID should be supported");
+            return;
+        }
 
         supported = plugin.supportsInterface(_randomInterfaceId);
         assertEq(supported, false, "Should not support any other interface");
@@ -340,7 +376,68 @@ contract OptimisticTokenVotingPluginTest is Test {
         );
     }
 
+    function test_TotalVotingPowerReturnsTheRightSupply() public {
+        assertEq(
+            plugin.totalVotingPower(block.number - 1),
+            votingToken.getPastTotalSupply(block.number - 1),
+            "Incorrect total voting power"
+        );
+        assertEq(
+            plugin.totalVotingPower(block.number - 1),
+            10 ether,
+            "Incorrect total voting power"
+        );
+
+        // New token
+        votingToken = ERC20VotesMock(
+            createProxyAndCall(
+                address(votingTokenBase),
+                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+            )
+        );
+        votingToken.mint(alice, 15 ether);
+        vm.roll(block.number + 1);
+
+        // Deploy a new plugin instance
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
+                .OptimisticGovernanceSettings({
+                    minVetoRatio: uint32(RATIO_BASE / 10),
+                    minDuration: 10 days,
+                    minProposerVotingPower: 0
+                });
+
+        plugin = OptimisticTokenVotingPlugin(
+            createProxyAndCall(
+                address(pluginBase),
+                abi.encodeWithSelector(
+                    OptimisticTokenVotingPlugin.initialize.selector,
+                    dao,
+                    settings,
+                    votingToken
+                )
+            )
+        );
+
+        assertEq(
+            plugin.totalVotingPower(block.number - 1),
+            votingToken.getPastTotalSupply(block.number - 1),
+            "Incorrect total voting power"
+        );
+        assertEq(
+            plugin.totalVotingPower(block.number - 1),
+            15 ether,
+            "Incorrect total voting power"
+        );
+    }
+
     function test_MinVetoRatioReturnsTheRightValue() public {
+        assertEq(
+            plugin.minVetoRatio(),
+            uint32(RATIO_BASE / 10),
+            "Incorrect minVetoRatio"
+        );
+
         // New plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory settings = OptimisticTokenVotingPlugin
@@ -361,9 +458,17 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
+
+        assertEq(
+            plugin.minVetoRatio(),
+            uint32(RATIO_BASE / 5),
+            "Incorrect minVetoRatio"
+        );
     }
 
     function test_MinDurationReturnsTheRightValue() public {
+        assertEq(plugin.minDuration(), 10 days, "Incorrect minDuration");
+
         // New plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory settings = OptimisticTokenVotingPlugin
@@ -384,6 +489,103 @@ contract OptimisticTokenVotingPluginTest is Test {
                 )
             )
         );
+
+        assertEq(plugin.minDuration(), 25 days, "Incorrect minDuration");
+    }
+
+    function test_MinProposerVotingPowerReturnsTheRightValue() public {
+        assertEq(
+            plugin.minProposerVotingPower(),
+            0,
+            "Incorrect minProposerVotingPower"
+        );
+
+        // New token
+        votingToken = ERC20VotesMock(
+            createProxyAndCall(
+                address(votingTokenBase),
+                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+            )
+        );
+        votingToken.mint(alice, 10 ether);
+        vm.roll(block.number + 1);
+
+        // Deploy a new plugin instance
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
+                .OptimisticGovernanceSettings({
+                    minVetoRatio: uint32(RATIO_BASE / 10),
+                    minDuration: 10 days,
+                    minProposerVotingPower: 1 ether
+                });
+
+        plugin = OptimisticTokenVotingPlugin(
+            createProxyAndCall(
+                address(pluginBase),
+                abi.encodeWithSelector(
+                    OptimisticTokenVotingPlugin.initialize.selector,
+                    dao,
+                    settings,
+                    votingToken
+                )
+            )
+        );
+
+        assertEq(
+            plugin.minProposerVotingPower(),
+            1 ether,
+            "Incorrect minProposerVotingPower"
+        );
+    }
+
+    function test_TokenHoldersAreMembers() public {
+        assertEq(plugin.isMember(alice), true, "Alice should not be a member");
+        assertEq(plugin.isMember(bob), false, "Bob should not be a member");
+        assertEq(
+            plugin.isMember(randomWallet),
+            false,
+            "Random wallet should not be a member"
+        );
+
+        // New token
+        votingToken = ERC20VotesMock(
+            createProxyAndCall(
+                address(votingTokenBase),
+                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+            )
+        );
+        votingToken.mint(alice, 10 ether);
+        votingToken.mint(bob, 5 ether);
+        vm.roll(block.number + 1);
+
+        // Deploy a new plugin instance
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
+                .OptimisticGovernanceSettings({
+                    minVetoRatio: uint32(RATIO_BASE / 10),
+                    minDuration: 10 days,
+                    minProposerVotingPower: 1 ether
+                });
+
+        plugin = OptimisticTokenVotingPlugin(
+            createProxyAndCall(
+                address(pluginBase),
+                abi.encodeWithSelector(
+                    OptimisticTokenVotingPlugin.initialize.selector,
+                    dao,
+                    settings,
+                    votingToken
+                )
+            )
+        );
+
+        assertEq(plugin.isMember(alice), true, "Alice should be a member");
+        assertEq(plugin.isMember(bob), true, "Bob should be a member");
+        assertEq(
+            plugin.isMember(randomWallet),
+            false,
+            "Random wallet should not be a member"
+        );
     }
 
     // Create proposal
@@ -400,12 +602,12 @@ contract OptimisticTokenVotingPluginTest is Test {
                 plugin.PROPOSER_PERMISSION_ID()
             )
         );
-        plugin.createProposal{value: 1 ether}("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0, 0);
 
         vm.stopPrank();
         vm.startPrank(alice);
 
-        plugin.createProposal{value: 1 ether}("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0, 0);
     }
 
     function test_CreateProposalSucceedsWhenMinimumVotingPowerIsZero() public {
@@ -416,21 +618,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.startPrank(bob);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
         assertEq(proposalId, 0);
-        proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
+        proposalId = plugin.createProposal("", actions, 0, 0, 0);
         assertEq(proposalId, 1);
     }
 
@@ -466,7 +656,7 @@ contract OptimisticTokenVotingPluginTest is Test {
                 bob
             )
         );
-        plugin.createProposal{value: 1 ether}("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0, 0);
     }
 
     function test_CreateProposalRevertsIfThereIsNoVotingPower() public {
@@ -509,7 +699,7 @@ contract OptimisticTokenVotingPluginTest is Test {
                 OptimisticTokenVotingPlugin.NoVotingPower.selector
             )
         );
-        plugin.createProposal{value: 1 ether}("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0, 0);
     }
 
     function test_CreateProposalRevertsIfTheStartDateIsAfterTheEndDate()
@@ -525,13 +715,7 @@ contract OptimisticTokenVotingPluginTest is Test {
                 endDate
             )
         );
-        plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            startDate,
-            endDate
-        );
+        plugin.createProposal("", actions, 0, startDate, endDate);
     }
 
     function test_CreateProposalRevertsIfStartDateIsInThePast() public {
@@ -546,13 +730,7 @@ contract OptimisticTokenVotingPluginTest is Test {
             )
         );
         uint32 startDate = 1;
-        plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            startDate,
-            startDate + 10 days
-        );
+        plugin.createProposal("", actions, 0, startDate, startDate + 10 days);
     }
 
     function test_CreateProposalRevertsIfEndDateIsEarlierThanMinDuration()
@@ -569,7 +747,7 @@ contract OptimisticTokenVotingPluginTest is Test {
                 startDate + 10 minutes
             )
         );
-        plugin.createProposal{value: 1 ether}(
+        plugin.createProposal(
             "",
             actions,
             0,
@@ -583,7 +761,7 @@ contract OptimisticTokenVotingPluginTest is Test {
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint32 startDate = 0;
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "",
             actions,
             0,
@@ -608,7 +786,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint32 startDate = 0;
         uint32 endDate = 0;
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "",
             actions,
             0,
@@ -629,13 +807,7 @@ contract OptimisticTokenVotingPluginTest is Test {
 
     function test_CreateProposalUsesTheCurrentMinVetoRatio() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
 
         (
             ,
@@ -672,13 +844,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         );
 
         dao.grant(address(plugin), alice, plugin.PROPOSER_PERMISSION_ID());
-        proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
+        proposalId = plugin.createProposal("", actions, 0, 0, 0);
         (, , parameters, , , ) = plugin.getProposal(proposalId);
         assertEq(
             parameters.minVetoVotingPower,
@@ -689,22 +855,10 @@ contract OptimisticTokenVotingPluginTest is Test {
 
     function test_CreateProposalReturnsTheProposalId() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
         assertEq(proposalId == 0, true, "Should have created proposal 0");
 
-        proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
+        proposalId = plugin.createProposal("", actions, 0, 0, 0);
         assertEq(proposalId == 1, true, "Should have created proposal 1");
     }
 
@@ -720,7 +874,69 @@ contract OptimisticTokenVotingPluginTest is Test {
             actions,
             0
         );
-        plugin.createProposal{value: 1 ether}("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0, 0);
+    }
+
+    function test_GetProposalReturnsTheRightValues() public {
+        vm.warp(500);
+        uint32 startDate = 600;
+        uint32 endDate = startDate + 15 days;
+
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].to = address(plugin);
+        actions[0].value = 1 wei;
+        actions[0].data = abi.encodeWithSelector(
+            OptimisticTokenVotingPlugin.totalVotingPower.selector,
+            0
+        );
+        uint256 failSafeBitmap = 1;
+
+        uint256 proposalId = plugin.createProposal(
+            "ipfs://",
+            actions,
+            failSafeBitmap,
+            startDate,
+            endDate
+        );
+
+        (bool open0, , , , , ) = plugin.getProposal(proposalId);
+        assertEq(open0, false, "The proposal should not be open");
+
+        // Move on
+        vm.warp(startDate);
+
+        (
+            bool open,
+            bool executed,
+            OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
+            uint256 vetoTally,
+            IDAO.Action[] memory actualActions,
+            uint256 actualFailSafeBitmap
+        ) = plugin.getProposal(proposalId);
+
+        assertEq(open, true, "The proposal should be open");
+        assertEq(executed, false, "The proposal should not be executed");
+        assertEq(parameters.startDate, startDate, "Incorrect startDate");
+        assertEq(parameters.endDate, endDate, "Incorrect endDate");
+        assertEq(parameters.snapshotBlock, 1, "Incorrect snapshotBlock");
+        assertEq(
+            parameters.minVetoVotingPower,
+            plugin.totalVotingPower(block.number - 1) / 10,
+            "Incorrect minVetoVotingPower"
+        );
+        assertEq(vetoTally, 0, "The tally should be zero");
+        assertEq(actualActions.length, 1, "Actions should have one item");
+        assertEq(
+            actualFailSafeBitmap,
+            failSafeBitmap,
+            "Incorrect failsafe bitmap"
+        );
+
+        // Move on
+        vm.warp(endDate);
+
+        (bool open1, , , , , ) = plugin.getProposal(proposalId);
+        assertEq(open1, false, "The proposal should not be open anymore");
     }
 
     // Can Veto
@@ -728,13 +944,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.roll(10);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
-            "ipfs://",
-            actions,
-            0,
-            0,
-            0
-        );
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 0, 0);
         vm.roll(20);
 
         assertEq(
@@ -756,7 +966,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -785,7 +995,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -809,7 +1019,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -830,7 +1040,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -860,7 +1070,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -883,7 +1093,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -908,7 +1118,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -946,7 +1156,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -988,7 +1198,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1017,7 +1227,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1064,7 +1274,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1092,7 +1302,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1112,7 +1322,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1141,7 +1351,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1177,7 +1387,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1215,7 +1425,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1245,7 +1455,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1334,7 +1544,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1390,7 +1600,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1429,7 +1639,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1469,7 +1679,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1502,7 +1712,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1521,7 +1731,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,
@@ -1543,7 +1753,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         vm.warp(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
+        uint256 proposalId = plugin.createProposal(
             "ipfs://",
             actions,
             0,

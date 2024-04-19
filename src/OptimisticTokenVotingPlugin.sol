@@ -22,6 +22,7 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 /// @dev This contract implements the `IOptimisticTokenVoting` interface.
 contract OptimisticTokenVotingPlugin is
     IOptimisticTokenVoting,
+    IMembership,
     Initializable,
     ERC165Upgradeable,
     PluginUUPSUpgradeable,
@@ -161,6 +162,7 @@ contract OptimisticTokenVotingPlugin is
         votingToken = _token;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
+        emit MembershipContractAnnounced({definingContract: address(_token)});
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -185,6 +187,21 @@ contract OptimisticTokenVotingPlugin is
     /// @inheritdoc IOptimisticTokenVoting
     function getVotingToken() public view returns (IVotesUpgradeable) {
         return votingToken;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function totalVotingPower(
+        uint256 _blockNumber
+    ) public view returns (uint256) {
+        return votingToken.getPastTotalSupply(_blockNumber);
+    }
+
+    /// @inheritdoc IMembership
+    function isMember(address _account) external view returns (bool) {
+        // A member must own at least one token or have at least one token delegated to her/him.
+        return
+            votingToken.getVotes(_account) > 0 ||
+            IERC20Upgradeable(address(votingToken)).balanceOf(_account) > 0;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -232,12 +249,11 @@ contract OptimisticTokenVotingPlugin is
         Proposal storage proposal_ = proposals[_proposalId];
 
         // Verify that the vote has not been executed already.
-        uint64 currentTime = block.timestamp.toUint64();
         if (proposal_.executed) {
             return false;
         }
         // Check that the proposal vetoing time frame already expired
-        else if (currentTime < proposal_.parameters.endDate) {
+        else if (!_isProposalEnded(proposal_)) {
             return false;
         }
         // Check that not enough voters have vetoed the proposal
@@ -255,6 +271,21 @@ contract OptimisticTokenVotingPlugin is
         Proposal storage proposal_ = proposals[_proposalId];
 
         return proposal_.vetoTally >= proposal_.parameters.minVetoVotingPower;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minVetoRatio() public view virtual returns (uint32) {
+        return governanceSettings.minVetoRatio;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minDuration() public view virtual returns (uint64) {
+        return governanceSettings.minDuration;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minProposerVotingPower() public view virtual returns (uint256) {
+        return governanceSettings.minProposerVotingPower;
     }
 
     /// @notice Returns all information for a proposal vote by its ID.
@@ -297,16 +328,10 @@ contract OptimisticTokenVotingPlugin is
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate
-    )
-        external
-        payable
-        auth(PROPOSER_PERMISSION_ID)
-        returns (uint256 proposalId)
-    {
+    ) external auth(PROPOSER_PERMISSION_ID) returns (uint256 proposalId) {
         // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
         {
-            uint256 minProposerVotingPower_ = governanceSettings
-                .minProposerVotingPower;
+            uint256 minProposerVotingPower_ = minProposerVotingPower();
 
             if (minProposerVotingPower_ != 0) {
                 // Because of the checks in `OptimisticTokenVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
@@ -328,9 +353,7 @@ contract OptimisticTokenVotingPlugin is
             snapshotBlock = block.number - 1; // The snapshot block must be mined already to protect the transaction against backrunning transactions causing census changes.
         }
 
-        uint256 totalVotingPower_ = votingToken.getPastTotalSupply(
-            snapshotBlock
-        );
+        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
 
         if (totalVotingPower_ == 0) {
             revert NoVotingPower();
@@ -355,7 +378,7 @@ contract OptimisticTokenVotingPlugin is
         proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
         proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(
             totalVotingPower_,
-            governanceSettings.minVetoRatio
+            minVetoRatio()
         );
 
         // Save gas
@@ -390,6 +413,8 @@ contract OptimisticTokenVotingPlugin is
             proposal_.parameters.snapshotBlock
         );
 
+        // Not checking if the voter already voted, since canVeto() did it above
+
         // Write the updated tally.
         proposal_.vetoTally += votingPower;
         proposal_.vetoVoters[_voter] = true;
@@ -398,23 +423,6 @@ contract OptimisticTokenVotingPlugin is
             proposalId: _proposalId,
             voter: _voter,
             votingPower: votingPower
-        });
-    }
-
-    function _vetoFromL2(uint256 _proposalId, uint256 _votingPower) internal {
-        address _voter = _msgSender();
-
-        // TODO: Check it can actually veto
-        Proposal storage proposal_ = proposals[_proposalId];
-
-        // TODO: We should check wether this is the first time this gets called
-        proposal_.vetoTally += _votingPower;
-        proposal_.vetoVoters[_voter] = true;
-
-        emit VetoCast({
-            proposalId: _proposalId,
-            voter: _voter,
-            votingPower: _votingPower
         });
     }
 
@@ -492,6 +500,17 @@ contract OptimisticTokenVotingPlugin is
             proposal_.parameters.startDate <= currentTime &&
             currentTime < proposal_.parameters.endDate &&
             !proposal_.executed;
+    }
+
+    /// @notice Internal function to check if a proposal already ended.
+    /// @param proposal_ The proposal struct.
+    /// @return True if the end date of the proposal is already in the past, false otherwise.
+    function _isProposalEnded(
+        Proposal storage proposal_
+    ) internal view virtual returns (bool) {
+        uint64 currentTime = block.timestamp.toUint64();
+
+        return currentTime >= proposal_.parameters.endDate;
     }
 
     /// @notice Validates and returns the proposal vote dates.
