@@ -214,16 +214,13 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         });
 
         if (tokenSettings.addr == address(0x0)) {
-            bytes32 tokenMintPermission = GovernanceERC20(token)
-                .MINT_PERMISSION_ID();
-
             // The DAO can mint ERC20 tokens
             permissions[5] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: token,
                 who: _dao,
                 condition: PermissionLib.NO_CONDITION,
-                permissionId: tokenMintPermission
+                permissionId: GovernanceERC20(token).MINT_PERMISSION_ID()
             });
         }
 

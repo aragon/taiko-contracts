@@ -274,10 +274,8 @@ contract Deploy is Script {
             memory tokenSettings = OptimisticTokenVotingPluginSetup
                 .TokenSettings(tokenAddress, "", "");
 
-        address[] memory holders = new address[](0);
-        uint256[] memory amounts = new uint256[](0);
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
-            .MintSettings(holders, amounts);
+            .MintSettings(new address[](0), new uint256[](0));
 
         bytes memory settingsData = pluginSetup.encodeInstallationParams(
             votingSettings,
