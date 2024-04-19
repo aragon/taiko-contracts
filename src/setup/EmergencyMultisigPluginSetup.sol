@@ -9,7 +9,7 @@ import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/Plug
 import {Multisig} from "@aragon/osx/plugins/governance/multisig/Multisig.sol";
 
 /// @title MultisigSetup - Release 1, Build 1
-/// @author Aragon Association - 2022-2023
+/// @author Aragon Association - 2022-2024
 /// @notice The setup contract of the `Multisig` plugin.
 contract EmergencyMultisigPluginSetup is PluginSetup {
     /// @notice The address of `Multisig` plugin logic contract to be used in creating proxy contracts.
@@ -123,10 +123,9 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     /// @notice Encodes the given installation parameters into a byte array
     function encodeInstallationParameters(
         address[] memory _members,
-        Multisig.MultisigSettings memory _multisigSettings,
-        address _lzAppEndpoint
+        Multisig.MultisigSettings memory _multisigSettings
     ) external pure returns (bytes memory) {
-        return abi.encode(_members, _multisigSettings, _lzAppEndpoint);
+        return abi.encode(_members, _multisigSettings);
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
@@ -137,13 +136,12 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
         pure
         returns (
             address[] memory _members,
-            Multisig.MultisigSettings memory _multisigSettings,
-            address _lzAppEndpoint
+            Multisig.MultisigSettings memory _multisigSettings
         )
     {
-        (_members, _multisigSettings, _lzAppEndpoint) = abi.decode(
+        (_members, _multisigSettings) = abi.decode(
             _data,
-            (address[], Multisig.MultisigSettings, address)
+            (address[], Multisig.MultisigSettings)
         );
     }
 }

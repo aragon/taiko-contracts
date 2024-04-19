@@ -3,10 +3,10 @@ pragma solidity ^0.8.13;
 
 import {VmSafe} from "forge-std/Vm.sol";
 import {Script, console2} from "forge-std/Script.sol";
-import {OptimisticLzVotingPluginSetup} from "../src/setup/OptimisticLzVotingPluginSetup.sol";
+import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
 import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
-import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
@@ -33,8 +33,6 @@ contract Deploy is Script {
     uint16 minStdApprovals;
     uint16 minEmergencyApprovals;
 
-    address lzAppEndpoint;
-
     constructor() {
         // Implementations
         daoImplementation = new DAO();
@@ -58,8 +56,6 @@ contract Deploy is Script {
         string memory path = string.concat(root, "/utils/members.json");
         string memory json = vm.readFile(path);
         multisigMembers = vm.parseJsonAddressArray(json, "$.addresses");
-
-        lzAppEndpoint = vm.envAddress("LZ_APP_ENTRY_POINT");
     }
 
     function run() public {
@@ -175,8 +171,7 @@ contract Deploy is Script {
             Multisig.MultisigSettings(
                 true, // onlyListed
                 minStdApprovals // minAppovals
-            ),
-            lzAppEndpoint
+            )
         );
 
         (
@@ -222,8 +217,7 @@ contract Deploy is Script {
             Multisig.MultisigSettings(
                 true, // onlyListed
                 minEmergencyApprovals // minAppovals
-            ),
-            lzAppEndpoint
+            )
         );
 
         (
@@ -252,7 +246,7 @@ contract Deploy is Script {
         returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
         // Deploy plugin setup
-        OptimisticLzVotingPluginSetup pluginSetup = new OptimisticLzVotingPluginSetup(
+        OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
                 GovernanceERC20(governanceERC20Base),
                 GovernanceWrappedERC20(governanceWrappedERC20Base)
             );
@@ -268,20 +262,17 @@ contract Deploy is Script {
             );
 
         // Plugin settings
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory votingSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory votingSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings(
                     200000, // minVetoRatio - 20%
                     0, // minDuration (the condition will enforce it)
                     0 // minProposerVotingPower
                 );
 
-        OptimisticLzVotingPluginSetup.TokenSettings
-            memory tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings(
-                tokenAddress,
-                "",
-                ""
-            );
+        OptimisticTokenVotingPluginSetup.TokenSettings
+            memory tokenSettings = OptimisticTokenVotingPluginSetup
+                .TokenSettings(tokenAddress, "", "");
 
         address[] memory holders = new address[](0);
         uint256[] memory amounts = new uint256[](0);
@@ -293,8 +284,7 @@ contract Deploy is Script {
             tokenSettings,
             mintSettings,
             stdProposer,
-            emergencyProposer,
-            lzAppEndpoint
+            emergencyProposer
         );
 
         (

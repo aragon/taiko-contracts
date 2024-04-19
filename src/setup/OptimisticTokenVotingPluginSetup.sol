@@ -15,22 +15,23 @@ import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/Plug
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGovernanceWrappedERC20.sol";
-import {OptimisticLzVotingPlugin} from "../OptimisticLzVotingPlugin.sol";
+import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
 
 uint64 constant MIN_DELAY = 60 * 60 * 24 * 7 * 2;
 
-/// @title OptimisticLzVotingPluginSetup
+/// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023
 /// @notice The setup contract of the `OptimisticTokenVoting` plugin.
 /// @custom:security-contact sirt@aragon.org
-contract OptimisticLzVotingPluginSetup is PluginSetup {
+contract OptimisticTokenVotingPluginSetup is PluginSetup {
     using Address for address;
     using Clones for address;
     using ERC165Checker for address;
 
-    /// @notice The address of the `OptimisticLzVotingPlugin` base contract.
-    OptimisticLzVotingPlugin private immutable optimisticTokenVotingPluginBase;
+    /// @notice The address of the `OptimisticTokenVotingPlugin` base contract.
+    OptimisticTokenVotingPlugin
+        private immutable optimisticTokenVotingPluginBase;
 
     /// @notice The address of the `GovernanceERC20` base contract.
     address public immutable governanceERC20Base;
@@ -67,7 +68,7 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
         GovernanceERC20 _governanceERC20Base,
         GovernanceWrappedERC20 _governanceWrappedERC20Base
     ) {
-        optimisticTokenVotingPluginBase = new OptimisticLzVotingPlugin();
+        optimisticTokenVotingPluginBase = new OptimisticTokenVotingPlugin();
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
     }
@@ -83,14 +84,13 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
         // Decode `_installParameters` to extract the params needed for deploying and initializing `OptimisticTokenVoting` plugin,
         // and the required helpers
         (
-            OptimisticLzVotingPlugin.OptimisticGovernanceSettings
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
                 memory votingSettings,
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
             address stdProposer,
-            address emergencyProposer,
-            OptimisticLzVotingPlugin.BridgeSettings memory _lzAppEndpoint
+            address emergencyProposer
         ) = decodeInstallationParams(_installParameters);
 
         address token = tokenSettings.addr;
@@ -146,13 +146,8 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
         plugin = createERC1967Proxy(
             address(optimisticTokenVotingPluginBase),
             abi.encodeCall(
-                OptimisticLzVotingPlugin.initialize,
-                (
-                    IDAO(_dao),
-                    votingSettings,
-                    IVotesUpgradeable(token),
-                    _lzAppEndpoint
-                )
+                OptimisticTokenVotingPlugin.initialize,
+                (IDAO(_dao), votingSettings, IVotesUpgradeable(token))
             )
         );
 
@@ -195,10 +190,10 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
 
         // Deploy the Std proposal condition
         StandardProposalCondition stdProposalCondition = new StandardProposalCondition(
-            address(_dao),
-            address(plugin),
-            MIN_DELAY
-        );
+                address(_dao),
+                address(plugin),
+                MIN_DELAY
+            );
 
         // Proposer plugins can create proposals
         permissions[3] = PermissionLib.MultiTargetPermission({
@@ -223,14 +218,13 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
                 .MINT_PERMISSION_ID();
 
             // The DAO can mint ERC20 tokens
-            permissions[5] = PermissionLib
-                .MultiTargetPermission({
-                    operation: PermissionLib.Operation.Grant,
-                    where: token,
-                    who: _dao,
-                    condition: PermissionLib.NO_CONDITION,
-                    permissionId: tokenMintPermission
-                });
+            permissions[5] = PermissionLib.MultiTargetPermission({
+                operation: PermissionLib.Operation.Grant,
+                where: token,
+                who: _dao,
+                condition: PermissionLib.NO_CONDITION,
+                permissionId: tokenMintPermission
+            });
         }
 
         preparedSetupData.helpers = helpers;
@@ -316,14 +310,13 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
 
     /// @notice Encodes the given installation parameters into a byte array
     function encodeInstallationParams(
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             calldata _votingSettings,
         TokenSettings calldata _tokenSettings,
         // only used for GovernanceERC20 (when a token is not passed)
         GovernanceERC20.MintSettings calldata _mintSettings,
         address _stdProposer,
-        address _emergencyProposer,
-        OptimisticLzVotingPlugin.BridgeSettings calldata _lzAppEndpoint
+        address _emergencyProposer
     ) external pure returns (bytes memory) {
         return
             abi.encode(
@@ -331,8 +324,7 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
                 _tokenSettings,
                 _mintSettings,
                 _stdProposer,
-                _emergencyProposer,
-                _lzAppEndpoint
+                _emergencyProposer
             );
     }
 
@@ -343,14 +335,13 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
         public
         pure
         returns (
-            OptimisticLzVotingPlugin.OptimisticGovernanceSettings
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
                 memory votingSettings,
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
             address _stdProposer,
-            address _emergencyProposer,
-            OptimisticLzVotingPlugin.BridgeSettings memory _lzAppEndpoint
+            address _emergencyProposer
         )
     {
         (
@@ -358,17 +349,15 @@ contract OptimisticLzVotingPluginSetup is PluginSetup {
             tokenSettings,
             mintSettings,
             _stdProposer,
-            _emergencyProposer,
-            _lzAppEndpoint
+            _emergencyProposer
         ) = abi.decode(
             _data,
             (
-                OptimisticLzVotingPlugin.OptimisticGovernanceSettings,
+                OptimisticTokenVotingPlugin.OptimisticGovernanceSettings,
                 TokenSettings,
                 GovernanceERC20.MintSettings,
                 address,
-                address,
-                OptimisticLzVotingPlugin.BridgeSettings
+                address
             )
         );
     }
