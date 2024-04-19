@@ -2,6 +2,4 @@
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @aragon/osx/=lib/osx/packages/contracts/src/
 @ensdomains/ens-contracts/=lib/ens-contracts/
-@layerzero/=lib/solidity-examples/contracts/
-@layerzero/=lib/solidity-examples/contracts/
 forge-std/=lib/forge-std/src/
