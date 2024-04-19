@@ -90,7 +90,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         stdProposer = address(0x1234567890);
     }
 
-    function test_ShouldEncodeInstallationParams_Default() public {
+    function test_ShouldEncodeInstallationParams_Default() public view {
         // Default
         bytes memory output = pluginSetup.encodeInstallationParams(
             votingSettings,

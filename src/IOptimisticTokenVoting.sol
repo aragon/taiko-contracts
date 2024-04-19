@@ -14,6 +14,25 @@ interface IOptimisticTokenVoting {
     /// @return The token used for voting.
     function getVotingToken() external view returns (IVotesUpgradeable);
 
+    /// @notice Returns the total voting power checkpointed for a specific block number.
+    /// @param _blockNumber The block number.
+    /// @return The total voting power.
+    function totalVotingPower(
+        uint256 _blockNumber
+    ) external view returns (uint256);
+
+    /// @notice Returns the veto ratio parameter stored in the optimistic governance settings.
+    /// @return The veto ratio parameter.
+    function minVetoRatio() external view returns (uint32);
+
+    /// @notice Returns the minimum duration parameter stored in the vetoing settings.
+    /// @return The minimum duration parameter.
+    function minDuration() external view returns (uint64);
+
+    /// @notice Returns the minimum vetoing power required to create a proposal stored in the vetoing settings.
+    /// @return The minimum vetoing power required to create a proposal.
+    function minProposerVotingPower() external view returns (uint256);
+
     /// @notice Creates a new optimistic proposal.
     /// @param _metadata The metadata of the proposal.
     /// @param _actions The actions that will be executed after the proposal passes.
@@ -27,7 +46,7 @@ interface IOptimisticTokenVoting {
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate
-    ) external payable returns (uint256 proposalId);
+    ) external returns (uint256 proposalId);
 
     /// @notice Checks if an account can participate on an optimistic proposal. This can be because the proposal
     /// - has not started,
