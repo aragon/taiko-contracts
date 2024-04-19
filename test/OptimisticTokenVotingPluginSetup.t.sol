@@ -2,8 +2,8 @@
 pragma solidity ^0.8.17;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
-import {OptimisticLzVotingPluginSetup} from "../src/setup/OptimisticLzVotingPluginSetup.sol";
+import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
@@ -15,26 +15,21 @@ import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
 
-contract OptimisticLzVotingPluginSetupTest is Test {
-    OptimisticLzVotingPluginSetup public pluginSetup;
+contract OptimisticTokenVotingPluginSetupTest is Test {
+    OptimisticTokenVotingPluginSetup public pluginSetup;
     GovernanceERC20 governanceERC20Base;
     GovernanceWrappedERC20 governanceWrappedERC20Base;
     address immutable daoBase = address(new DAO());
     DAO dao;
 
     // Recycled installation parameters
-    OptimisticLzVotingPlugin.OptimisticGovernanceSettings votingSettings;
-    OptimisticLzVotingPluginSetup.TokenSettings tokenSettings;
+    OptimisticTokenVotingPlugin.OptimisticGovernanceSettings votingSettings;
+    OptimisticTokenVotingPluginSetup.TokenSettings tokenSettings;
     GovernanceERC20.MintSettings mintSettings;
-    address[] proposers;
+    address stdProposer;
+    address emergencyProposer;
 
     address alice = address(0xa11ce);
-    OptimisticLzVotingPlugin.BridgeSettings lzAppEndpoint =
-        OptimisticLzVotingPlugin.BridgeSettings(
-            1,
-            address(0xb41d5e),
-            address(0x1f1d5e)
-        );
 
     error Unimplemented();
 
@@ -71,18 +66,19 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             );
         }
 
-        pluginSetup = new OptimisticLzVotingPluginSetup(
+        pluginSetup = new OptimisticTokenVotingPluginSetup(
             governanceERC20Base,
             governanceWrappedERC20Base
         );
 
         // Default params
-        votingSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 5 days,
-            minProposerVotingPower: 0
-        });
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        votingSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 10),
+                minDuration: 5 days,
+                minProposerVotingPower: 0
+            });
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceERC20Base),
             name: "Wrapped Token",
             symbol: "wTK"
@@ -91,8 +87,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             receivers: new address[](0),
             amounts: new uint256[](0)
         });
-        proposers = new address[](1);
-        proposers[0] = address(0x1234567890);
+        stdProposer = address(0x1234567890);
     }
 
     function test_ShouldEncodeInstallationParams_Default() public {
@@ -101,8 +96,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         bytes
@@ -112,17 +107,18 @@ contract OptimisticLzVotingPluginSetupTest is Test {
 
     function test_ShouldEncodeInstallationParams_1() public {
         // Custom 1
-        votingSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 5),
-            minDuration: 60 * 60 * 24 * 5,
-            minProposerVotingPower: 123456
-        });
+        votingSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 5),
+                minDuration: 60 * 60 * 24 * 5,
+                minProposerVotingPower: 123456
+            });
         bytes memory output = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         bytes
@@ -132,7 +128,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
 
     function test_ShouldEncodeInstallationParams_2() public {
         // Custom 2
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(0x5678),
             name: "Wrapped New Coin",
             symbol: "wNCN"
@@ -141,8 +137,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         bytes
@@ -165,8 +161,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         bytes
@@ -176,15 +172,14 @@ contract OptimisticLzVotingPluginSetupTest is Test {
 
     function test_ShouldEncodeInstallationParams_4() public {
         // Custom 4
-        proposers = new address[](1);
-        proposers[0] = address(0x567890);
+        stdProposer = address(0x567890);
 
         bytes memory output = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         bytes
@@ -193,12 +188,13 @@ contract OptimisticLzVotingPluginSetupTest is Test {
     }
 
     function test_ShouldDecodeInstallationParams() public {
-        votingSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 4),
-            minDuration: 10 days,
-            minProposerVotingPower: 55555555
-        });
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        votingSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 4),
+                minDuration: 10 days,
+                minProposerVotingPower: 55555555
+            });
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
             name: "Super wToken",
             symbol: "SwTK"
@@ -213,27 +209,27 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             receivers: receivers,
             amounts: amounts
         });
-        proposers = new address[](2);
-        proposers[0] = address(0x3456);
-        proposers[1] = address(0x7890);
+        stdProposer = address(0x3456);
+        emergencyProposer = address(0x7890);
 
         bytes memory _installationParams = pluginSetup.encodeInstallationParams(
                 votingSettings,
                 tokenSettings,
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
-                proposers,
-                lzAppEndpoint
+                stdProposer,
+                emergencyProposer
             );
 
         // Decode
         (
-            OptimisticLzVotingPlugin.OptimisticGovernanceSettings
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
                 memory _votingSettings,
-            OptimisticLzVotingPluginSetup.TokenSettings memory _tokenSettings,
+            OptimisticTokenVotingPluginSetup.TokenSettings
+                memory _tokenSettings,
             GovernanceERC20.MintSettings memory _mintSettings,
-            address[] memory _proposers,
-            OptimisticLzVotingPlugin.BridgeSettings memory _lzAppEndpoint
+            address stdProposer,
+            address emergencyProposer
         ) = pluginSetup.decodeInstallationParams(_installationParams);
 
         // Voting
@@ -286,18 +282,13 @@ contract OptimisticLzVotingPluginSetupTest is Test {
         assertEq(_mintSettings.amounts[0], 2000, "Incorrect amounts[0]");
         assertEq(_mintSettings.amounts[1], 5000, "Incorrect amounts[1]");
 
-        assertEq(_lzAppEndpoint.chainId, 1, "Incorrect chainId");
-        assertEq(_lzAppEndpoint.bridge, address(0xb41d5e), "Incorrect bridge");
-        assertEq(
-            _lzAppEndpoint.l2VotingAggregator,
-            address(0x1f1d5e),
-            "Incorrect l2VotingAggregator"
-        );
-
         // Proposers
-        assertEq(_proposers.length, 2, "Incorrect proposers.length");
-        assertEq(_proposers[0], address(0x3456), "Incorrect proposers[0]");
-        assertEq(_proposers[1], address(0x7890), "Incorrect proposers[1]");
+        assertEq(stdProposer, address(0x3456), "Incorrect stdProposer");
+        assertEq(
+            emergencyProposer,
+            address(0x7890),
+            "Incorrect emergencyProposer"
+        );
     }
 
     function test_PrepareInstallationReturnsTheProperPermissions_Default()
@@ -308,8 +299,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         (
@@ -374,7 +365,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
-        assertEq(_preparedSetupData.permissions[3].who, address(proposers[0]));
+        assertEq(_preparedSetupData.permissions[3].who, address(stdProposer));
         assertEq(_preparedSetupData.permissions[3].condition, address(0));
         assertEq(
             _preparedSetupData.permissions[3].permissionId,
@@ -387,27 +378,27 @@ contract OptimisticLzVotingPluginSetupTest is Test {
     function test_PrepareInstallationReturnsTheProperPermissions_UseToken()
         public
     {
-        votingSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 4),
-            minDuration: 10 days,
-            minProposerVotingPower: 0
-        });
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        votingSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 4),
+                minDuration: 10 days,
+                minProposerVotingPower: 0
+            });
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
             name: "",
             symbol: ""
         });
-        proposers = new address[](2);
-        proposers[0] = address(0x3456);
-        proposers[1] = address(0x7890);
+        stdProposer = address(0x3456);
+        emergencyProposer = address(0x7890);
 
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         (
@@ -472,7 +463,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
-        assertEq(_preparedSetupData.permissions[3].who, address(proposers[0]));
+        assertEq(_preparedSetupData.permissions[3].who, address(stdProposer));
         assertEq(_preparedSetupData.permissions[3].condition, address(0));
         assertEq(
             _preparedSetupData.permissions[3].permissionId,
@@ -485,7 +476,10 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[4].where, _plugin);
-        assertEq(_preparedSetupData.permissions[4].who, address(proposers[1]));
+        assertEq(
+            _preparedSetupData.permissions[4].who,
+            address(emergencyProposer)
+        );
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
         assertEq(
             _preparedSetupData.permissions[4].permissionId,
@@ -498,12 +492,13 @@ contract OptimisticLzVotingPluginSetupTest is Test {
     function test_PrepareInstallationReturnsTheProperPermissions_MintToken()
         public
     {
-        votingSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 4),
-            minDuration: 10 days,
-            minProposerVotingPower: 4000
-        });
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        votingSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 4),
+                minDuration: 10 days,
+                minProposerVotingPower: 4000
+            });
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(0x0),
             name: "Wrapped Super New Token",
             symbol: "wSNTK"
@@ -518,17 +513,16 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             receivers: receivers,
             amounts: amounts
         });
-        proposers = new address[](2);
-        proposers[0] = address(0x3456);
-        proposers[1] = address(0x7890);
+        stdProposer = address(0x3456);
+        emergencyProposer = address(0x7890);
 
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
 
         (
@@ -593,7 +587,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
-        assertEq(_preparedSetupData.permissions[3].who, address(proposers[0]));
+        assertEq(_preparedSetupData.permissions[3].who, address(stdProposer));
         assertEq(_preparedSetupData.permissions[3].condition, address(0));
         assertEq(
             _preparedSetupData.permissions[3].permissionId,
@@ -606,7 +600,10 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[4].where, _plugin);
-        assertEq(_preparedSetupData.permissions[4].who, address(proposers[1]));
+        assertEq(
+            _preparedSetupData.permissions[4].who,
+            address(emergencyProposer)
+        );
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
         assertEq(
             _preparedSetupData.permissions[4].permissionId,
@@ -637,15 +634,15 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
         (
             address _dummyPlugin,
             IPluginSetup.PreparedSetupData memory _preparedSetupData
         ) = pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        OptimisticLzVotingPluginSetup.SetupPayload
+        OptimisticTokenVotingPluginSetup.SetupPayload
             memory _payload = IPluginSetup.SetupPayload({
                 plugin: _dummyPlugin,
                 currentHelpers: _preparedSetupData.helpers,
@@ -729,7 +726,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
 
     function test_PrepareUninstallationReturnsTheProperPermissions_2() public {
         // Prepare a dummy install
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(0x0),
             name: "Dummy Token",
             symbol: "DTK"
@@ -738,15 +735,15 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
         (
             address _dummyPlugin,
             IPluginSetup.PreparedSetupData memory _preparedSetupData
         ) = pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        OptimisticLzVotingPluginSetup.SetupPayload
+        OptimisticTokenVotingPluginSetup.SetupPayload
             memory _payload = IPluginSetup.SetupPayload({
                 plugin: _dummyPlugin,
                 currentHelpers: _preparedSetupData.helpers,
@@ -830,7 +827,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
 
     function test_CreatesANewERC20Token() public {
         // new Token
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(0x0),
             name: "New Token",
             symbol: "NTK"
@@ -849,8 +846,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
         (
             ,
@@ -874,7 +871,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
         assertEq(_originalToken.balanceOf(address(0x1234)), 100);
         assertEq(_originalToken.balanceOf(address(0x5678)), 200);
 
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(_originalToken),
             name: "Wrapped Mock Token",
             symbol: "wMTK"
@@ -883,8 +880,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
         (
             ,
@@ -942,7 +939,7 @@ contract OptimisticLzVotingPluginSetupTest is Test {
                 )
             )
         );
-        tokenSettings = OptimisticLzVotingPluginSetup.TokenSettings({
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(_token),
             name: "",
             symbol: ""
@@ -951,8 +948,8 @@ contract OptimisticLzVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            proposers,
-            lzAppEndpoint
+            stdProposer,
+            emergencyProposer
         );
         (
             ,

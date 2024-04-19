@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {OptimisticLzVotingPlugin} from "../src/OptimisticLzVotingPlugin.sol";
+import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {IOptimisticTokenVoting} from "../src/IOptimisticTokenVoting.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
@@ -14,34 +14,19 @@ import {ERC20VotesMock} from "./mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
-import {LZEndpointMock} from "@layerzero/lzApp/mocks/LZEndpointMock.sol";
-import {L2VetoAggregation} from "../src/L2VetoAggregation.sol";
 
-contract OptimisticLzVotingPluginTest is Test {
+contract OptimisticTokenVotingPluginTest is Test {
     address immutable daoBase = address(new DAO());
-    address immutable pluginBase = address(new OptimisticLzVotingPlugin());
+    address immutable pluginBase = address(new OptimisticTokenVotingPlugin());
     address votingTokenBase = address(new ERC20VotesMock());
-    LZEndpointMock l1EndpointMock = new LZEndpointMock(1);
-    LZEndpointMock l2EndpointMock = new LZEndpointMock(5);
-    L2VetoAggregation l2VetoAggregation =
-        new L2VetoAggregation(IVotesUpgradeable(votingTokenBase));
-
-    // Setup the LzEndpoints
-    // l1EndpointMock.setDestLzEndpoint(address(0x1f1d5e), l2EndpointMock);
 
     DAO public dao;
-    OptimisticLzVotingPlugin public plugin;
+    OptimisticTokenVotingPlugin public plugin;
     ERC20VotesMock votingToken;
 
     address alice = address(0xa11ce);
     address bob = address(0xB0B);
     address randomWallet = vm.addr(1234567890);
-    OptimisticLzVotingPlugin.BridgeSettings lzAppEndpoint =
-        OptimisticLzVotingPlugin.BridgeSettings(
-            5,
-            address(l1EndpointMock),
-            address(l2VetoAggregation)
-        );
 
     // Events from external contracts
     event Initialized(uint8 version);
@@ -71,10 +56,6 @@ contract OptimisticLzVotingPluginTest is Test {
         vm.startPrank(alice);
         vm.deal(alice, 1000 ether);
         vm.deal(bob, 1000 ether);
-        l1EndpointMock.setDestLzEndpoint(
-            address(l2VetoAggregation),
-            address(l2EndpointMock)
-        );
 
         // Deploy a DAO with Alice as root
         dao = DAO(
@@ -104,23 +85,22 @@ contract OptimisticLzVotingPluginTest is Test {
         vm.roll(block.number + 1);
 
         // Deploy a new plugin instance
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -130,25 +110,12 @@ contract OptimisticLzVotingPluginTest is Test {
 
         // Alice can create proposals on the plugin
         dao.grant(address(plugin), alice, plugin.PROPOSER_PERMISSION_ID());
-
-        L2VetoAggregation.BridgeSettings
-            memory l2bridgeSettings = L2VetoAggregation.BridgeSettings(
-                1,
-                address(l2EndpointMock),
-                address(plugin)
-            );
-        l2VetoAggregation.initialize(l2bridgeSettings);
-
-        l2EndpointMock.setDestLzEndpoint(
-            address(plugin),
-            address(l1EndpointMock)
-        );
     }
 
     // Initialize
     function test_InitializeRevertsIfInitialized() public {
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
@@ -158,57 +125,54 @@ contract OptimisticLzVotingPluginTest is Test {
         vm.expectRevert(
             bytes("Initializable: contract is already initialized")
         );
-        plugin.initialize(dao, settings, votingToken, lzAppEndpoint);
+        plugin.initialize(dao, settings, votingToken);
     }
 
     function test_InitializeSetsTheProperValues() public {
         // Initial settings
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
 
         // Different minVetoRatio
         settings.minVetoRatio = uint32(RATIO_BASE / 5);
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
 
         // Different minDuration
         settings.minDuration = 25 days;
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -223,38 +187,36 @@ contract OptimisticLzVotingPluginTest is Test {
         votingToken.mint(alice, 10 ether);
         vm.roll(block.number + 5);
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
 
         // Different minProposerVotingPower
         settings.minProposerVotingPower = 1 ether;
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
     }
 
     function test_InitializeEmitsEvent() public {
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
@@ -264,15 +226,14 @@ contract OptimisticLzVotingPluginTest is Test {
         vm.expectEmit();
         emit Initialized(uint8(1));
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -347,23 +308,22 @@ contract OptimisticLzVotingPluginTest is Test {
         );
 
         // Deploy a new plugin instance
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -382,23 +342,22 @@ contract OptimisticLzVotingPluginTest is Test {
 
     function test_MinVetoRatioReturnsTheRightValue() public {
         // New plugin instance
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -406,23 +365,22 @@ contract OptimisticLzVotingPluginTest is Test {
 
     function test_MinDurationReturnsTheRightValue() public {
         // New plugin instance
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 25 days,
                     minProposerVotingPower: 0
                 });
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -483,8 +441,8 @@ contract OptimisticLzVotingPluginTest is Test {
         vm.startPrank(alice);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
@@ -504,7 +462,7 @@ contract OptimisticLzVotingPluginTest is Test {
         // Bob holds no tokens
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalCreationForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalCreationForbidden.selector,
                 bob
             )
         );
@@ -525,22 +483,21 @@ contract OptimisticLzVotingPluginTest is Test {
 
         // Deploy a new plugin instance
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -549,7 +506,7 @@ contract OptimisticLzVotingPluginTest is Test {
         // Try to create
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.NoVotingPower.selector
+                OptimisticTokenVotingPlugin.NoVotingPower.selector
             )
         );
         plugin.createProposal{value: 1 ether}("", actions, 0, 0, 0);
@@ -563,7 +520,7 @@ contract OptimisticLzVotingPluginTest is Test {
         uint32 endDate = 10;
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.DateOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.DateOutOfBounds.selector,
                 startDate + 10 days,
                 endDate
             )
@@ -583,7 +540,7 @@ contract OptimisticLzVotingPluginTest is Test {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.DateOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.DateOutOfBounds.selector,
                 block.timestamp,
                 1
             )
@@ -607,7 +564,7 @@ contract OptimisticLzVotingPluginTest is Test {
         uint32 startDate = 1000;
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.DateOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.DateOutOfBounds.selector,
                 startDate + 10 days,
                 startDate + 10 minutes
             )
@@ -637,7 +594,7 @@ contract OptimisticLzVotingPluginTest is Test {
         (
             ,
             ,
-            OptimisticLzVotingPlugin.ProposalParameters memory parameters,
+            OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
             ,
             ,
 
@@ -662,7 +619,7 @@ contract OptimisticLzVotingPluginTest is Test {
         (
             ,
             ,
-            OptimisticLzVotingPlugin.ProposalParameters memory parameters,
+            OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
             ,
             ,
 
@@ -683,7 +640,7 @@ contract OptimisticLzVotingPluginTest is Test {
         (
             ,
             ,
-            OptimisticLzVotingPlugin.ProposalParameters memory parameters,
+            OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
             ,
             ,
 
@@ -695,22 +652,21 @@ contract OptimisticLzVotingPluginTest is Test {
         );
 
         // Now with a different value
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -939,7 +895,7 @@ contract OptimisticLzVotingPluginTest is Test {
         // non existing
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalVetoingForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector,
                 proposalId + 200,
                 alice
             )
@@ -963,7 +919,7 @@ contract OptimisticLzVotingPluginTest is Test {
         // Unstarted
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalVetoingForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector,
                 proposalId,
                 alice
             )
@@ -1013,7 +969,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalVetoingForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector,
                 proposalId,
                 alice
             )
@@ -1043,7 +999,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalVetoingForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector,
                 proposalId,
                 alice
             )
@@ -1077,7 +1033,7 @@ contract OptimisticLzVotingPluginTest is Test {
         // Bob owns no tokens
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalVetoingForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector,
                 proposalId,
                 bob
             )
@@ -1346,23 +1302,22 @@ contract OptimisticLzVotingPluginTest is Test {
         vm.roll(block.number + 1);
 
         // Deploy a new plugin instance
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32((RATIO_BASE * 25) / 100),
                     minDuration: 10 days,
                     minProposerVotingPower: 0
                 });
 
-        plugin = OptimisticLzVotingPlugin(
+        plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
                 abi.encodeWithSelector(
-                    OptimisticLzVotingPlugin.initialize.selector,
+                    OptimisticTokenVotingPlugin.initialize.selector,
                     dao,
                     settings,
-                    votingToken,
-                    lzAppEndpoint
+                    votingToken
                 )
             )
         );
@@ -1445,7 +1400,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalExecutionForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector,
                 proposalId
             )
         );
@@ -1455,7 +1410,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalExecutionForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector,
                 proposalId
             )
         );
@@ -1488,7 +1443,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalExecutionForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector,
                 proposalId
             )
         );
@@ -1498,7 +1453,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalExecutionForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector,
                 proposalId
             )
         );
@@ -1531,7 +1486,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.ProposalExecutionForbidden.selector,
+                OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector,
                 proposalId
             )
         );
@@ -1607,8 +1562,8 @@ contract OptimisticLzVotingPluginTest is Test {
     function test_UpdateOptimisticGovernanceSettingsRevertsWhenNoPermission()
         public
     {
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 15 days,
@@ -1643,8 +1598,8 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: 0,
                     minDuration: 10 days,
@@ -1665,8 +1620,8 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE + 1),
                     minDuration: 10 days,
@@ -1691,8 +1646,8 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 4 days - 1,
@@ -1700,7 +1655,7 @@ contract OptimisticLzVotingPluginTest is Test {
                 });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.MinDurationOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector,
                 4 days,
                 4 days - 1
             )
@@ -1708,14 +1663,14 @@ contract OptimisticLzVotingPluginTest is Test {
         plugin.updateOptimisticGovernanceSettings(newSettings);
 
         // 2
-        newSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
+        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 hours,
             minProposerVotingPower: 0 ether
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.MinDurationOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector,
                 4 days,
                 10 hours
             )
@@ -1723,14 +1678,14 @@ contract OptimisticLzVotingPluginTest is Test {
         plugin.updateOptimisticGovernanceSettings(newSettings);
 
         // 3
-        newSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
+        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 0,
             minProposerVotingPower: 0 ether
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.MinDurationOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector,
                 4 days,
                 0
             )
@@ -1747,8 +1702,8 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 10),
                     minDuration: 365 days + 1,
@@ -1756,7 +1711,7 @@ contract OptimisticLzVotingPluginTest is Test {
                 });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.MinDurationOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector,
                 365 days,
                 365 days + 1
             )
@@ -1764,14 +1719,14 @@ contract OptimisticLzVotingPluginTest is Test {
         plugin.updateOptimisticGovernanceSettings(newSettings);
 
         // 2
-        newSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
+        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 500 days,
             minProposerVotingPower: 0 ether
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.MinDurationOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector,
                 365 days,
                 500 days
             )
@@ -1779,14 +1734,14 @@ contract OptimisticLzVotingPluginTest is Test {
         plugin.updateOptimisticGovernanceSettings(newSettings);
 
         // 3
-        newSettings = OptimisticLzVotingPlugin.OptimisticGovernanceSettings({
+        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 1000 days,
             minProposerVotingPower: 0 ether
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin.MinDurationOutOfBounds.selector,
+                OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector,
                 365 days,
                 1000 days
             )
@@ -1803,8 +1758,8 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory newSettings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory newSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 15 days,
@@ -1823,7 +1778,7 @@ contract OptimisticLzVotingPluginTest is Test {
 
     // Upgrade plugin
     function test_UpgradeToRevertsWhenCalledFromNonUpgrader() public {
-        address _pluginBase = address(new OptimisticLzVotingPlugin());
+        address _pluginBase = address(new OptimisticTokenVotingPlugin());
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1845,10 +1800,10 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        address _pluginBase = address(new OptimisticLzVotingPlugin());
+        address _pluginBase = address(new OptimisticTokenVotingPlugin());
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 15 days,
@@ -1868,7 +1823,7 @@ contract OptimisticLzVotingPluginTest is Test {
         plugin.upgradeToAndCall(
             _pluginBase,
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin
+                OptimisticTokenVotingPlugin
                     .updateOptimisticGovernanceSettings
                     .selector,
                 settings
@@ -1883,7 +1838,7 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPGRADE_PLUGIN_PERMISSION_ID()
         );
 
-        address _pluginBase = address(new OptimisticLzVotingPlugin());
+        address _pluginBase = address(new OptimisticTokenVotingPlugin());
 
         vm.expectEmit();
         emit Upgraded(_pluginBase);
@@ -1903,13 +1858,13 @@ contract OptimisticLzVotingPluginTest is Test {
             plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         );
 
-        address _pluginBase = address(new OptimisticLzVotingPlugin());
+        address _pluginBase = address(new OptimisticTokenVotingPlugin());
 
         vm.expectEmit();
         emit Upgraded(_pluginBase);
 
-        OptimisticLzVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticLzVotingPlugin
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+            memory settings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings({
                     minVetoRatio: uint32(RATIO_BASE / 5),
                     minDuration: 15 days,
@@ -1918,51 +1873,12 @@ contract OptimisticLzVotingPluginTest is Test {
         plugin.upgradeToAndCall(
             _pluginBase,
             abi.encodeWithSelector(
-                OptimisticLzVotingPlugin
+                OptimisticTokenVotingPlugin
                     .updateOptimisticGovernanceSettings
                     .selector,
                 settings
             )
         );
-    }
-
-    // Crosschain Functionality Testing Starts Here
-    function test_CroscchainHappyPath() public {
-        dao.grant(address(plugin), bob, plugin.PROPOSER_PERMISSION_ID());
-        IVotesUpgradeable _token = l2VetoAggregation.getVotingToken();
-        ERC20VotesMock(address(_token)).mint(bob, 1 ether);
-
-        vm.stopPrank();
-        vm.startPrank(bob);
-
-        ERC20VotesMock(address(_token)).delegate(bob);
-        vm.roll(block.number + 10);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint64 endDate = uint64(block.timestamp + 10 days);
-        uint256 proposalId = plugin.createProposal{value: 1 ether}(
-            "",
-            actions,
-            0,
-            0,
-            0
-        );
-        assertEq(proposalId, 0);
-        L2VetoAggregation.Proposal memory l2proposal = l2VetoAggregation
-            .getProposal(proposalId);
-        assertEq(l2proposal.endDate, endDate);
-        assertEq(l2proposal.vetoes, 0);
-
-        vm.warp(1 days);
-        l2VetoAggregation.veto(proposalId);
-        l2proposal = l2VetoAggregation.getProposal(proposalId);
-        assertEq(l2proposal.vetoes, 1 ether);
-        vm.warp(9 days);
-        l2VetoAggregation.bridgeResults{value: 0.1 ether}(proposalId);
-
-        (, , , uint256 vetoTally, , uint256 _allowFailureMap) = plugin
-            .getProposal(proposalId);
-        assertEq(vetoTally, 1 ether, "Vetos were not bridged");
     }
 
     // HELPERS

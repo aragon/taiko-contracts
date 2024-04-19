@@ -31,8 +31,7 @@ contract MultisigPluginSetup is PluginSetup {
         // Decode `_data` to extract the params needed for deploying and initializing `Multisig` plugin.
         (
             address[] memory members,
-            Multisig.MultisigSettings memory multisigSettings,
-            address _lzAppEndpoint
+            Multisig.MultisigSettings memory multisigSettings
         ) = decodeInstallationParams(_data);
 
         // Prepare and Deploy the plugin proxy.
@@ -124,10 +123,9 @@ contract MultisigPluginSetup is PluginSetup {
     /// @notice Encodes the given installation parameters into a byte array
     function encodeInstallationParameters(
         address[] memory _members,
-        Multisig.MultisigSettings memory _multisigSettings,
-        address _lzAppEndpoint
+        Multisig.MultisigSettings memory _multisigSettings
     ) external pure returns (bytes memory) {
-        return abi.encode(_members, _multisigSettings, _lzAppEndpoint);
+        return abi.encode(_members, _multisigSettings);
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
@@ -138,13 +136,12 @@ contract MultisigPluginSetup is PluginSetup {
         pure
         returns (
             address[] memory _members,
-            Multisig.MultisigSettings memory _multisigSettings,
-            address _lzAppEndpoint
+            Multisig.MultisigSettings memory _multisigSettings
         )
     {
-        (_members, _multisigSettings, _lzAppEndpoint) = abi.decode(
+        (_members, _multisigSettings) = abi.decode(
             _data,
-            (address[], Multisig.MultisigSettings, address)
+            (address[], Multisig.MultisigSettings)
         );
     }
 }
