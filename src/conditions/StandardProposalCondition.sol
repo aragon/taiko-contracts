@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.17;
 
-import "forge-std/console.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondition.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";

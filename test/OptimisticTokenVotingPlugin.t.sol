@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
-import {IOptimisticTokenVoting} from "../src/IOptimisticTokenVoting.sol";
+import {IOptimisticTokenVoting} from "../src/interfaces/IOptimisticTokenVoting.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";

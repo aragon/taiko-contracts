@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {VmSafe} from "forge-std/Vm.sol";
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
