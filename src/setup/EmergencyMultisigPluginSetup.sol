@@ -6,18 +6,18 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
-import {Multisig} from "@aragon/osx/plugins/governance/multisig/Multisig.sol";
+import {EmergencyMultisig} from "../EmergencyMultisig.sol";
 
-/// @title MultisigSetup - Release 1, Build 1
+/// @title EmergencyMultisigSetup - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
-/// @notice The setup contract of the `Multisig` plugin.
+/// @notice The setup contract of the `EmergencyMultisig` plugin.
 contract EmergencyMultisigPluginSetup is PluginSetup {
-    /// @notice The address of `Multisig` plugin logic contract to be used in creating proxy contracts.
-    Multisig private immutable multisigBase;
+    /// @notice The address of `EmergencyMultisig` plugin logic contract to be used in creating proxy contracts.
+    EmergencyMultisig private immutable multisigBase;
 
-    /// @notice The contract constructor, that deploys the `Multisig` plugin logic contract.
-    constructor(Multisig _implementation) {
-        multisigBase = _implementation;
+    /// @notice The contract constructor, that deploys the `EmergencyMultisig` plugin logic contract.
+    constructor() {
+        multisigBase = new EmergencyMultisig();
     }
 
     /// @inheritdoc IPluginSetup
@@ -28,17 +28,17 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
         external
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
-        // Decode `_data` to extract the params needed for deploying and initializing `Multisig` plugin.
+        // Decode `_data` to extract the params needed for deploying and initializing `EmergencyMultisig` plugin.
         (
             address[] memory members,
-            Multisig.MultisigSettings memory multisigSettings
-        ) = abi.decode(_data, (address[], Multisig.MultisigSettings));
+            EmergencyMultisig.MultisigSettings memory multisigSettings
+        ) = decodeInstallationParams(_data);
 
         // Prepare and Deploy the plugin proxy.
         plugin = createERC1967Proxy(
             address(multisigBase),
             abi.encodeCall(
-                Multisig.initialize,
+                EmergencyMultisig.initialize,
                 (IDAO(_dao), members, multisigSettings)
             )
         );
@@ -121,7 +121,7 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     /// @notice Encodes the given installation parameters into a byte array
     function encodeInstallationParameters(
         address[] memory _members,
-        Multisig.MultisigSettings memory _multisigSettings
+        EmergencyMultisig.MultisigSettings memory _multisigSettings
     ) external pure returns (bytes memory) {
         return abi.encode(_members, _multisigSettings);
     }
@@ -134,12 +134,12 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
         pure
         returns (
             address[] memory _members,
-            Multisig.MultisigSettings memory _multisigSettings
+            EmergencyMultisig.MultisigSettings memory _multisigSettings
         )
     {
         (_members, _multisigSettings) = abi.decode(
             _data,
-            (address[], Multisig.MultisigSettings)
+            (address[], EmergencyMultisig.MultisigSettings)
         );
     }
 }
