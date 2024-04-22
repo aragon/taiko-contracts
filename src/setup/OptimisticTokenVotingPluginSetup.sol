@@ -18,7 +18,7 @@ import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGover
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
 
-uint64 constant MIN_DELAY = 60 * 60 * 24 * 7 * 2;
+uint32 constant MIN_DELAY = 60 * 60 * 24 * 7 * 2;
 
 /// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023
