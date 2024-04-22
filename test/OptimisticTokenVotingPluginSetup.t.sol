@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
@@ -54,12 +54,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 payable(
                     createProxyAndCall(
                         address(daoBase),
-                        abi.encodeWithSelector(
-                            DAO.initialize.selector,
-                            "",
-                            alice,
-                            address(0x0),
-                            ""
+                        abi.encodeCall(
+                            DAO.initialize,
+                            ("", alice, address(0x0), "")
                         )
                     )
                 )
@@ -1077,12 +1074,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             payable(
                 createProxyAndCall(
                     address(governanceERC20Base),
-                    abi.encodeWithSelector(
-                        GovernanceERC20.initialize.selector,
-                        IDAO(dao),
-                        "My Token",
-                        "MTK",
-                        mintSettings
+                    abi.encodeCall(
+                        GovernanceERC20.initialize,
+                        (IDAO(dao), "My Token", "MTK", mintSettings)
                     )
                 )
             )

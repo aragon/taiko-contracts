@@ -7,21 +7,25 @@ import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondi
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 
-// import {PermissionCondition} from "@aragon/osx/core/permission/PermissionCondition.sol";
-
 /// @title PermissionCondition
-/// @author Aragon Association - 2023
+/// @author Aragon Association - 2023-2024
 /// @notice An abstract contract for non-upgradeable contracts instantiated via the `new` keyword  to inherit from to support customary permissions depending on arbitrary on-chain state.
 contract StandardProposalCondition is ERC165, IPermissionCondition {
     address dao;
-    uint256 minDelay;
+    uint32 minDelay;
+
+    error EmptyDao();
+    error EmptyDelay();
 
     /**
      *
      * @param _dao The address of the DAO on which permissions are defined
      * @param _minDelay The minimum amount of seconds to enforce for proposals created
      */
-    constructor(address _dao, uint256 _minDelay) {
+    constructor(address _dao, uint32 _minDelay) {
+        if (_dao == address(0)) revert EmptyDao();
+        else if (_minDelay == 0) revert EmptyDelay();
+
         dao = _dao;
         minDelay = _minDelay;
     }
