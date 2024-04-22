@@ -54,12 +54,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 payable(
                     createProxyAndCall(
                         address(daoBase),
-                        abi.encodeWithSelector(
-                            DAO.initialize.selector,
-                            "",
-                            alice,
-                            address(0x0),
-                            ""
+                        abi.encodeCall(
+                            DAO.initialize,
+                            ("", alice, address(0x0), "")
                         )
                     )
                 )
@@ -1077,12 +1074,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             payable(
                 createProxyAndCall(
                     address(governanceERC20Base),
-                    abi.encodeWithSelector(
-                        GovernanceERC20.initialize.selector,
-                        IDAO(dao),
-                        "My Token",
-                        "MTK",
-                        mintSettings
+                    abi.encodeCall(
+                        GovernanceERC20.initialize,
+                        (IDAO(dao), "My Token", "MTK", mintSettings)
                     )
                 )
             )

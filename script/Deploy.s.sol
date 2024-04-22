@@ -133,12 +133,14 @@ contract Deploy is Script {
             payable(
                 createERC1967Proxy(
                     address(daoImplementation),
-                    abi.encodeWithSelector(
-                        DAO.initialize.selector,
-                        "", // Metadata URI
-                        getDeployerWallet(),
-                        address(0x0),
-                        "" // DAO URI
+                    abi.encodeCall(
+                        DAO.initialize,
+                        (
+                            "", // Metadata URI
+                            getDeployerWallet(),
+                            address(0x0),
+                            "" // DAO URI
+                        )
                     )
                 )
             )
@@ -312,14 +314,16 @@ contract Deploy is Script {
         actions[0] = IDAO.Action(
             address(dao),
             0,
-            abi.encodeWithSelector(
-                PluginSetupProcessor.applyInstallation.selector,
-                dao,
-                PluginSetupProcessor.ApplyInstallationParams(
-                    PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo),
-                    plugin,
-                    preparedSetupData.permissions,
-                    hashHelpers(preparedSetupData.helpers)
+            abi.encodeCall(
+                PluginSetupProcessor.applyInstallation,
+                (
+                    address(dao),
+                    PluginSetupProcessor.ApplyInstallationParams(
+                        PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo),
+                        plugin,
+                        preparedSetupData.permissions,
+                        hashHelpers(preparedSetupData.helpers)
+                    )
                 )
             )
         );

@@ -7,10 +7,8 @@ import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondi
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 
-// import {PermissionCondition} from "@aragon/osx/core/permission/PermissionCondition.sol";
-
 /// @title PermissionCondition
-/// @author Aragon Association - 2023
+/// @author Aragon Association - 2023-2024
 /// @notice An abstract contract for non-upgradeable contracts instantiated via the `new` keyword  to inherit from to support customary permissions depending on arbitrary on-chain state.
 contract StandardProposalCondition is ERC165, IPermissionCondition {
     address dao;

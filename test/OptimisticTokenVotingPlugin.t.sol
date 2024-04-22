@@ -61,12 +61,9 @@ contract OptimisticTokenVotingPluginTest is Test {
             payable(
                 createProxyAndCall(
                     address(daoBase),
-                    abi.encodeWithSelector(
-                        DAO.initialize.selector,
-                        "",
-                        alice,
-                        address(0x0),
-                        ""
+                    abi.encodeCall(
+                        DAO.initialize,
+                        ("", alice, address(0x0), "")
                     )
                 )
             )
@@ -76,7 +73,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
         votingToken.mint(alice, 10 ether);
@@ -95,11 +92,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -139,11 +134,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -169,11 +162,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -188,11 +179,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -202,7 +191,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
         votingToken.mint(alice, 10 ether);
@@ -211,11 +200,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -230,11 +217,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -260,11 +245,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -350,7 +333,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
 
@@ -366,11 +349,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -403,7 +384,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
         votingToken.mint(alice, 15 ether);
@@ -421,11 +402,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -461,11 +440,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -492,11 +469,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -515,7 +490,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
         votingToken.mint(alice, 10 ether);
@@ -533,11 +508,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -562,7 +535,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
         votingToken.mint(alice, 10 ether);
@@ -581,11 +554,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -678,7 +649,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
 
@@ -694,11 +665,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -845,11 +814,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -896,9 +863,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].to = address(plugin);
         actions[0].value = 1 wei;
-        actions[0].data = abi.encodeWithSelector(
-            OptimisticTokenVotingPlugin.totalVotingPower.selector,
-            0
+        actions[0].data = abi.encodeCall(
+            OptimisticTokenVotingPlugin.totalVotingPower,
+            (0)
         );
         uint256 failSafeBitmap = 1;
 
@@ -1503,7 +1470,7 @@ contract OptimisticTokenVotingPluginTest is Test {
         votingToken = ERC20VotesMock(
             createProxyAndCall(
                 address(votingTokenBase),
-                abi.encodeWithSelector(ERC20VotesMock.initialize.selector)
+                abi.encodeCall(ERC20VotesMock.initialize, ())
             )
         );
         votingToken.mint(alice, 24 ether);
@@ -1534,11 +1501,9 @@ contract OptimisticTokenVotingPluginTest is Test {
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(pluginBase),
-                abi.encodeWithSelector(
-                    OptimisticTokenVotingPlugin.initialize.selector,
-                    dao,
-                    settings,
-                    votingToken
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken)
                 )
             )
         );
@@ -2043,11 +2008,9 @@ contract OptimisticTokenVotingPluginTest is Test {
 
         plugin.upgradeToAndCall(
             _pluginBase,
-            abi.encodeWithSelector(
-                OptimisticTokenVotingPlugin
-                    .updateOptimisticGovernanceSettings
-                    .selector,
-                settings
+            abi.encodeCall(
+                OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings,
+                (settings)
             )
         );
     }
@@ -2093,11 +2056,9 @@ contract OptimisticTokenVotingPluginTest is Test {
                 });
         plugin.upgradeToAndCall(
             _pluginBase,
-            abi.encodeWithSelector(
-                OptimisticTokenVotingPlugin
-                    .updateOptimisticGovernanceSettings
-                    .selector,
-                settings
+            abi.encodeCall(
+                OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings,
+                (settings)
             )
         );
     }
