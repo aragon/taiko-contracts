@@ -996,37 +996,103 @@ contract StandardProposalConditionTest is Test {
         vm.skip(true);
     }
 
-    // it('increments the proposal counter', async () => {
-    // it('creates unique proposal IDs for each proposal', async () => {
-    // it('emits the `ProposalCreated` event', async () => {
-    // it('reverts if the multisig settings have been changed in the same block', async () => {
-    // it('creates a proposal when unlisted accounts are allowed', async () => {
-    // it('reverts if the user is not on the list and only listed accounts can create proposals', async () => {
-    // it('reverts if `_msgSender` is not listed in the current block although he was listed in the last block', async () => {
-    // it('creates a proposal successfully and does not approve if not specified', async () => {
-    // it('creates a proposal successfully and approves if specified', async () => {
-    // it('increases the proposal count', async () => {
-    // it('should revert if startDate is < than now', async () => {
-    // it('should revert if endDate is < than startDate', async () => {
-    // it('returns `false` if the proposal is already executed', async () => {
-    // it('returns `false` if the approver is not listed', async () => {
-    // it('returns `false` if the approver has already approved', async () => {
-    // it('returns `true` if the approver is listed', async () => {
-    // it('returns `false` if the proposal has ended', async () => {
-    // it('returns `true` if user has approved', async () => {
-    // it('reverts when approving multiple times', async () => {
-    // it('reverts if minimal approval is not met yet', async () => {
-    // it('approves with the msg.sender address', async () => {
-    // it('reverts if the proposal has ended', async () => {
-    // it('returns `false` if the proposal has not reached the minimum approval yet', async () => {
-    // it('returns `false` if the proposal is already executed', async () => {
-    // it('returns `true` if the proposal can be executed', async () => {
-    // it('returns `false` if the proposal has ended', async () => {
-    // it('reverts if the minimum approval is not met', async () => {
-    // it('executes if the minimum approval is met', async () => {
-    // it('executes if the minimum approval is met and can be called by an unlisted accounts', async () => {
-    // it('executes if the minimum approval is met when multisig with the `tryExecution` option', async () => {
-    // it('emits the `ProposalExecuted` and `Executed` events', async () => {
-    // it('emits the `Approved`, `ProposalExecuted`, and `Executed` events if execute is called inside the `approve` method', async () => {
-    // it('reverts if the proposal has ended', async () => {
+    function test_IncrementsTheProposalCounter() public {
+        // increments the proposal counter
+        vm.skip(true);
+    }
+
+    function test_CreatesUniqueProposalIds() public {
+        // creates unique proposal IDs for each proposal
+        vm.skip(true);
+    }
+
+    function test_EmitsProposalCreated() public {
+        // emits the `ProposalCreated` event
+        vm.skip(true);
+    }
+
+    function test_RevertsIfSettingsChangedInSameBlock() public {
+        // reverts if the multisig settings have been changed in the same block
+        vm.skip(true);
+    }
+
+    function test_CreatesWhenUnlistedAccountsAllowed() public {
+        // creates a proposal when unlisted accounts are allowed
+        vm.skip(true);
+    }
+
+    function test_RevertsWhenOnlyListedAndAnotherWalletCreates() public {
+        // reverts if the user is not on the list and only listed accounts can create proposals
+        vm.skip(true);
+    }
+
+    function test_RevertsWhenSenderWasListedBeforeButNotNow() public {
+        // reverts if `_msgSender` is not listed in the current block although he was listed in the last block
+        vm.skip(true);
+    }
+
+    function test_CreatesProposalWithoutApprovingIfUnspecified() public {
+        // creates a proposal successfully and does not approve if not specified
+        vm.skip(true);
+    }
+
+    function test_CreatesAndApprovesWhenSpecified() public {
+        // creates a proposal successfully and approves if specified
+        vm.skip(true);
+    }
+
+    function test_ShouldRevertWhenStartDateLessThanNow() public {
+        // should revert if startDate is < than now
+        vm.skip(true);
+    }
+
+    function test_ShouldRevertIfEndDateBeforeStartDate() public {
+        // should revert if endDate is < than startDate
+        vm.skip(true);
+    }
+
+    function test_CanApproveReturnsFalseIfExecuted() public {
+        // returns `false` if the proposal is already executed
+        vm.skip(true);
+    }
+
+    function test_CanApproveReturnfFalseIfNotListed() public {
+        // returns `false` if the approver is not listed
+        vm.skip(true);
+    }
+
+    function test_CanApproveReturnsFalseIfApproved() public {
+        // returns `false` if the approver has already approved
+        vm.skip(true);
+    }
+
+    function test_CanApproveReturnsFalseIfUnstarted() public {
+        // returns `false` if the proposal hasn't started yet
+        vm.skip(true);
+    }
+
+    function test_CanApproveReturnsTrueIfListed() public {
+        // returns `true` if the approver is listed
+        vm.skip(true);
+    }
+
+    function test_CanApproveReturnsFalseIfTheProposalExpired() public {
+        // returns `false` if the proposal has ended
+        vm.skip(true);
+    }
+
+    function test_HasApprovedReturnsFalseWhenNotApproved() public {
+        // returns `false` if user hasn't approved yet
+        vm.skip(true);
+    }
+
+    function test_HasApprovedReturnsTrueWhenUserApproved() public {
+        // returns `true` if user has approved
+        vm.skip(true);
+    }
+
+    function test_ApproveRevertsIfApprovingMultipleTimes() public {
+        // reverts when approving multiple times
+        vm.skip(true);
+    }
 }
