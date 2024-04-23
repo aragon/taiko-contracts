@@ -12,9 +12,9 @@ import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ERC20VotesMock} from "./mocks/ERC20VotesMock.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IERC1822ProxiableUpgradeable} from "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
+import {createProxyAndCall} from "./common.sol";
 
 contract OptimisticTokenVotingPluginTest is Test {
     address immutable daoBase = address(new DAO());
@@ -2061,13 +2061,5 @@ contract OptimisticTokenVotingPluginTest is Test {
                 (settings)
             )
         );
-    }
-
-    // HELPERS
-    function createProxyAndCall(
-        address _logic,
-        bytes memory _data
-    ) private returns (address) {
-        return address(new ERC1967Proxy(_logic, _data));
     }
 }

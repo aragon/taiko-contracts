@@ -11,6 +11,7 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IMultisig} from "./interfaces/IMultisig.sol";
+import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2023
@@ -30,14 +31,17 @@ contract Multisig is
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
     /// @param actions The actions to be executed when the proposal passes.
-    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param targetPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
         uint16 approvals;
         ProposalParameters parameters;
         mapping(address => bool) approvers;
         IDAO.Action[] actions;
+        bytes metadataURI;
         uint256 allowFailureMap;
+        OptimisticTokenVotingPlugin targetPlugin;
     }
 
     /// @notice A container for the proposal parameters.
@@ -216,16 +220,16 @@ contract Multisig is
     }
 
     /// @notice Creates a new multisig proposal.
-    /// @param _metadata The metadata of the proposal.
+    /// @param _metadataURI The metadataURI of the proposal.
     /// @param _actions The actions that will be executed after the proposal passes.
     /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     /// @param _approveProposal If `true`, the sender will approve the proposal.
     /// @param _tryExecution If `true`, execution is tried after the vote cast. The call does not revert if early execution is not possible.
     /// @param _startDate The start date of the proposal.
-    /// @param _endDate The end date of the proposal.
+    /// @param _endDate The expiration date for proposals that have not been executed.
     /// @return proposalId The ID of the proposal.
     function createProposal(
-        bytes calldata _metadata,
+        bytes calldata _metadataURI,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
         bool _approveProposal,
@@ -263,7 +267,7 @@ contract Multisig is
 
         proposalId = _createProposal({
             _creator: _msgSender(),
-            _metadata: _metadata,
+            _metadata: _metadataURI,
             _startDate: _startDate,
             _endDate: _endDate,
             _actions: _actions,
@@ -390,11 +394,12 @@ contract Multisig is
 
         proposal_.executed = true;
 
-        _executeProposal(
-            dao(),
-            _proposalId,
-            proposals[_proposalId].actions,
-            proposals[_proposalId].allowFailureMap
+        proposal_.targetPlugin.createProposal(
+            proposal_.metadataURI,
+            proposal_.actions,
+            proposal_.allowFailureMap,
+            0, // startDate,
+            0 // endDate
         );
     }
 
