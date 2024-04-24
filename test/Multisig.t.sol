@@ -19,7 +19,7 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {createProxyAndCall} from "./common.sol";
 
-contract StandardProposalConditionTest is Test {
+contract MultisigTest is Test {
     address immutable daoBase = address(new DAO());
     address immutable multisigBase = address(new Multisig());
     address immutable optimisticBase =
@@ -38,10 +38,20 @@ contract StandardProposalConditionTest is Test {
 
     string metadataURI = "ipfs://1234";
 
-    // Events to be tested here (duplicate)
+    // Events/errors to be tested here (duplicate)
     event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals);
     event MembersAdded(address[] members);
     event MembersRemoved(address[] members);
+    error InvalidAddresslistUpdate(address member);
+    event ProposalCreated(
+        uint256 indexed proposalId,
+        address indexed creator,
+        uint64 startDate,
+        uint64 endDate,
+        bytes metadata,
+        IDAO.Action[] actions,
+        uint256 allowFailureMap
+    );
 
     function setUp() public {
         vm.startPrank(alice);
@@ -107,13 +117,6 @@ contract StandardProposalConditionTest is Test {
                 )
             );
         }
-
-        // // The Multisig can create proposals on the Optimistic plugin
-        // dao.grant(
-        //     address(optimisticPlugin),
-        //     address(plugin),
-        //     optimisticPlugin.PROPOSER_PERMISSION_ID()
-        // );
     }
 
     function test_RevertsIfTryingToReinitializa() public {
@@ -807,7 +810,13 @@ contract StandardProposalConditionTest is Test {
 
         // ko
         addrs[0] = david;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.MinApprovalsOutOfBounds.selector,
+                1,
+                0
+            )
+        );
         plugin.removeAddresses(addrs);
 
         // Next
@@ -845,17 +854,35 @@ contract StandardProposalConditionTest is Test {
 
         // ko
         addrs[0] = bob;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.MinApprovalsOutOfBounds.selector,
+                3,
+                2
+            )
+        );
         plugin.removeAddresses(addrs);
 
         // ko
         addrs[0] = carol;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.MinApprovalsOutOfBounds.selector,
+                3,
+                2
+            )
+        );
         plugin.removeAddresses(addrs);
 
         // ko
         addrs[0] = david;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.MinApprovalsOutOfBounds.selector,
+                3,
+                2
+            )
+        );
         plugin.removeAddresses(addrs);
 
         // Add and retry removing
@@ -900,27 +927,37 @@ contract StandardProposalConditionTest is Test {
         plugin.addAddresses(addrs);
 
         // ko
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.addAddresses(addrs);
 
         // 1
         addrs[0] = alice;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.addAddresses(addrs);
 
         // 2
         addrs[0] = bob;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.addAddresses(addrs);
 
         // 3
         addrs[0] = carol;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.addAddresses(addrs);
 
         // 4
         addrs[0] = david;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.addAddresses(addrs);
 
         // ok
@@ -928,23 +965,33 @@ contract StandardProposalConditionTest is Test {
         plugin.removeAddresses(addrs);
 
         // ko
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.removeAddresses(addrs);
 
         addrs[0] = vm.addr(2345);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.removeAddresses(addrs);
 
         addrs[0] = vm.addr(3456);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.removeAddresses(addrs);
 
         addrs[0] = vm.addr(4567);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.removeAddresses(addrs);
 
         addrs[0] = randomWallet;
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0])
+        );
         plugin.removeAddresses(addrs);
     }
 
@@ -993,106 +1040,581 @@ contract StandardProposalConditionTest is Test {
 
     function test_MinApprovalsBiggerThanTheListReverts() public {
         // MinApprovals should be within the boundaries of the list
-        vm.skip(true);
+        dao.grant(
+            address(plugin),
+            alice,
+            plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+        );
+
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 5 // More than 4
+        });
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.MinApprovalsOutOfBounds.selector,
+                4,
+                5
+            )
+        );
+        plugin.updateMultisigSettings(settings);
+
+        // More signers
+
+        address[] memory signers = new address[](1);
+        signers[0] = randomWallet;
+        plugin.addAddresses(signers);
+
+        // should not fail now
+        plugin.updateMultisigSettings(settings);
+
+        // More than that, should fail again
+        settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 6 // More than 5
+        });
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.MinApprovalsOutOfBounds.selector,
+                5,
+                6
+            )
+        );
+        plugin.updateMultisigSettings(settings);
     }
 
     function test_IncrementsTheProposalCounter() public {
         // increments the proposal counter
-        vm.skip(true);
+        vm.roll(block.number + 1);
+
+        assertEq(plugin.proposalCount(), 0, "Should have no proposals");
+
+        // 1
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 500)
+        );
+
+        assertEq(plugin.proposalCount(), 1, "Should have 1 proposal");
+
+        // 2
+        plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            true,
+            true,
+            0,
+            uint64(block.timestamp + 500)
+        );
+
+        assertEq(plugin.proposalCount(), 2, "Should have 2 proposals");
     }
 
-    function test_CreatesUniqueProposalIds() public {
+    function test_CreatesAndReturnsUniqueProposalIds() public {
         // creates unique proposal IDs for each proposal
-        vm.skip(true);
+        vm.roll(block.number + 1);
+
+        // 1
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 500)
+        );
+
+        assertEq(pid, 0, "Should be 0");
+
+        // 2
+        pid = plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            true,
+            true,
+            0,
+            uint64(block.timestamp + 500)
+        );
+
+        assertEq(pid, 1, "Should be 1");
+
+        // 2
+        pid = plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            true,
+            true,
+            0,
+            uint64(block.timestamp + 500)
+        );
+
+        assertEq(pid, 2, "Should be 2");
     }
 
     function test_EmitsProposalCreated() public {
         // emits the `ProposalCreated` event
-        vm.skip(true);
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectEmit();
+        emit ProposalCreated({
+            proposalId: 0,
+            creator: alice,
+            metadata: "",
+            startDate: uint64(block.timestamp),
+            endDate: uint64(block.timestamp) + 500,
+            actions: actions,
+            allowFailureMap: 0
+        });
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            true,
+            true,
+            0,
+            uint64(block.timestamp + 500)
+        );
+
+        // 2
+        vm.stopPrank();
+        vm.startPrank(bob);
+        vm.roll(block.number + 1);
+
+        actions = new IDAO.Action[](1);
+        actions[0].to = carol;
+        actions[0].value = 1 ether;
+        address[] memory addrs = new address[](1);
+        actions[0].data = abi.encodeCall(Multisig.addAddresses, (addrs));
+
+        vm.expectEmit();
+        emit ProposalCreated({
+            proposalId: 1,
+            creator: bob,
+            metadata: "ipfs://",
+            startDate: uint64(block.timestamp) + 10,
+            endDate: uint64(block.timestamp) + 1000,
+            actions: actions,
+            allowFailureMap: 255
+        });
+        plugin.createProposal(
+            "ipfs://",
+            actions,
+            255,
+            false,
+            false,
+            uint64(block.timestamp + 10),
+            uint64(block.timestamp + 1000)
+        );
+
+        // undo
+        vm.stopPrank();
+        vm.startPrank(alice);
     }
 
     function test_RevertsIfSettingsChangedInSameBlock() public {
         // reverts if the multisig settings have been changed in the same block
-        vm.skip(true);
+
+        // 1
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalCreationForbidden.selector,
+                alice
+            )
+        );
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+
+        // Next block
+        vm.roll(block.number + 1);
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
     }
 
     function test_CreatesWhenUnlistedAccountsAllowed() public {
         // creates a proposal when unlisted accounts are allowed
-        vm.skip(true);
+
+        // Deploy a new multisig instance
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 3
+        });
+        address[] memory signers = new address[](4);
+        signers[0] = alice;
+        signers[1] = bob;
+        signers[2] = carol;
+        signers[3] = david;
+
+        plugin = Multisig(
+            createProxyAndCall(
+                address(multisigBase),
+                abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+            )
+        );
+
+        vm.stopPrank();
+        vm.startPrank(randomWallet);
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+
+        vm.stopPrank();
+        vm.startPrank(alice);
     }
 
     function test_RevertsWhenOnlyListedAndAnotherWalletCreates() public {
         // reverts if the user is not on the list and only listed accounts can create proposals
-        vm.skip(true);
+
+        vm.stopPrank();
+        vm.startPrank(randomWallet);
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalCreationForbidden.selector,
+                randomWallet
+            )
+        );
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+
+        vm.stopPrank();
+        vm.startPrank(alice);
     }
 
     function test_RevertsWhenSenderWasListedBeforeButNotNow() public {
-        // reverts if `_msgSender` is not listed in the current block although he was listed in the last block
-        vm.skip(true);
+        // reverts if `_msgSender` is not listed before although she was listed in the last block
+
+        // Deploy a new multisig instance
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1
+        });
+        address[] memory addrs = new address[](1);
+        addrs[0] = alice;
+
+        plugin = Multisig(
+            createProxyAndCall(
+                address(multisigBase),
+                abi.encodeCall(Multisig.initialize, (dao, addrs, settings))
+            )
+        );
+        dao.grant(
+            address(plugin),
+            alice,
+            plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        // Add+remove
+        addrs[0] = bob;
+        plugin.addAddresses(addrs);
+
+        addrs[0] = alice;
+        plugin.removeAddresses(addrs);
+
+        // Alice cannot create now
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalCreationForbidden.selector,
+                alice
+            )
+        );
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+
+        // Bob can create now
+        vm.stopPrank();
+        vm.startPrank(bob);
+
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+
+        assertEq(plugin.isListed(alice), false, "Should not be listed");
+        assertEq(plugin.isListed(bob), true, "Should be listed");
     }
 
     function test_CreatesProposalWithoutApprovingIfUnspecified() public {
         // creates a proposal successfully and does not approve if not specified
-        vm.skip(true);
+
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal(
+            "",
+            actions,
+            0,
+            false, // approveProposal
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+
+        assertEq(
+            plugin.hasApproved(pid, alice),
+            false,
+            "Should not have approved"
+        );
+
+        plugin.approve(pid, false);
+
+        assertEq(plugin.hasApproved(pid, alice), true, "Should have approved");
     }
 
     function test_CreatesAndApprovesWhenSpecified() public {
         // creates a proposal successfully and approves if specified
-        vm.skip(true);
+
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal(
+            "",
+            actions,
+            0,
+            true, // approveProposal
+            false,
+            0,
+            uint64(block.timestamp + 10)
+        );
+        assertEq(plugin.hasApproved(pid, alice), true, "Should have approved");
     }
 
     function test_ShouldRevertWhenStartDateLessThanNow() public {
         // should revert if startDate is < than now
-        vm.skip(true);
+
+        vm.roll(block.number + 1);
+        vm.warp(10); // timestamp = 10
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(
+            abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 10, 5)
+        );
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            5, // startDate = 5, now = 10
+            uint64(block.timestamp + 100)
+        );
+
+        // 2
+        vm.expectRevert(
+            abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 10, 9)
+        );
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            9, // startDate = 9, now = 10
+            uint64(block.timestamp + 100)
+        );
+
+        // ok
+        plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            10, // startDate = 10, now = 10
+            uint64(block.timestamp + 100)
+        );
     }
 
     function test_ShouldRevertIfEndDateBeforeStartDate() public {
         // should revert if endDate is < than startDate
-        vm.skip(true);
+
+        vm.roll(block.number + 1);
+        vm.warp(10); // timestamp = 10
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(
+            abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 20, 15)
+        );
+        plugin.createProposal("", actions, 0, false, false, 20, 15);
+
+        // 2
+        vm.expectRevert(
+            abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 20, 19)
+        );
+        plugin.createProposal("", actions, 0, false, false, 20, 19);
+
+        // ok
+        plugin.createProposal("", actions, 0, false, false, 20, 20);
+        plugin.createProposal("", actions, 0, false, false, 20, 30);
+        plugin.createProposal("", actions, 0, false, false, 20, 100);
     }
 
-    function test_CanApproveReturnsFalseIfExecuted() public {
-        // returns `false` if the proposal is already executed
-        vm.skip(true);
-    }
-
-    function test_CanApproveReturnfFalseIfNotListed() public {
+    function testFuzz_CanApproveReturnsfFalseIfNotListed(
+        address _randomWallet
+    ) public {
         // returns `false` if the approver is not listed
-        vm.skip(true);
+
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // ko
+        assertEq(
+            plugin.canApprove(pid, _randomWallet),
+            false,
+            "Should be false"
+        );
+
+        // static ko
+        assertEq(
+            plugin.canApprove(pid, randomWallet),
+            false,
+            "Should be false"
+        );
+
+        // static ok
+        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
+        assertEq(plugin.canApprove(pid, bob), true, "Should be true");
+        assertEq(plugin.canApprove(pid, carol), true, "Should be true");
+        assertEq(plugin.canApprove(pid, david), true, "Should be true");
     }
 
     function test_CanApproveReturnsFalseIfApproved() public {
         // returns `false` if the approver has already approved
-        vm.skip(true);
+        {
+            Multisig.MultisigSettings memory settings = Multisig
+                .MultisigSettings({onlyListed: true, minApprovals: 4});
+            address[] memory signers = new address[](4);
+            signers[0] = alice;
+            signers[1] = bob;
+            signers[2] = carol;
+            signers[3] = david;
+
+            plugin = Multisig(
+                createProxyAndCall(
+                    address(multisigBase),
+                    abi.encodeCall(
+                        Multisig.initialize,
+                        (dao, signers, settings)
+                    )
+                )
+            );
+        }
+
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
+        plugin.approve(pid, false);
+        assertEq(plugin.canApprove(pid, alice), false, "Should be false");
+
+        // Bob
+        assertEq(plugin.canApprove(pid, bob), true, "Should be true");
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        assertEq(plugin.canApprove(pid, bob), false, "Should be false");
+
+        // Carol
+        assertEq(plugin.canApprove(pid, carol), true, "Should be true");
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        assertEq(plugin.canApprove(pid, carol), false, "Should be false");
+
+        // David
+        assertEq(plugin.canApprove(pid, david), true, "Should be true");
+        vm.stopPrank();
+        vm.startPrank(david);
+        plugin.approve(pid, false);
+        assertEq(plugin.canApprove(pid, david), false, "Should be false");
+
+        vm.stopPrank();
+        vm.startPrank(alice);
     }
 
     function test_CanApproveReturnsFalseIfUnstarted() public {
         // returns `false` if the proposal hasn't started yet
-        vm.skip(true);
-    }
 
-    function test_CanApproveReturnsTrueIfListed() public {
-        // returns `true` if the approver is listed
-        vm.skip(true);
-    }
+        vm.roll(block.number + 1);
 
-    function test_CanApproveReturnsFalseIfTheProposalExpired() public {
-        // returns `false` if the proposal has ended
-        vm.skip(true);
-    }
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal(
+            "",
+            actions,
+            0,
+            false,
+            false,
+            uint64(block.timestamp) + 1,
+            100
+        );
 
-    function test_HasApprovedReturnsFalseWhenNotApproved() public {
-        // returns `false` if user hasn't approved yet
-        vm.skip(true);
-    }
+        assertEq(plugin.canApprove(pid, alice), false, "Should be false");
 
-    function test_HasApprovedReturnsTrueWhenUserApproved() public {
-        // returns `true` if user has approved
-        vm.skip(true);
-    }
-
-    function test_ApproveRevertsIfApprovingMultipleTimes() public {
-        // reverts when approving multiple times
-        vm.skip(true);
+        // forward
+        vm.warp(block.timestamp + 1);
+        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
     }
 }

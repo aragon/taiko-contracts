@@ -201,8 +201,8 @@ contract Multisig is
         // Check if the new address list length would become less than the current minimum number of approvals required.
         if (newAddresslistLength < multisigSettings.minApprovals) {
             revert MinApprovalsOutOfBounds({
-                limit: newAddresslistLength,
-                actual: multisigSettings.minApprovals
+                limit: multisigSettings.minApprovals,
+                actual: newAddresslistLength
             });
         }
 
