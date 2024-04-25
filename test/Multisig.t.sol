@@ -52,6 +52,8 @@ contract MultisigTest is Test {
         IDAO.Action[] actions,
         uint256 allowFailureMap
     );
+    event ProposalExecuted(uint256 indexed proposalId);
+    event Approved(uint256 indexed proposalId, address indexed approver);
 
     function setUp() public {
         vm.startPrank(alice);
@@ -2176,20 +2178,110 @@ contract MultisigTest is Test {
         assertEq(plugin.canExecute(pid), true, "Should be true");
     }
 
-    // function test_CanExecuteReturnsFalseIfExpired() public {
-    //     // returns `false` if the proposal has ended
-    //     vm.skip(true);
-    // }
+    function test_CanExecuteReturnsFalseIfExpired() public {
+        // returns `false` if the proposal has ended
 
-    // function test_CanExecuteReturnsFalseIfExecuted() public {
-    //     // returns `false` if the proposal is already executed
-    //     vm.skip(true);
-    // }
+        vm.roll(block.number + 1);
 
-    // function test_CanExecuteReturnsTrueWhenAllGood() public {
-    //     // returns `true` if the proposal can be executed
-    //     vm.skip(true);
-    // }
+        // 1
+        vm.warp(0); // timestamp = 0
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        plugin.approve(pid, false);
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        vm.warp(101); // timestamp = 101
+
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        // 2
+        vm.warp(0); // timestamp = 0
+
+        actions = new IDAO.Action[](0);
+        pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        assertEq(plugin.canExecute(pid), true, "Should be true");
+
+        vm.warp(101); // timestamp = 101
+
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_CanExecuteReturnsFalseIfExecuted() public {
+        // returns `false` if the proposal is already executed
+
+        vm.skip(true); // TODO:
+
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        plugin.approve(pid, false);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        assertEq(plugin.canExecute(pid), true, "Should be true");
+        plugin.execute(pid);
+
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_CanExecuteReturnsTrueWhenAllGood() public {
+        // returns `true` if the proposal can be executed
+
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        // Alice
+        plugin.approve(pid, false);
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        assertEq(plugin.canExecute(pid), false, "Should be false");
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        assertEq(plugin.canExecute(pid), true, "Should be true");
+    }
 
     // EXECUTE
 
@@ -2377,36 +2469,491 @@ contract MultisigTest is Test {
         plugin.execute(pid);
     }
 
-    // function test_ExecutesWhenApprovingWithTryExecutionAndEnoughApprovals() public {
-    //     // executes if the minimum approval is met when multisig with the `tryExecution` option
-    //     vm.skip(true);
-    // }
+    function test_ExecuteRevertsIfExpired() public {
+        // reverts if the proposal has expired
 
-    // function test_ExecuteReverts() public {
-    //     // emits the `ProposalExecuted` and `Executed` events
-    //     vm.skip(true);
-    // }
+        vm.roll(block.number + 1);
 
-    // function test_ExecuteReverts() public {
-    //     // emits the `Approved`, `ProposalExecuted`, and `Executed` events if execute is called inside the `approve` method
-    //     vm.skip(true);
-    // }
+        // 1
+        vm.warp(0); // timestamp = 0
 
-    // function test_ExecuteReverts() public {
-    //     // reverts if the proposal has ended
-    //     vm.skip(true);
-    // }
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
 
-    // function test_ExecuteReverts() public {
-    //     // executes if the minimum approval is met
-    //     vm.skip(true);
-    // }
+        plugin.approve(pid, false);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalExecutionForbidden.selector,
+                pid
+            )
+        );
+        plugin.execute(pid);
 
-    // function test_ExecuteReverts() public {
-    //     // executes if the minimum approval is met and can be called by an unlisted accounts
-    //     vm.skip(true);
-    // }
+        vm.warp(101); // timestamp = 101
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalExecutionForbidden.selector,
+                pid
+            )
+        );
+        plugin.execute(pid);
+
+        // 2
+        vm.warp(0); // timestamp = 0
+
+        actions = new IDAO.Action[](0);
+        pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        assertEq(plugin.canExecute(pid), true, "Should be true");
+
+        vm.warp(101); // timestamp = 101
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalExecutionForbidden.selector,
+                pid
+            )
+        );
+        plugin.execute(pid);
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_ExecuteRevertsWhenAlreadyExecuted() public {
+        // executes if the minimum approval is met when multisig with the `tryExecution` option
+
+        vm.skip(true); // TODO:
+
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        plugin.approve(pid, false);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        assertEq(plugin.canExecute(pid), true, "Should be true");
+        plugin.execute(pid);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.ProposalExecutionForbidden.selector,
+                pid
+            )
+        );
+        plugin.execute(pid);
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_ExecuteEmitsEvents() public {
+        // emits the `ProposalExecuted` and `ProposalCreated` events
+
+        vm.skip(true);
+
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        plugin.approve(pid, false);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        // event
+        vm.expectEmit();
+        emit ProposalExecuted(pid);
+        plugin.execute(pid);
+
+        // 2
+        actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        pid = plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            100
+        );
+
+        // Alice
+        plugin.approve(pid, false);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        // events
+        vm.expectEmit();
+        emit ProposalCreated(
+            0,
+            alice,
+            uint64(block.timestamp),
+            100,
+            "ipfs://",
+            actions,
+            0
+        );
+        plugin.execute(pid);
+    }
+
+    function test_ExecutesWhenApprovingWithTryExecutionAndEnoughApprovals()
+        public
+    {
+        // executes if the minimum approval is met when multisig with the `tryExecution` option
+
+        vm.skip(true); // TODO:
+
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+        (bool executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Alice
+        plugin.approve(pid, true);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, true);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, true);
+
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_ExecuteEmitsWhenAutoExecutedFromApprove() public {
+        // emits the `Approved`, `ProposalExecuted`, and `ProposalCreated` events if execute is called inside the `approve` method
+
+        vm.skip(true);
+
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        plugin.approve(pid, true);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, true);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        vm.expectEmit();
+        emit ProposalExecuted(pid);
+        plugin.approve(pid, true);
+
+        // 2
+        actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        pid = plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            100
+        );
+
+        // Alice
+        plugin.approve(pid, true);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, true);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        vm.expectEmit();
+        emit Approved(pid, carol);
+        plugin.approve(pid, true);
+
+        // 3
+        actions = new IDAO.Action[](1);
+        actions[0].value = 5 ether;
+        actions[0].to = address(carol);
+        actions[0].data = hex"44556677";
+        pid = plugin.createProposal(
+            "ipfs://...",
+            actions,
+            255,
+            false,
+            false,
+            0,
+            100
+        );
+
+        // Alice
+        plugin.approve(pid, true);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, true);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        vm.expectEmit();
+        emit ProposalCreated(
+            2, // foreign pid
+            address(plugin),
+            uint64(block.timestamp),
+            100,
+            "ipfs://...",
+            actions,
+            255
+        );
+        plugin.approve(pid, true);
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_ExecutesWithEnoughApprovalsOnTime() public {
+        // executes if the minimum approval is met
+
+        vm.skip(true);
+
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        plugin.approve(pid, false);
+        (bool executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        plugin.execute(pid);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        // 2
+        actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        pid = plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            100
+        );
+
+        // Alice
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        plugin.execute(pid);
+
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function test_ExecuteWhenPassedAndCalledByAnyone() public {
+        // executes if the minimum approval is met and can be called by an unlisted accounts
+
+        vm.skip(true);
+
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.roll(block.number + 1);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 0, 100);
+
+        // Alice
+        plugin.approve(pid, false);
+        (bool executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        vm.stopPrank();
+        vm.startPrank(randomWallet);
+        plugin.execute(pid);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        // 2
+        actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        pid = plugin.createProposal(
+            "ipfs://",
+            actions,
+            0,
+            false,
+            false,
+            0,
+            100
+        );
+
+        // Alice
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        vm.stopPrank();
+        vm.startPrank(randomWallet);
+        plugin.execute(pid);
+
+        (executed, , , , ) = plugin.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
 
     // Get proposal returns the right values
     // Trying to auto approve before started fails
+    // Recreated proposal has the same settings and actions as registered here
+    // Approving a proposal emits the Approved event
 }
