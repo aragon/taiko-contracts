@@ -776,6 +776,125 @@ contract MultisigTest is Test {
         assertEq(plugin.isMember(david), false, "Should not be a member");
     }
 
+    function testFuzz_PermissionedAddRemoveMembers(
+        address randomAccount
+    ) public {
+        dao.grant(
+            address(plugin),
+            alice,
+            plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+        );
+
+        assertEq(plugin.isMember(randomWallet), false, "Should be false");
+
+        // in
+        address[] memory addrs = new address[](1);
+        addrs[0] = randomWallet;
+        plugin.addAddresses(addrs);
+        assertEq(plugin.isMember(randomWallet), true, "Should be true");
+
+        // out
+        plugin.removeAddresses(addrs);
+        assertEq(plugin.isMember(randomWallet), false, "Should be false");
+
+        // someone else
+        if (randomAccount != alice) {
+            vm.stopPrank();
+            vm.startPrank(randomAccount);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    DaoUnauthorized.selector,
+                    address(dao),
+                    address(plugin),
+                    randomAccount,
+                    plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+                )
+            );
+            plugin.addAddresses(addrs);
+            assertEq(plugin.isMember(randomWallet), false, "Should be false");
+
+            addrs[0] = carol;
+            assertEq(plugin.isMember(carol), true, "Should be true");
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    DaoUnauthorized.selector,
+                    address(dao),
+                    address(plugin),
+                    randomAccount,
+                    plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+                )
+            );
+            plugin.removeAddresses(addrs);
+
+            assertEq(plugin.isMember(carol), true, "Should be true");
+        }
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
+    function testFuzz_PermissionedUpdateSettings(address randomAccount) public {
+        dao.grant(
+            address(plugin),
+            alice,
+            plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+        );
+
+        (bool onlyListed, uint16 minApprovals) = plugin.multisigSettings();
+        assertEq(minApprovals, 3, "Should be 3");
+        assertEq(onlyListed, true, "Should be true");
+
+        // in
+        Multisig.MultisigSettings memory newSettings = Multisig
+            .MultisigSettings({onlyListed: false, minApprovals: 2});
+        plugin.updateMultisigSettings(newSettings);
+
+        (onlyListed, minApprovals) = plugin.multisigSettings();
+        assertEq(minApprovals, 2, "Should be 2");
+        assertEq(onlyListed, false, "Should be false");
+
+        // out
+        newSettings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1
+        });
+        plugin.updateMultisigSettings(newSettings);
+        (onlyListed, minApprovals) = plugin.multisigSettings();
+        assertEq(minApprovals, 1, "Should be 1");
+        assertEq(onlyListed, true, "Should be true");
+
+        vm.roll(block.number + 1);
+
+        // someone else
+        if (randomAccount != alice) {
+            vm.stopPrank();
+            vm.startPrank(randomAccount);
+
+            newSettings = Multisig.MultisigSettings({
+                onlyListed: false,
+                minApprovals: 4
+            });
+
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    DaoUnauthorized.selector,
+                    address(dao),
+                    address(plugin),
+                    randomAccount,
+                    plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+                )
+            );
+            plugin.updateMultisigSettings(newSettings);
+
+            (onlyListed, minApprovals) = plugin.multisigSettings();
+            assertEq(minApprovals, 1, "Should still be 1");
+            assertEq(onlyListed, true, "Should still be true");
+        }
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
     function test_ShouldRevertIfEmpty() public {
         dao.grant(
             address(plugin),
