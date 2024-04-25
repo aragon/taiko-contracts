@@ -52,8 +52,8 @@ contract MultisigTest is Test {
         IDAO.Action[] actions,
         uint256 allowFailureMap
     );
-    event ProposalExecuted(uint256 indexed proposalId);
     event Approved(uint256 indexed proposalId, address indexed approver);
+    event ProposalExecuted(uint256 indexed proposalId);
 
     function setUp() public {
         vm.startPrank(alice);
@@ -2010,6 +2010,44 @@ contract MultisigTest is Test {
         plugin.approve(pid, true);
     }
 
+    function test_ApprovingProposalsEmits() public {
+        // Approving a proposal emits the Approved event
+
+        vm.roll(block.number + 1);
+        vm.warp(10); // timestamp = 10
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint pid = plugin.createProposal("", actions, 0, false, false, 10, 100);
+
+        vm.expectEmit();
+        emit Approved(pid, alice);
+        plugin.approve(pid, false);
+
+        // Bob
+        vm.stopPrank();
+        vm.startPrank(bob);
+        vm.expectEmit();
+        emit Approved(pid, bob);
+        plugin.approve(pid, false);
+
+        // Carol
+        vm.stopPrank();
+        vm.startPrank(carol);
+        vm.expectEmit();
+        emit Approved(pid, carol);
+        plugin.approve(pid, false);
+
+        // David (even if it already passed)
+        vm.stopPrank();
+        vm.startPrank(david);
+        vm.expectEmit();
+        emit Approved(pid, david);
+        plugin.approve(pid, false);
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+    }
+
     // CAN EXECUTE
 
     function test_CanExecuteReturnsFalseIfBelowMinApprovals() public {
@@ -2870,7 +2908,7 @@ contract MultisigTest is Test {
     function test_ExecuteWhenPassedAndCalledByAnyone() public {
         // executes if the minimum approval is met and can be called by an unlisted accounts
 
-        vm.skip(true);
+        vm.skip(true); // TODO:
 
         dao.grant(
             address(optimisticPlugin),
@@ -2952,8 +2990,487 @@ contract MultisigTest is Test {
         vm.startPrank(alice);
     }
 
-    // Get proposal returns the right values
-    // Trying to auto approve before started fails
-    // Recreated proposal has the same settings and actions as registered here
-    // Approving a proposal emits the Approved event
+    function test_GetProposalReturnsTheRightValues() public {
+        // Get proposal returns the right values
+
+        vm.skip(true); // TODO:
+
+        bool executed;
+        uint16 approvals;
+        Multisig.ProposalParameters memory parameters;
+        IDAO.Action[] memory actions;
+        uint256 allowFailureMap;
+
+        vm.roll(block.number + 1);
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.warp(0); // timestamp = 0
+
+        IDAO.Action[] memory createActions = new IDAO.Action[](3);
+        createActions[0].to = alice;
+        createActions[0].value = 1 ether;
+        createActions[0].data = hex"001122334455";
+        createActions[1].to = bob;
+        createActions[1].value = 2 ether;
+        createActions[1].data = hex"112233445566";
+        createActions[2].to = carol;
+        createActions[2].value = 3 ether;
+        createActions[2].data = hex"223344556677";
+
+        uint pid = plugin.createProposal(
+            "ipfs://metadata",
+            createActions,
+            0,
+            false,
+            false,
+            0,
+            500
+        );
+
+        // Check round 1
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 0, "Should be 0");
+
+        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
+        assertEq(parameters.endDate, 500, "Incorrect endDate");
+
+        assertEq(actions.length, 3, "Should be 3");
+
+        assertEq(actions[0].to, alice, "Incorrect to");
+        assertEq(actions[0].value, 1 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[1].to, bob, "Incorrect to");
+        assertEq(actions[1].value, 2 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
+        assertEq(actions[2].to, carol, "Incorrect to");
+        assertEq(actions[2].value, 3 ether, "Incorrect value");
+        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 0, "Should be 0");
+
+        // Approve
+        plugin.approve(pid, false);
+
+        // Check round 2
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 1, "Should be 1");
+
+        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
+        assertEq(parameters.endDate, 500, "Incorrect endDate");
+
+        assertEq(actions.length, 3, "Should be 3");
+
+        assertEq(actions[0].to, alice, "Incorrect to");
+        assertEq(actions[0].value, 1 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[1].to, bob, "Incorrect to");
+        assertEq(actions[1].value, 2 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
+        assertEq(actions[2].to, carol, "Incorrect to");
+        assertEq(actions[2].value, 3 ether, "Incorrect value");
+        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 0, "Should be 0");
+
+        // Approve
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        // Check round 3
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 3, "Should be 3");
+
+        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
+        assertEq(parameters.endDate, 500, "Incorrect endDate");
+
+        assertEq(actions.length, 3, "Should be 3");
+
+        assertEq(actions[0].to, alice, "Incorrect to");
+        assertEq(actions[0].value, 1 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[1].to, bob, "Incorrect to");
+        assertEq(actions[1].value, 2 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
+        assertEq(actions[2].to, carol, "Incorrect to");
+        assertEq(actions[2].value, 3 ether, "Incorrect value");
+        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 0, "Should be 0");
+
+        // Execute
+        vm.stopPrank();
+        vm.startPrank(alice);
+        plugin.execute(pid);
+
+        // Check round 4
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, true, "Should be executed");
+        assertEq(approvals, 3, "Should be 3");
+
+        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
+        assertEq(parameters.endDate, 500, "Incorrect endDate");
+
+        assertEq(actions.length, 3, "Should be 3");
+
+        assertEq(actions[0].to, alice, "Incorrect to");
+        assertEq(actions[0].value, 1 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[1].to, bob, "Incorrect to");
+        assertEq(actions[1].value, 2 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
+        assertEq(actions[2].to, carol, "Incorrect to");
+        assertEq(actions[2].value, 3 ether, "Incorrect value");
+        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 0, "Should be 0");
+
+        // New proposal, new settings
+        {
+            // Deploy a new multisig instance
+            Multisig.MultisigSettings memory settings = Multisig
+                .MultisigSettings({onlyListed: true, minApprovals: 2});
+            address[] memory signers = new address[](3);
+            signers[0] = alice;
+            signers[1] = bob;
+            signers[2] = carol;
+
+            plugin = Multisig(
+                createProxyAndCall(
+                    address(multisigBase),
+                    abi.encodeCall(
+                        Multisig.initialize,
+                        (dao, signers, settings)
+                    )
+                )
+            );
+        }
+        createActions = new IDAO.Action[](2);
+        createActions[1].to = alice;
+        createActions[1].value = 1 ether;
+        createActions[1].data = hex"001122334455";
+        createActions[0].to = carol;
+        createActions[0].value = 3 ether;
+        createActions[0].data = hex"223344556677";
+
+        pid = plugin.createProposal(
+            "ipfs://different-metadata",
+            createActions,
+            255,
+            true,
+            true,
+            50,
+            550
+        );
+
+        // Check round 1
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 0, "Should be 0");
+
+        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, 50, "Incorrect startDate");
+        assertEq(parameters.endDate, 550, "Incorrect endDate");
+
+        assertEq(actions.length, 2, "Should be 2");
+
+        assertEq(actions[1].to, alice, "Incorrect to");
+        assertEq(actions[1].value, 1 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[0].to, carol, "Incorrect to");
+        assertEq(actions[0].value, 3 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 255, "Should be 255");
+
+        // Approve
+        vm.warp(55);
+        plugin.approve(pid, false);
+
+        // Check round 2
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 1, "Should be 1");
+
+        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, 50, "Incorrect startDate");
+        assertEq(parameters.endDate, 550, "Incorrect endDate");
+
+        assertEq(actions.length, 2, "Should be 2");
+
+        assertEq(actions[1].to, alice, "Incorrect to");
+        assertEq(actions[1].value, 1 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[0].to, carol, "Incorrect to");
+        assertEq(actions[0].value, 3 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 255, "Should be 255");
+
+        // Approve
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+
+        // Check round 3
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 2, "Should be 2");
+
+        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, 50, "Incorrect startDate");
+        assertEq(parameters.endDate, 550, "Incorrect endDate");
+
+        assertEq(actions.length, 2, "Should be 2");
+
+        assertEq(actions[1].to, alice, "Incorrect to");
+        assertEq(actions[1].value, 1 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[0].to, carol, "Incorrect to");
+        assertEq(actions[0].value, 3 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 255, "Should be 255");
+
+        // Execute
+        vm.stopPrank();
+        vm.startPrank(alice);
+        plugin.execute(pid);
+
+        // Check round 4
+        (executed, approvals, parameters, actions, allowFailureMap) = plugin
+            .getProposal(pid);
+
+        assertEq(executed, true, "Should be executed");
+        assertEq(approvals, 2, "Should be 2");
+
+        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
+        assertEq(
+            parameters.snapshotBlock,
+            block.number,
+            "Incorrect snapshotBlock"
+        );
+        assertEq(parameters.startDate, 50, "Incorrect startDate");
+        assertEq(parameters.endDate, 550, "Incorrect endDate");
+
+        assertEq(actions.length, 2, "Should be 2");
+
+        assertEq(actions[1].to, alice, "Incorrect to");
+        assertEq(actions[1].value, 1 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[0].to, carol, "Incorrect to");
+        assertEq(actions[0].value, 3 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 255, "Should be 255");
+    }
+
+    function test_ProxiedProposalHasTheSameSettingsAsTheOriginal() public {
+        // Recreated proposal has the same settings and actions as registered here
+
+        vm.skip(true); // TODO:
+
+        bool open;
+        bool executed;
+        OptimisticTokenVotingPlugin.ProposalParameters memory parameters;
+        uint256 vetoTally;
+        IDAO.Action[] memory actions;
+        uint256 allowFailureMap;
+
+        vm.roll(block.number + 1);
+        dao.grant(
+            address(optimisticPlugin),
+            address(plugin),
+            optimisticPlugin.PROPOSER_PERMISSION_ID()
+        );
+        vm.warp(0); // timestamp = 0
+
+        IDAO.Action[] memory createActions = new IDAO.Action[](3);
+        createActions[0].to = alice;
+        createActions[0].value = 1 ether;
+        createActions[0].data = hex"001122334455";
+        createActions[1].to = bob;
+        createActions[1].value = 2 ether;
+        createActions[1].data = hex"112233445566";
+        createActions[2].to = carol;
+        createActions[2].value = 3 ether;
+        createActions[2].data = hex"223344556677";
+
+        uint pid = plugin.createProposal(
+            "ipfs://metadata",
+            createActions,
+            0,
+            false,
+            false,
+            0,
+            500
+        );
+
+        // Approve
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+        plugin.execute(pid);
+
+        // Check round
+        (
+            open,
+            executed,
+            parameters,
+            vetoTally,
+            actions,
+            allowFailureMap
+        ) = optimisticPlugin.getProposal(pid);
+
+        assertEq(open, true, "Should be open");
+        assertEq(executed, false, "Should not be executed");
+        assertEq(vetoTally, 0, "Should be 0");
+
+        assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
+        assertEq(parameters.endDate, 500, "Incorrect endDate");
+
+        assertEq(actions.length, 3, "Should be 3");
+
+        assertEq(actions[0].to, alice, "Incorrect to");
+        assertEq(actions[0].value, 1 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[1].to, bob, "Incorrect to");
+        assertEq(actions[1].value, 2 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
+        assertEq(actions[2].to, carol, "Incorrect to");
+        assertEq(actions[2].value, 3 ether, "Incorrect value");
+        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 0, "Should be 0");
+
+        // New proposal
+
+        createActions = new IDAO.Action[](2);
+        createActions[1].to = alice;
+        createActions[1].value = 1 ether;
+        createActions[1].data = hex"001122334455";
+        createActions[0].to = carol;
+        createActions[0].value = 3 ether;
+        createActions[0].data = hex"223344556677";
+
+        pid = plugin.createProposal(
+            "ipfs://more-metadata",
+            createActions,
+            255,
+            false,
+            false,
+            50,
+            550
+        );
+
+        // Approve
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        plugin.approve(pid, false);
+        vm.stopPrank();
+        vm.startPrank(carol);
+        plugin.approve(pid, false);
+
+        vm.stopPrank();
+        vm.startPrank(alice);
+        plugin.execute(pid);
+
+        // Check round
+        (
+            open,
+            executed,
+            parameters,
+            vetoTally,
+            actions,
+            allowFailureMap
+        ) = optimisticPlugin.getProposal(pid);
+
+        assertEq(open, false, "Should not be open");
+        assertEq(executed, false, "Should not be executed");
+        assertEq(vetoTally, 0, "Should be 0");
+
+        assertEq(parameters.startDate, 50, "Incorrect startDate");
+        assertEq(parameters.endDate, 550, "Incorrect endDate");
+
+        assertEq(actions.length, 2, "Should be 2");
+
+        assertEq(actions[1].to, alice, "Incorrect to");
+        assertEq(actions[1].value, 1 ether, "Incorrect value");
+        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[0].to, carol, "Incorrect to");
+        assertEq(actions[0].value, 3 ether, "Incorrect value");
+        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
+
+        assertEq(allowFailureMap, 255, "Should be 255");
+    }
 }
