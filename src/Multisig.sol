@@ -12,6 +12,7 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IMultisig} from "./interfaces/IMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
+import {MULTISIG_PROPOSAL_EXPIRATION_PERIOD} from "./common.sol";
 
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2023
@@ -30,30 +31,31 @@ contract Multisig is
     /// @param approvals The number of approvals casted.
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
-    /// @param actions The actions to be executed when the proposal passes.
-    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
-    /// @param targetPlugin The address of the plugin where the proposal will be created if it passes.
+    /// @param destinationActions The actions to be executed by the destination plugin when the proposal passes.
+    /// @param metadataURI The URI on which human readable data ca ben retrieved
+    /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
         uint16 approvals;
         ProposalParameters parameters;
         mapping(address => bool) approvers;
-        IDAO.Action[] actions;
+        IDAO.Action[] destinationActions;
         bytes metadataURI;
-        uint256 allowFailureMap;
-        OptimisticTokenVotingPlugin targetPlugin;
+        OptimisticTokenVotingPlugin destinationPlugin;
     }
 
     /// @notice A container for the proposal parameters.
     /// @param minApprovals The number of approvals required.
     /// @param snapshotBlock The number of the block prior to the proposal creation.
-    /// @param startDate The timestamp when the proposal starts.
-    /// @param endDate The timestamp when the proposal expires.
+    /// @param expirationDate The timestamp after which non-executed proposals expire.
+    /// @param destinationStartDate The timestamp after which people can vote on the destination plugin. 0 means now.
+    /// @param destinationEndDate The timestamp after which people can no longer vote on the destination plugin.
     struct ProposalParameters {
         uint16 minApprovals;
         uint64 snapshotBlock;
-        uint64 startDate;
-        uint64 endDate;
+        uint64 expirationDate;
+        uint64 destinationStartDate;
+        uint64 destinationEndDate;
     }
 
     /// @notice A container for the plugin settings.
@@ -221,21 +223,19 @@ contract Multisig is
 
     /// @notice Creates a new multisig proposal.
     /// @param _metadataURI The metadataURI of the proposal.
-    /// @param _actions The actions that will be executed after the proposal passes.
-    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param _destinationActions The actions that will be executed after the proposal passes.
+    /// @param _destinationPlugin The address of the plugin to forward the proposal to when it passes.
     /// @param _approveProposal If `true`, the sender will approve the proposal.
-    /// @param _tryExecution If `true`, execution is tried after the vote cast. The call does not revert if early execution is not possible.
-    /// @param _startDate The start date of the proposal.
-    /// @param _endDate The expiration date for proposals that have not been executed.
+    /// @param _destinationStartDate The start date of the proposal.
+    /// @param _destinationEndDate The expiration date for proposals that have not been executed.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _metadataURI,
-        IDAO.Action[] calldata _actions,
-        uint256 _allowFailureMap,
+        IDAO.Action[] calldata _destinationActions,
+        OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal,
-        bool _tryExecution,
-        uint64 _startDate,
-        uint64 _endDate
+        uint64 _destinationStartDate,
+        uint64 _destinationEndDate
     ) external returns (uint256 proposalId) {
         if (multisigSettings.onlyListed && !isListed(_msgSender())) {
             revert ProposalCreationForbidden(_msgSender());
@@ -252,50 +252,52 @@ contract Multisig is
             revert ProposalCreationForbidden(_msgSender());
         }
 
-        if (_startDate == 0) {
-            _startDate = block.timestamp.toUint64();
-        } else if (_startDate < block.timestamp.toUint64()) {
+        if (_destinationStartDate == 0) {
+            // nop: destination plugin will handle it
+        } else if (_destinationStartDate < block.timestamp.toUint64()) {
             revert DateOutOfBounds({
                 limit: block.timestamp.toUint64(),
-                actual: _startDate
+                actual: _destinationStartDate
             });
-        }
-
-        if (_endDate < _startDate) {
-            revert DateOutOfBounds({limit: _startDate, actual: _endDate});
+        } else if (_destinationStartDate < _destinationStartDate) {
+            revert DateOutOfBounds({
+                limit: _destinationStartDate,
+                actual: _destinationStartDate
+            });
         }
 
         proposalId = _createProposal({
             _creator: _msgSender(),
             _metadata: _metadataURI,
-            _startDate: _startDate,
-            _endDate: _endDate,
-            _actions: _actions,
-            _allowFailureMap: _allowFailureMap
+            _startDate: uint64(block.timestamp),
+            _endDate: uint64(block.timestamp) +
+                MULTISIG_PROPOSAL_EXPIRATION_PERIOD,
+            _actions: _destinationActions,
+            _allowFailureMap: 0
         });
 
         // Create the proposal
         Proposal storage proposal_ = proposals[proposalId];
+        proposal_.metadataURI = _metadataURI;
+        proposal_.destinationPlugin = _destinationPlugin;
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
-        proposal_.parameters.startDate = _startDate;
-        proposal_.parameters.endDate = _endDate;
+        proposal_.parameters.expirationDate =
+            uint64(block.timestamp) +
+            MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
+        proposal_.parameters.destinationStartDate = _destinationStartDate;
+        proposal_.parameters.destinationEndDate = _destinationEndDate;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
-        // Reduce costs
-        if (_allowFailureMap != 0) {
-            proposal_.allowFailureMap = _allowFailureMap;
-        }
-
-        for (uint256 i; i < _actions.length; ) {
-            proposal_.actions.push(_actions[i]);
+        for (uint256 i; i < _destinationActions.length; ) {
+            proposal_.destinationActions.push(_destinationActions[i]);
             unchecked {
                 ++i;
             }
         }
 
         if (_approveProposal) {
-            approve(proposalId, _tryExecution);
+            approve(proposalId, false);
         }
     }
 
@@ -341,8 +343,9 @@ contract Multisig is
     /// @return executed Whether the proposal is executed or not.
     /// @return approvals The number of approvals casted.
     /// @return parameters The parameters of the proposal vote.
-    /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
-    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @return metadataURI The URI at which the corresponding human readable data can be found.
+    /// @return destinationActions The actions to be executed by the destination plugin after the proposal passes.
+    /// @return destinationPlugin The address of the plugin where the proposal will be forwarded to when executed.
     function getProposal(
         uint256 _proposalId
     )
@@ -352,8 +355,9 @@ contract Multisig is
             bool executed,
             uint16 approvals,
             ProposalParameters memory parameters,
-            IDAO.Action[] memory actions,
-            uint256 allowFailureMap
+            bytes memory metadataURI,
+            IDAO.Action[] memory destinationActions,
+            OptimisticTokenVotingPlugin destinationPlugin
         )
     {
         Proposal storage proposal_ = proposals[_proposalId];
@@ -361,8 +365,9 @@ contract Multisig is
         executed = proposal_.executed;
         approvals = proposal_.approvals;
         parameters = proposal_.parameters;
-        actions = proposal_.actions;
-        allowFailureMap = proposal_.allowFailureMap;
+        metadataURI = proposal_.metadataURI;
+        destinationActions = proposal_.destinationActions;
+        destinationPlugin = proposal_.destinationPlugin;
     }
 
     /// @inheritdoc IMultisig
@@ -394,12 +399,12 @@ contract Multisig is
 
         proposal_.executed = true;
 
-        proposal_.targetPlugin.createProposal(
+        proposal_.destinationPlugin.createProposal(
             proposal_.metadataURI,
-            proposal_.actions,
-            proposal_.allowFailureMap,
-            0, // startDate,
-            0 // endDate
+            proposal_.destinationActions,
+            0, // allowFailureMap
+            proposal_.parameters.destinationStartDate,
+            proposal_.parameters.destinationEndDate
         );
     }
 
@@ -414,7 +419,7 @@ contract Multisig is
         Proposal storage proposal_ = proposals[_proposalId];
 
         if (!_isProposalOpen(proposal_)) {
-            // The proposal was executed already
+            // The proposal is executed or expired
             return false;
         }
 
@@ -445,7 +450,7 @@ contract Multisig is
         return proposal_.approvals >= proposal_.parameters.minApprovals;
     }
 
-    /// @notice Internal function to check if a proposal vote is still open.
+    /// @notice Internal function to check if a proposal is still open.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal vote is open, false otherwise.
     function _isProposalOpen(
@@ -454,8 +459,7 @@ contract Multisig is
         uint64 currentTimestamp64 = block.timestamp.toUint64();
         return
             !proposal_.executed &&
-            proposal_.parameters.startDate <= currentTimestamp64 &&
-            proposal_.parameters.endDate >= currentTimestamp64;
+            proposal_.parameters.expirationDate >= currentTimestamp64;
     }
 
     /// @notice Internal function to update the plugin settings.

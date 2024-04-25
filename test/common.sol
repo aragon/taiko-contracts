@@ -15,7 +15,6 @@ bytes32 constant ROOT_PERMISSION_ID = keccak256("ROOT_PERMISSION");
 uint64 constant MAX_UINT64 = uint64(2 ** 64 - 1);
 address constant ADDRESS_ZERO = address(0x0);
 address constant NO_CONDITION = ADDRESS_ZERO;
-uint32 constant ONE_WEEK = 60 * 60 * 24 * 7;
 
 // HELPERS
 
