@@ -251,7 +251,11 @@ contract Deploy is Script {
         address emergencyProposer
     )
         internal
-        returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
+        returns (
+            address plugin,
+            PluginRepo pluginRepo,
+            IPluginSetup.PreparedSetupData memory preparedSetupData
+        )
     {
         // Deploy plugin setup
         OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
@@ -260,7 +264,7 @@ contract Deploy is Script {
             );
 
         // Publish repo
-        PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
+        pluginRepo = PluginRepoFactory(pluginRepoFactory)
             .createPluginRepoWithFirstVersion(
                 "ens-of-the-optimistic-token-voting",
                 address(pluginSetup),
@@ -270,43 +274,40 @@ contract Deploy is Script {
             );
 
         // Plugin settings
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory votingSettings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings(
-                    200000, // minVetoRatio - 20%
-                    0, // minDuration (the condition will enforce it)
-                    0 // minProposerVotingPower
-                );
+        bytes memory settingsData;
+        {
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+                memory votingSettings = OptimisticTokenVotingPlugin
+                    .OptimisticGovernanceSettings(
+                        200000, // minVetoRatio - 20%
+                        0, // minDuration (the condition will enforce it)
+                        0 // minProposerVotingPower
+                    );
 
-        OptimisticTokenVotingPluginSetup.TokenSettings
-            memory tokenSettings = OptimisticTokenVotingPluginSetup
-                .TokenSettings(tokenAddress, "", "");
+            OptimisticTokenVotingPluginSetup.TokenSettings
+                memory tokenSettings = OptimisticTokenVotingPluginSetup
+                    .TokenSettings(tokenAddress, "", "");
 
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
-            .MintSettings(new address[](0), new uint256[](0));
+            GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
+                .MintSettings(new address[](0), new uint256[](0));
 
-        bytes memory settingsData = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            minStdProposalDelay,
-            stdProposer,
-            emergencyProposer
-        );
-
-        (
-            address plugin,
-            IPluginSetup.PreparedSetupData memory preparedSetupData
-        ) = pluginSetupProcessor.prepareInstallation(
-                address(dao),
-                PluginSetupProcessor.PrepareInstallationParams(
-                    PluginSetupRef(
-                        PluginRepo.Tag(1, 1),
-                        PluginRepo(pluginRepo)
-                    ),
-                    settingsData
-                )
+            settingsData = pluginSetup.encodeInstallationParams(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                minStdProposalDelay,
+                stdProposer,
+                emergencyProposer
             );
+        }
+
+        (plugin, preparedSetupData) = pluginSetupProcessor.prepareInstallation(
+            address(dao),
+            PluginSetupProcessor.PrepareInstallationParams(
+                PluginSetupRef(PluginRepo.Tag(1, 1), PluginRepo(pluginRepo)),
+                settingsData
+            )
+        );
 
         return (plugin, pluginRepo, preparedSetupData);
     }
