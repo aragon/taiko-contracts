@@ -84,7 +84,7 @@ contract OptimisticTokenVotingPlugin is
             this.updateOptimisticGovernanceSettings.selector;
 
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
-    IVotesUpgradeable private votingToken;
+    IVotesUpgradeable public votingToken;
 
     /// @notice The struct storing the governance settings.
     OptimisticGovernanceSettings private governanceSettings;

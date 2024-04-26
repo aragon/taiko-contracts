@@ -64,6 +64,7 @@ contract Multisig is
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
+        uint64 destinationMinDuration;
     }
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
@@ -123,10 +124,19 @@ contract Multisig is
     /// @param approver The approver casting the approve.
     event Approved(uint256 indexed proposalId, address indexed approver);
 
+    /// @notice Emitted when a proposal passes and is relayed to the destination plugin.
+    /// @param proposalId The ID of the proposal.
+    event Executed(uint256 indexed proposalId);
+
     /// @notice Emitted when the plugin settings are set.
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
-    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals);
+    /// @param destinationMinDuration The minimum duration (in seconds) that will be required on the destination plugin
+    event MultisigSettingsUpdated(
+        bool onlyListed,
+        uint16 indexed minApprovals,
+        uint64 destinationMinDuration
+    );
 
     /// @notice Initializes Release 1, Build 2.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
@@ -252,26 +262,14 @@ contract Multisig is
             revert ProposalCreationForbidden(_msgSender());
         }
 
-        if (_destinationStartDate == 0) {
-            // nop: destination plugin will handle it
-        } else if (_destinationStartDate < block.timestamp.toUint64()) {
-            revert DateOutOfBounds({
-                limit: block.timestamp.toUint64(),
-                actual: _destinationStartDate
-            });
-        } else if (_destinationStartDate < _destinationStartDate) {
-            revert DateOutOfBounds({
-                limit: _destinationStartDate,
-                actual: _destinationStartDate
-            });
-        }
+        // Revert if the given timestamps would revert, even if it was executed in this very block
+        _validateProposalDates(_destinationStartDate, _destinationEndDate);
 
         proposalId = _createProposal({
             _creator: _msgSender(),
             _metadata: _metadataURI,
-            _startDate: uint64(block.timestamp),
-            _endDate: uint64(block.timestamp) +
-                MULTISIG_PROPOSAL_EXPIRATION_PERIOD,
+            _startDate: _destinationStartDate,
+            _endDate: _destinationEndDate,
             _actions: _destinationActions,
             _allowFailureMap: 0
         });
@@ -398,6 +396,7 @@ contract Multisig is
         Proposal storage proposal_ = proposals[_proposalId];
 
         proposal_.executed = true;
+        emit Executed(_proposalId);
 
         proposal_.destinationPlugin.createProposal(
             proposal_.metadataURI,
@@ -488,8 +487,44 @@ contract Multisig is
 
         emit MultisigSettingsUpdated({
             onlyListed: _multisigSettings.onlyListed,
-            minApprovals: _multisigSettings.minApprovals
+            minApprovals: _multisigSettings.minApprovals,
+            destinationMinDuration: _multisigSettings.destinationMinDuration
         });
+    }
+
+    /// @notice Attempts to detect eventual issues on the destination plugin ahead of time.
+    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
+    /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
+    function _validateProposalDates(
+        uint64 _start,
+        uint64 _end
+    ) internal view virtual {
+        uint64 currentTimestamp = block.timestamp.toUint64();
+        uint64 startDate;
+
+        if (_start == 0) {
+            startDate = currentTimestamp;
+        } else {
+            startDate = _start;
+
+            if (startDate < currentTimestamp) {
+                revert DateOutOfBounds({
+                    limit: currentTimestamp,
+                    actual: startDate
+                });
+            }
+        }
+
+        // Compare against the earliest end date
+        if (
+            _end != 0 &&
+            _end < startDate + multisigSettings.destinationMinDuration
+        ) {
+            revert DateOutOfBounds({
+                limit: startDate + multisigSettings.destinationMinDuration,
+                actual: _end
+            });
+        }
     }
 
     /// @dev This empty reserved space is put in place to allow future versions to add new

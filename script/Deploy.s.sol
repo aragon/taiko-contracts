@@ -30,6 +30,7 @@ contract Deploy is Script {
     address immutable tokenAddress;
     address[] multisigMembers;
 
+    uint64 immutable minStdProposalDelay; // Minimum delay of proposals on the optimistic voting plugin
     uint16 immutable minStdApprovals;
     uint16 immutable minEmergencyApprovals;
 
@@ -50,6 +51,7 @@ contract Deploy is Script {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
 
+        minStdProposalDelay = uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY"));
         minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
         minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));
 
@@ -177,7 +179,8 @@ contract Deploy is Script {
             multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
-                minStdApprovals // minAppovals
+                minStdApprovals, // minAppovals
+                minStdProposalDelay // destination minDuration
             )
         );
 
@@ -286,6 +289,7 @@ contract Deploy is Script {
             votingSettings,
             tokenSettings,
             mintSettings,
+            minStdProposalDelay,
             stdProposer,
             emergencyProposer
         );
