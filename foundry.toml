@@ -5,8 +5,7 @@ libs = ["lib"]
 evm_version = "shanghai"
 optimizer = true
 optimizer-runs = 10_000_000
-
-# solc = "0.8.20"
+solc = "0.8.17"
 
 
 [rpc_endpoints]

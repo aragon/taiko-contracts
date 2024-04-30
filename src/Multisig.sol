@@ -16,7 +16,7 @@ import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 
 /// @title Multisig - Release 1, Build 1
-/// @author Aragon Association - 2022-2023
+/// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
 contract Multisig is
     IMultisig,
@@ -62,6 +62,7 @@ contract Multisig is
     /// @notice A container for the plugin settings.
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
+    /// @param destinationMinDuration The minimum duration that the destination plugin will enforce.
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
