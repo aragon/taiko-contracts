@@ -12,19 +12,14 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IEmergencyMultisig} from "./interfaces/IEmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 uint64 constant EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 8 days;
 
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
-contract EmergencyMultisig is
-    IEmergencyMultisig,
-    IMembership,
-    PluginUUPSUpgradeable,
-    ProposalUpgradeable,
-    Addresslist
-{
+contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgradeable {
     using SafeCastUpgradeable for uint256;
 
     /// @notice A container for proposal-related information.
@@ -58,9 +53,11 @@ contract EmergencyMultisig is
     /// @notice A container for the plugin settings.
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
+    /// @param memberListSource The contract where the list of signers is defined
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
+        Addresslist memberListSource;
     }
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
@@ -106,10 +103,8 @@ contract EmergencyMultisig is
     /// @param actual The actual value.
     error MinApprovalsOutOfBounds(uint16 limit, uint16 actual);
 
-    /// @notice Thrown if the address list length is out of bounds.
-    /// @param limit The limit value.
-    /// @param actual The actual value.
-    error AddresslistLengthOutOfBounds(uint16 limit, uint256 actual);
+    /// @notice Thrown if the address list source is empty
+    error InvalidAddressListSource();
 
     /// @notice Thrown if a date is out of bounds.
     /// @param limit The limit value.
@@ -142,20 +137,9 @@ contract EmergencyMultisig is
     /// @notice Initializes Release 1, Build 1.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
-    /// @param _members The addresses of the initial members to be added.
     /// @param _multisigSettings The multisig settings.
-    function initialize(IDAO _dao, address[] calldata _members, MultisigSettings calldata _multisigSettings)
-        external
-        initializer
-    {
+    function initialize(IDAO _dao, MultisigSettings calldata _multisigSettings) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
-
-        if (_members.length > type(uint16).max) {
-            revert AddresslistLengthOutOfBounds({limit: type(uint16).max, actual: _members.length});
-        }
-
-        _addAddresses(_members);
-        emit MembersAdded({members: _members});
 
         _updateMultisigSettings(_multisigSettings);
     }
@@ -171,8 +155,7 @@ contract EmergencyMultisig is
         returns (bool)
     {
         return _interfaceId == EMERGENCY_MULTISIG_INTERFACE_ID || _interfaceId == type(IEmergencyMultisig).interfaceId
-            || _interfaceId == type(Addresslist).interfaceId || _interfaceId == type(IMembership).interfaceId
-            || super.supportsInterface(_interfaceId);
+            || _interfaceId == type(IMembership).interfaceId || super.supportsInterface(_interfaceId);
     }
 
     /// @notice Updates the plugin settings.
@@ -196,7 +179,7 @@ contract EmergencyMultisig is
         OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal
     ) external returns (uint256 proposalId) {
-        if (multisigSettings.onlyListed && !isListed(_msgSender())) {
+        if (multisigSettings.onlyListed && !multisigSettings.memberListSource.isListed(_msgSender())) {
             revert ProposalCreationForbidden(_msgSender());
         }
 
@@ -325,7 +308,7 @@ contract EmergencyMultisig is
 
     /// @inheritdoc IMembership
     function isMember(address _account) external view returns (bool) {
-        return isListed(_account);
+        return multisigSettings.memberListSource.isListed(_account);
     }
 
     /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
@@ -340,8 +323,8 @@ contract EmergencyMultisig is
             proposal_.encryptedPayloadURI,
             _actions,
             0, // allowFailureMap
-            0, // startDate,
-            0 // endDate
+            0, // startDate (now)
+            0 // endDate (auto: will be now + 0)
         );
     }
 
@@ -357,7 +340,7 @@ contract EmergencyMultisig is
             return false;
         }
 
-        if (!isListedAtBlock(_account, proposal_.parameters.snapshotBlock)) {
+        if (!multisigSettings.memberListSource.isListedAtBlock(_account, proposal_.parameters.snapshotBlock)) {
             // The approver has no voting power.
             return false;
         }
@@ -395,7 +378,7 @@ contract EmergencyMultisig is
     /// @notice Internal function to update the plugin settings.
     /// @param _multisigSettings The new settings.
     function _updateMultisigSettings(MultisigSettings calldata _multisigSettings) internal {
-        uint16 addresslistLength_ = uint16(addresslistLength());
+        uint16 addresslistLength_ = uint16(multisigSettings.memberListSource.addresslistLength());
 
         if (_multisigSettings.minApprovals > addresslistLength_) {
             revert MinApprovalsOutOfBounds({limit: addresslistLength_, actual: _multisigSettings.minApprovals});
@@ -403,6 +386,10 @@ contract EmergencyMultisig is
 
         if (_multisigSettings.minApprovals < 1) {
             revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
+        }
+
+        if (!IERC165(address(_multisigSettings.memberListSource)).supportsInterface(type(Addresslist).interfaceId)) {
+            revert InvalidAddressListSource();
         }
 
         multisigSettings = _multisigSettings;
