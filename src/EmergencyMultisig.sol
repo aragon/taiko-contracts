@@ -49,14 +49,10 @@ contract EmergencyMultisig is
     /// @param minApprovals The number of approvals required.
     /// @param snapshotBlock The number of the block prior to the proposal creation.
     /// @param expirationDate The timestamp after which non-executed proposals expire.
-    /// @param destinationStartDate The timestamp after which people can vote on the destination plugin. 0 means now.
-    /// @param destinationEndDate The timestamp after which people can no longer vote on the destination plugin.
     struct ProposalParameters {
         uint16 minApprovals;
         uint64 snapshotBlock;
         uint64 expirationDate;
-        uint64 destinationStartDate;
-        uint64 destinationEndDate;
     }
 
     /// @notice A container for the plugin settings.
@@ -123,17 +119,10 @@ contract EmergencyMultisig is
     /// @notice Emitted when a proposal is created.
     /// @param proposalId The ID of the proposal.
     /// @param creator  The creator of the proposal.
-    /// @param destinationStartDate The start date of the proposal in seconds.
-    /// @param destinationEndDate The end date of the proposal in seconds.
     /// @param encryptedPayloadURI The IPFS URI where the encrypted proposal data is pinned.
     /// @param destinationActionsHash The hash of the serialized actions that will be executed if the proposal passes.
     event ProposalCreated(
-        uint256 indexed proposalId,
-        address indexed creator,
-        uint64 destinationStartDate,
-        uint64 destinationEndDate,
-        bytes encryptedPayloadURI,
-        bytes32 destinationActionsHash
+        uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI, bytes32 destinationActionsHash
     );
 
     /// @notice Emitted when a proposal is approve by an approver.
@@ -200,16 +189,12 @@ contract EmergencyMultisig is
     /// @param _destinationActionsHash The hash of the serialized actions that will be executed after the proposal passes.
     /// @param _destinationPlugin The address of the plugin to forward the proposal to when it passes.
     /// @param _approveProposal If `true`, the sender will approve the proposal.
-    /// @param _destinationStartDate The start date of the proposal.
-    /// @param _destinationEndDate The expiration date for proposals that have not been executed.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _encryptedPayloadURI,
         bytes32 _destinationActionsHash,
         OptimisticTokenVotingPlugin _destinationPlugin,
-        bool _approveProposal,
-        uint64 _destinationStartDate,
-        uint64 _destinationEndDate
+        bool _approveProposal
     ) external returns (uint256 proposalId) {
         if (multisigSettings.onlyListed && !isListed(_msgSender())) {
             revert ProposalCreationForbidden(_msgSender());
@@ -226,17 +211,12 @@ contract EmergencyMultisig is
             revert ProposalCreationForbidden(_msgSender());
         }
 
-        // Revert if the given timestamps would revert, even if it was executed in this very block
-        _validateProposalDates(_destinationStartDate, _destinationEndDate);
-
         proposalId = _createProposalId();
 
         emit ProposalCreated({
             proposalId: proposalId,
             creator: _msgSender(),
             encryptedPayloadURI: _encryptedPayloadURI,
-            destinationStartDate: _destinationStartDate,
-            destinationEndDate: _destinationEndDate,
             destinationActionsHash: _destinationActionsHash
         });
 
@@ -247,8 +227,6 @@ contract EmergencyMultisig is
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
         proposal_.parameters.expirationDate = uint64(block.timestamp) + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
-        proposal_.parameters.destinationStartDate = _destinationStartDate;
-        proposal_.parameters.destinationEndDate = _destinationEndDate;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
         proposal_.destinationActionsHash = _destinationActionsHash;
@@ -327,7 +305,9 @@ contract EmergencyMultisig is
     function execute(uint256 _proposalId, IDAO.Action[] calldata _actions) public {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
-        } else if (proposals[_proposalId].destinationActionsHash != hashActions(_actions)) {
+        }
+
+        if (proposals[_proposalId].destinationActionsHash != hashActions(_actions)) {
             // This check is intentionally not part of canExecute() in order to prevent
             // the private actions from ever leaving the local computer until being executed
             revert InvalidActions(_proposalId);
@@ -360,8 +340,8 @@ contract EmergencyMultisig is
             proposal_.encryptedPayloadURI,
             _actions,
             0, // allowFailureMap
-            proposal_.parameters.destinationStartDate,
-            proposal_.parameters.destinationEndDate
+            0, // startDate,
+            0 // endDate
         );
     }
 
@@ -432,29 +412,6 @@ contract EmergencyMultisig is
             onlyListed: _multisigSettings.onlyListed,
             minApprovals: _multisigSettings.minApprovals
         });
-    }
-
-    /// @notice Attempts to detect eventual issues on the destination plugin ahead of time.
-    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
-    /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
-    function _validateProposalDates(uint64 _start, uint64 _end) internal view virtual {
-        uint64 currentTimestamp = block.timestamp.toUint64();
-        uint64 startDate;
-
-        if (_start == 0) {
-            startDate = currentTimestamp;
-        } else {
-            startDate = _start;
-
-            if (startDate < currentTimestamp) {
-                revert DateOutOfBounds({limit: currentTimestamp, actual: startDate});
-            }
-        }
-
-        // Check the end date
-        if (_end != 0 && _end < startDate) {
-            revert DateOutOfBounds({limit: startDate, actual: _end});
-        }
     }
 
     /// @dev This empty reserved space is put in place to allow future versions to add new
