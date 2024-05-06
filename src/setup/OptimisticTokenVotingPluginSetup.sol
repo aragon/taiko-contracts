@@ -18,8 +18,6 @@ import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGover
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
 
-uint32 constant MIN_DELAY = 60 * 60 * 24 * 7 * 2;
-
 /// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023
 /// @notice The setup contract of the `OptimisticTokenVoting` plugin.
@@ -89,6 +87,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
+            uint64 stdProposalMinDelay,
             address stdProposer,
             address emergencyProposer
         ) = decodeInstallationParams(_installParameters);
@@ -187,22 +186,23 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
+        {
+            // Deploy the Std proposal condition
+            StandardProposalCondition stdProposalCondition = new StandardProposalCondition(
+                    address(_dao),
+                    stdProposalMinDelay
+                );
 
-        // Deploy the Std proposal condition
-        StandardProposalCondition stdProposalCondition = new StandardProposalCondition(
-                address(_dao),
-                MIN_DELAY
-            );
-
-        // Proposer plugins can create proposals
-        permissions[3] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: stdProposer,
-            condition: address(stdProposalCondition),
-            permissionId: optimisticTokenVotingPluginBase
-                .PROPOSER_PERMISSION_ID()
-        });
+            // Proposer plugins can create proposals
+            permissions[3] = PermissionLib.MultiTargetPermission({
+                operation: PermissionLib.Operation.Grant,
+                where: plugin,
+                who: stdProposer,
+                condition: address(stdProposalCondition),
+                permissionId: optimisticTokenVotingPluginBase
+                    .PROPOSER_PERMISSION_ID()
+            });
+        }
         permissions[4] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
@@ -311,6 +311,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         TokenSettings calldata _tokenSettings,
         // only used for GovernanceERC20 (when a token is not passed)
         GovernanceERC20.MintSettings calldata _mintSettings,
+        uint64 _stdProposalMinDelay,
         address _stdProposer,
         address _emergencyProposer
     ) external pure returns (bytes memory) {
@@ -319,6 +320,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 _votingSettings,
                 _tokenSettings,
                 _mintSettings,
+                _stdProposalMinDelay,
                 _stdProposer,
                 _emergencyProposer
             );
@@ -336,6 +338,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             TokenSettings memory tokenSettings,
             // only used for GovernanceERC20 (when token is not passed)
             GovernanceERC20.MintSettings memory mintSettings,
+            uint64 _stdProposalMinDelay,
             address _stdProposer,
             address _emergencyProposer
         )
@@ -344,6 +347,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             votingSettings,
             tokenSettings,
             mintSettings,
+            _stdProposalMinDelay,
             _stdProposer,
             _emergencyProposer
         ) = abi.decode(
@@ -352,6 +356,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 OptimisticTokenVotingPlugin.OptimisticGovernanceSettings,
                 TokenSettings,
                 GovernanceERC20.MintSettings,
+                uint64,
                 address,
                 address
             )

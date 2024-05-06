@@ -11,7 +11,8 @@ import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC2
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
-import {Multisig} from "@aragon/osx/plugins/governance/multisig/Multisig.sol";
+import {Multisig} from "../src/Multisig.sol";
+import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
@@ -20,23 +21,25 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
 
 contract Deploy is Script {
-    DAO daoImplementation;
-    Multisig multisigImplementation;
+    DAO immutable daoImplementation;
 
-    address governanceERC20Base;
-    address governanceWrappedERC20Base;
-    PluginSetupProcessor pluginSetupProcessor;
-    address pluginRepoFactory;
-    address tokenAddress;
+    address immutable governanceERC20Base;
+    address immutable governanceWrappedERC20Base;
+    PluginSetupProcessor immutable pluginSetupProcessor;
+    address immutable pluginRepoFactory;
+    address immutable tokenAddress;
     address[] multisigMembers;
 
-    uint16 minStdApprovals;
-    uint16 minEmergencyApprovals;
+    uint64 immutable minStdProposalDelay; // Minimum delay of proposals on the optimistic voting plugin
+    uint16 immutable minStdApprovals;
+    uint16 immutable minEmergencyApprovals;
+
+    string stdMultisigEnsDomain;
+    string emergencyMultisigEnsDomain;
 
     constructor() {
         // Implementations
         daoImplementation = new DAO();
-        multisigImplementation = new Multisig();
 
         governanceERC20Base = vm.envAddress("GOVERNANCE_ERC20_BASE");
         governanceWrappedERC20Base = vm.envAddress(
@@ -48,8 +51,14 @@ contract Deploy is Script {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
 
+        minStdProposalDelay = uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY"));
         minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
         minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));
+
+        stdMultisigEnsDomain = vm.envString("STD_MULTISIG_ENS_DOMAIN");
+        emergencyMultisigEnsDomain = vm.envString(
+            "EMERGENCY_MULTISIG_ENS_DOMAIN"
+        );
 
         // JSON list of members
         string memory root = vm.projectRoot();
@@ -154,14 +163,12 @@ contract Deploy is Script {
         returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
         // Deploy plugin setup
-        MultisigPluginSetup pluginSetup = new MultisigPluginSetup(
-            multisigImplementation
-        );
+        MultisigPluginSetup pluginSetup = new MultisigPluginSetup();
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
             .createPluginRepoWithFirstVersion(
-                "ens-of-the-multisig",
+                stdMultisigEnsDomain,
                 address(pluginSetup),
                 msg.sender,
                 "0x",
@@ -172,7 +179,8 @@ contract Deploy is Script {
             multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
-                minStdApprovals // minAppovals
+                minStdApprovals, // minAppovals
+                minStdProposalDelay // destination minDuration
             )
         );
 
@@ -200,14 +208,12 @@ contract Deploy is Script {
         returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
         // Deploy plugin setup
-        EmergencyMultisigPluginSetup pluginSetup = new EmergencyMultisigPluginSetup(
-                multisigImplementation
-            );
+        EmergencyMultisigPluginSetup pluginSetup = new EmergencyMultisigPluginSetup();
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
             .createPluginRepoWithFirstVersion(
-                "ens-of-the-emergency-multisig",
+                emergencyMultisigEnsDomain,
                 address(pluginSetup),
                 msg.sender,
                 "0x",
@@ -216,7 +222,7 @@ contract Deploy is Script {
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
             multisigMembers,
-            Multisig.MultisigSettings(
+            EmergencyMultisig.MultisigSettings(
                 true, // onlyListed
                 minEmergencyApprovals // minAppovals
             )
@@ -245,7 +251,11 @@ contract Deploy is Script {
         address emergencyProposer
     )
         internal
-        returns (address, PluginRepo, IPluginSetup.PreparedSetupData memory)
+        returns (
+            address plugin,
+            PluginRepo pluginRepo,
+            IPluginSetup.PreparedSetupData memory preparedSetupData
+        )
     {
         // Deploy plugin setup
         OptimisticTokenVotingPluginSetup pluginSetup = new OptimisticTokenVotingPluginSetup(
@@ -254,7 +264,7 @@ contract Deploy is Script {
             );
 
         // Publish repo
-        PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory)
+        pluginRepo = PluginRepoFactory(pluginRepoFactory)
             .createPluginRepoWithFirstVersion(
                 "ens-of-the-optimistic-token-voting",
                 address(pluginSetup),
@@ -264,42 +274,40 @@ contract Deploy is Script {
             );
 
         // Plugin settings
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory votingSettings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings(
-                    200000, // minVetoRatio - 20%
-                    0, // minDuration (the condition will enforce it)
-                    0 // minProposerVotingPower
-                );
+        bytes memory settingsData;
+        {
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
+                memory votingSettings = OptimisticTokenVotingPlugin
+                    .OptimisticGovernanceSettings(
+                        200000, // minVetoRatio - 20%
+                        0, // minDuration (the condition will enforce it)
+                        0 // minProposerVotingPower
+                    );
 
-        OptimisticTokenVotingPluginSetup.TokenSettings
-            memory tokenSettings = OptimisticTokenVotingPluginSetup
-                .TokenSettings(tokenAddress, "", "");
+            OptimisticTokenVotingPluginSetup.TokenSettings
+                memory tokenSettings = OptimisticTokenVotingPluginSetup
+                    .TokenSettings(tokenAddress, "", "");
 
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
-            .MintSettings(new address[](0), new uint256[](0));
+            GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20
+                .MintSettings(new address[](0), new uint256[](0));
 
-        bytes memory settingsData = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            stdProposer,
-            emergencyProposer
-        );
-
-        (
-            address plugin,
-            IPluginSetup.PreparedSetupData memory preparedSetupData
-        ) = pluginSetupProcessor.prepareInstallation(
-                address(dao),
-                PluginSetupProcessor.PrepareInstallationParams(
-                    PluginSetupRef(
-                        PluginRepo.Tag(1, 1),
-                        PluginRepo(pluginRepo)
-                    ),
-                    settingsData
-                )
+            settingsData = pluginSetup.encodeInstallationParams(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                minStdProposalDelay,
+                stdProposer,
+                emergencyProposer
             );
+        }
+
+        (plugin, preparedSetupData) = pluginSetupProcessor.prepareInstallation(
+            address(dao),
+            PluginSetupProcessor.PrepareInstallationParams(
+                PluginSetupRef(PluginRepo.Tag(1, 1), PluginRepo(pluginRepo)),
+                settingsData
+            )
+        );
 
         return (plugin, pluginRepo, preparedSetupData);
     }

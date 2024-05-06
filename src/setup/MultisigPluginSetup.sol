@@ -6,7 +6,7 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
-import {Multisig} from "@aragon/osx/plugins/governance/multisig/Multisig.sol";
+import {Multisig} from "../Multisig.sol";
 
 /// @title MultisigSetup - Release 1, Build 1
 /// @author Aragon Association - 2022-2023
@@ -16,8 +16,8 @@ contract MultisigPluginSetup is PluginSetup {
     Multisig private immutable multisigBase;
 
     /// @notice The contract constructor, that deploys the `Multisig` plugin logic contract.
-    constructor(Multisig _implementation) {
-        multisigBase = _implementation;
+    constructor() {
+        multisigBase = new Multisig();
     }
 
     /// @inheritdoc IPluginSetup
