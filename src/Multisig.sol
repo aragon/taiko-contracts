@@ -12,7 +12,8 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IMultisig} from "./interfaces/IMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
-import {MULTISIG_PROPOSAL_EXPIRATION_PERIOD} from "./common.sol";
+
+uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2023
