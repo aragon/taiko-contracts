@@ -60,11 +60,6 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         Addresslist memberListSource;
     }
 
-    /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 internal constant EMERGENCY_MULTISIG_INTERFACE_ID = this.initialize.selector
-        ^ this.updateMultisigSettings.selector ^ this.createProposal.selector ^ this.getProposal.selector
-        ^ this.hashActions.selector;
-
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
     bytes32 public constant UPDATE_MULTISIG_SETTINGS_PERMISSION_ID = keccak256("UPDATE_MULTISIG_SETTINGS_PERMISSION");
 
@@ -154,8 +149,8 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         override(PluginUUPSUpgradeable, ProposalUpgradeable)
         returns (bool)
     {
-        return _interfaceId == EMERGENCY_MULTISIG_INTERFACE_ID || _interfaceId == type(IEmergencyMultisig).interfaceId
-            || _interfaceId == type(IMembership).interfaceId || super.supportsInterface(_interfaceId);
+        return _interfaceId == type(IEmergencyMultisig).interfaceId || _interfaceId == type(IMembership).interfaceId
+            || super.supportsInterface(_interfaceId);
     }
 
     /// @notice Updates the plugin settings.
@@ -179,8 +174,8 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal
     ) external returns (uint256 proposalId) {
-        if (multisigSettings.onlyListed && !multisigSettings.memberListSource.isListed(_msgSender())) {
-            revert ProposalCreationForbidden(_msgSender());
+        if (multisigSettings.onlyListed && !multisigSettings.memberListSource.isListed(msg.sender)) {
+            revert ProposalCreationForbidden(msg.sender);
         }
 
         uint64 snapshotBlock;
@@ -191,17 +186,10 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         // Revert if the settings have been changed in the same block as this proposal should be created in.
         // This prevents a malicious party from voting with previous addresses and the new settings.
         if (lastMultisigSettingsChange > snapshotBlock) {
-            revert ProposalCreationForbidden(_msgSender());
+            revert ProposalCreationForbidden(msg.sender);
         }
 
         proposalId = _createProposalId();
-
-        emit ProposalCreated({
-            proposalId: proposalId,
-            creator: _msgSender(),
-            encryptedPayloadURI: _encryptedPayloadURI,
-            destinationActionsHash: _destinationActionsHash
-        });
 
         // Create the proposal
         Proposal storage proposal_ = proposals[proposalId];
@@ -214,6 +202,13 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
 
         proposal_.destinationActionsHash = _destinationActionsHash;
 
+        emit ProposalCreated({
+            proposalId: proposalId,
+            creator: msg.sender,
+            encryptedPayloadURI: _encryptedPayloadURI,
+            destinationActionsHash: _destinationActionsHash
+        });
+
         if (_approveProposal) {
             approve(proposalId);
         }
@@ -221,7 +216,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
 
     /// @inheritdoc IEmergencyMultisig
     function approve(uint256 _proposalId) public {
-        address approver = _msgSender();
+        address approver = msg.sender;
         if (!_canApprove(_proposalId, approver)) {
             revert ApprovalCastForbidden(_proposalId, approver);
         }
@@ -237,6 +232,9 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         proposal_.approvers[approver] = true;
 
         emit Approved({proposalId: _proposalId, approver: approver});
+
+        // Automatic execution is intentionally omitted in order to prevent
+        // private actions from accidentally leaving the local computer before being executed
     }
 
     /// @inheritdoc IEmergencyMultisig
@@ -292,7 +290,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
 
         if (proposals[_proposalId].destinationActionsHash != hashActions(_actions)) {
             // This check is intentionally not part of canExecute() in order to prevent
-            // the private actions from ever leaving the local computer until being executed
+            // the private actions from ever leaving the local computer before being executed
             revert InvalidActions(_proposalId);
         }
 

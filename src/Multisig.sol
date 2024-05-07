@@ -18,13 +18,7 @@ uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
-contract Multisig is
-    IMultisig,
-    IMembership,
-    PluginUUPSUpgradeable,
-    ProposalUpgradeable,
-    Addresslist
-{
+contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgradeable, Addresslist {
     using SafeCastUpgradeable for uint256;
 
     /// @notice A container for proposal-related information.
@@ -69,16 +63,8 @@ contract Multisig is
         uint64 destinationMinDuration;
     }
 
-    /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 internal constant MULTISIG_INTERFACE_ID =
-        this.initialize.selector ^
-            this.updateMultisigSettings.selector ^
-            this.createProposal.selector ^
-            this.getProposal.selector;
-
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
-    bytes32 public constant UPDATE_MULTISIG_SETTINGS_PERMISSION_ID =
-        keccak256("UPDATE_MULTISIG_SETTINGS_PERMISSION");
+    bytes32 public constant UPDATE_MULTISIG_SETTINGS_PERMISSION_ID = keccak256("UPDATE_MULTISIG_SETTINGS_PERMISSION");
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -134,29 +120,21 @@ contract Multisig is
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
     /// @param destinationMinDuration The minimum duration (in seconds) that will be required on the destination plugin
-    event MultisigSettingsUpdated(
-        bool onlyListed,
-        uint16 indexed minApprovals,
-        uint64 destinationMinDuration
-    );
+    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, uint64 destinationMinDuration);
 
     /// @notice Initializes Release 1, Build 2.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _members The addresses of the initial members to be added.
     /// @param _multisigSettings The multisig settings.
-    function initialize(
-        IDAO _dao,
-        address[] calldata _members,
-        MultisigSettings calldata _multisigSettings
-    ) external initializer {
+    function initialize(IDAO _dao, address[] calldata _members, MultisigSettings calldata _multisigSettings)
+        external
+        initializer
+    {
         __PluginUUPSUpgradeable_init(_dao);
 
         if (_members.length > type(uint16).max) {
-            revert AddresslistLengthOutOfBounds({
-                limit: type(uint16).max,
-                actual: _members.length
-            });
+            revert AddresslistLengthOutOfBounds({limit: type(uint16).max, actual: _members.length});
         }
 
         _addAddresses(_members);
@@ -168,35 +146,24 @@ contract Multisig is
     /// @notice Checks if this or the parent contract supports an interface by its ID.
     /// @param _interfaceId The ID of the interface.
     /// @return Returns `true` if the interface is supported.
-    function supportsInterface(
-        bytes4 _interfaceId
-    )
+    function supportsInterface(bytes4 _interfaceId)
         public
         view
         virtual
         override(PluginUUPSUpgradeable, ProposalUpgradeable)
         returns (bool)
     {
-        return
-            _interfaceId == MULTISIG_INTERFACE_ID ||
-            _interfaceId == type(IMultisig).interfaceId ||
-            _interfaceId == type(Addresslist).interfaceId ||
-            _interfaceId == type(IMembership).interfaceId ||
-            super.supportsInterface(_interfaceId);
+        return _interfaceId == type(IMultisig).interfaceId || _interfaceId == type(Addresslist).interfaceId
+            || _interfaceId == type(IMembership).interfaceId || super.supportsInterface(_interfaceId);
     }
 
     /// @inheritdoc IMultisig
-    function addAddresses(
-        address[] calldata _members
-    ) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
+    function addAddresses(address[] calldata _members) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
         uint256 newAddresslistLength = addresslistLength() + _members.length;
 
         // Check if the new address list length would be greater than `type(uint16).max`, the maximal number of approvals.
         if (newAddresslistLength > type(uint16).max) {
-            revert AddresslistLengthOutOfBounds({
-                limit: type(uint16).max,
-                actual: newAddresslistLength
-            });
+            revert AddresslistLengthOutOfBounds({limit: type(uint16).max, actual: newAddresslistLength});
         }
 
         _addAddresses(_members);
@@ -205,19 +172,12 @@ contract Multisig is
     }
 
     /// @inheritdoc IMultisig
-    function removeAddresses(
-        address[] calldata _members
-    ) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
-        uint16 newAddresslistLength = uint16(
-            addresslistLength() - _members.length
-        );
+    function removeAddresses(address[] calldata _members) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
+        uint16 newAddresslistLength = uint16(addresslistLength() - _members.length);
 
         // Check if the new address list length would become less than the current minimum number of approvals required.
         if (newAddresslistLength < multisigSettings.minApprovals) {
-            revert MinApprovalsOutOfBounds({
-                limit: multisigSettings.minApprovals,
-                actual: newAddresslistLength
-            });
+            revert MinApprovalsOutOfBounds({limit: multisigSettings.minApprovals, actual: newAddresslistLength});
         }
 
         _removeAddresses(_members);
@@ -227,9 +187,10 @@ contract Multisig is
 
     /// @notice Updates the plugin settings.
     /// @param _multisigSettings The new settings.
-    function updateMultisigSettings(
-        MultisigSettings calldata _multisigSettings
-    ) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
+    function updateMultisigSettings(MultisigSettings calldata _multisigSettings)
+        external
+        auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID)
+    {
         _updateMultisigSettings(_multisigSettings);
     }
 
@@ -282,14 +243,12 @@ contract Multisig is
         proposal_.destinationPlugin = _destinationPlugin;
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
-        proposal_.parameters.expirationDate =
-            uint64(block.timestamp) +
-            MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
+        proposal_.parameters.expirationDate = uint64(block.timestamp) + MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
         proposal_.parameters.destinationStartDate = _destinationStartDate;
         proposal_.parameters.destinationEndDate = _destinationEndDate;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
-        for (uint256 i; i < _destinationActions.length; ) {
+        for (uint256 i; i < _destinationActions.length;) {
             proposal_.destinationActions.push(_destinationActions[i]);
             unchecked {
                 ++i;
@@ -326,10 +285,7 @@ contract Multisig is
     }
 
     /// @inheritdoc IMultisig
-    function canApprove(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool) {
+    function canApprove(uint256 _proposalId, address _account) external view returns (bool) {
         return _canApprove(_proposalId, _account);
     }
 
@@ -346,9 +302,7 @@ contract Multisig is
     /// @return metadataURI The URI at which the corresponding human readable data can be found.
     /// @return destinationActions The actions to be executed by the destination plugin after the proposal passes.
     /// @return destinationPlugin The address of the plugin where the proposal will be forwarded to when executed.
-    function getProposal(
-        uint256 _proposalId
-    )
+    function getProposal(uint256 _proposalId)
         public
         view
         returns (
@@ -371,10 +325,7 @@ contract Multisig is
     }
 
     /// @inheritdoc IMultisig
-    function hasApproved(
-        uint256 _proposalId,
-        address _account
-    ) public view returns (bool) {
+    function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
         return proposals[_proposalId].approvers[_account];
     }
 
@@ -413,10 +364,7 @@ contract Multisig is
     /// @param _proposalId The ID of the proposal.
     /// @param _account The account to check.
     /// @return Returns `true` if the given account can approve on a certain proposal and `false` otherwise.
-    function _canApprove(
-        uint256 _proposalId,
-        address _account
-    ) internal view returns (bool) {
+    function _canApprove(uint256 _proposalId, address _account) internal view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         if (!_isProposalOpen(proposal_)) {
@@ -454,34 +402,22 @@ contract Multisig is
     /// @notice Internal function to check if a proposal is still open.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal vote is open, false otherwise.
-    function _isProposalOpen(
-        Proposal storage proposal_
-    ) internal view returns (bool) {
+    function _isProposalOpen(Proposal storage proposal_) internal view returns (bool) {
         uint64 currentTimestamp64 = block.timestamp.toUint64();
-        return
-            !proposal_.executed &&
-            proposal_.parameters.expirationDate >= currentTimestamp64;
+        return !proposal_.executed && proposal_.parameters.expirationDate >= currentTimestamp64;
     }
 
     /// @notice Internal function to update the plugin settings.
     /// @param _multisigSettings The new settings.
-    function _updateMultisigSettings(
-        MultisigSettings calldata _multisigSettings
-    ) internal {
+    function _updateMultisigSettings(MultisigSettings calldata _multisigSettings) internal {
         uint16 addresslistLength_ = uint16(addresslistLength());
 
         if (_multisigSettings.minApprovals > addresslistLength_) {
-            revert MinApprovalsOutOfBounds({
-                limit: addresslistLength_,
-                actual: _multisigSettings.minApprovals
-            });
+            revert MinApprovalsOutOfBounds({limit: addresslistLength_, actual: _multisigSettings.minApprovals});
         }
 
         if (_multisigSettings.minApprovals < 1) {
-            revert MinApprovalsOutOfBounds({
-                limit: 1,
-                actual: _multisigSettings.minApprovals
-            });
+            revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
         }
 
         multisigSettings = _multisigSettings;
@@ -497,10 +433,7 @@ contract Multisig is
     /// @notice Attempts to detect eventual issues on the destination plugin ahead of time.
     /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
-    function _validateProposalDates(
-        uint64 _start,
-        uint64 _end
-    ) internal view virtual {
+    function _validateProposalDates(uint64 _start, uint64 _end) internal view virtual {
         uint64 currentTimestamp = block.timestamp.toUint64();
         uint64 startDate;
 
@@ -510,22 +443,13 @@ contract Multisig is
             startDate = _start;
 
             if (startDate < currentTimestamp) {
-                revert DateOutOfBounds({
-                    limit: currentTimestamp,
-                    actual: startDate
-                });
+                revert DateOutOfBounds({limit: currentTimestamp, actual: startDate});
             }
         }
 
         // Compare against the earliest end date
-        if (
-            _end != 0 &&
-            _end < startDate + multisigSettings.destinationMinDuration
-        ) {
-            revert DateOutOfBounds({
-                limit: startDate + multisigSettings.destinationMinDuration,
-                actual: _end
-            });
+        if (_end != 0 && _end < startDate + multisigSettings.destinationMinDuration) {
+            revert DateOutOfBounds({limit: startDate + multisigSettings.destinationMinDuration, actual: _end});
         }
     }
 
