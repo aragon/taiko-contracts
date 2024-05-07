@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import {IPluginSetup, PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../../src/Multisig.sol";
+import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
 import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -21,81 +22,59 @@ contract AragonTest is Test {
 
     address immutable DAO_BASE = address(new DAO());
     address immutable MULTISIG_BASE = address(new Multisig());
-    address immutable OPTIMISTIC_BASE =
-        address(new OptimisticTokenVotingPlugin());
+    address immutable EMERGENCY_MULTISIG_BASE = address(new EmergencyMultisig());
+    address immutable OPTIMISTIC_BASE = address(new OptimisticTokenVotingPlugin());
     address immutable VOTING_TOKEN_BASE = address(new ERC20VotesMock());
 
     bytes internal constant EMPTY_BYTES = "";
 
-    function makeDaoWithOptimisticTokenVoting(
-        address owner
-    )
+    function makeDaoWithOptimisticTokenVoting(address owner)
         internal
-        returns (
-            DAO dao,
-            OptimisticTokenVotingPlugin plugin,
-            ERC20VotesMock votingToken
-        )
+        returns (DAO dao, OptimisticTokenVotingPlugin plugin, ERC20VotesMock votingToken)
     {
         // Deploy a DAO with owner as root
         dao = DAO(
             payable(
-                createProxyAndCall(
-                    address(DAO_BASE),
-                    abi.encodeCall(
-                        DAO.initialize,
-                        ("", owner, address(0x0), "")
-                    )
-                )
+                createProxyAndCall(address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", owner, address(0x0), "")))
             )
         );
 
         // Deploy ERC20 token
         votingToken = ERC20VotesMock(
-            createProxyAndCall(
-                address(VOTING_TOKEN_BASE),
-                abi.encodeCall(ERC20VotesMock.initialize, ())
-            )
+            createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
         );
         votingToken.mint(alice, 10 ether);
         votingToken.delegate(alice);
         vm.roll(block.number + 1);
 
         // Deploy a new plugin instance
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-            memory settings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings({
-                    minVetoRatio: uint32(RATIO_BASE / 10),
-                    minDuration: 10 days,
-                    minProposerVotingPower: 0
-                });
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            minProposerVotingPower: 0
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
-                abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize,
-                    (dao, settings, votingToken)
-                )
+                abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken))
             )
         );
     }
 
-    /// @notice Creates a mock DAO with a plugin.
+    /// @notice Creates a mock DAO with a multisig and an optimistic token voting plugin.
     /// @param owner The address that will be set as root on the DAO.
     /// @return A tuple containing the DAO and the address of the plugin.
-    function makeDaoWithMultisigAndOptimistic(
-        address owner
-    ) internal returns (DAO, Multisig, OptimisticTokenVotingPlugin) {
+    function makeDaoWithMultisigAndOptimistic(address owner)
+        internal
+        returns (DAO, Multisig, OptimisticTokenVotingPlugin)
+    {
         // Deploy a DAO with owner as root
         DAO dao = DAO(
             payable(
                 createProxyAndCall(
-                    address(DAO_BASE),
-                    abi.encodeCall(
-                        DAO.initialize,
-                        (EMPTY_BYTES, owner, address(0x0), "")
-                    )
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, (EMPTY_BYTES, owner, address(0x0), ""))
                 )
             )
         );
@@ -105,41 +84,30 @@ contract AragonTest is Test {
         {
             // Deploy ERC20 token
             ERC20VotesMock votingToken = ERC20VotesMock(
-                createProxyAndCall(
-                    address(VOTING_TOKEN_BASE),
-                    abi.encodeCall(ERC20VotesMock.initialize, ())
-                )
+                createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
             );
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
-            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-                memory targetContractSettings = OptimisticTokenVotingPlugin
-                    .OptimisticGovernanceSettings({
-                        minVetoRatio: uint32(RATIO_BASE / 10),
-                        minDuration: 4 days,
-                        minProposerVotingPower: 0
-                    });
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 10),
+                minDuration: 4 days,
+                minProposerVotingPower: 0
+            });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
                 createProxyAndCall(
                     address(OPTIMISTIC_BASE),
-                    abi.encodeCall(
-                        OptimisticTokenVotingPlugin.initialize,
-                        (dao, targetContractSettings, votingToken)
-                    )
+                    abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, targetContractSettings, votingToken))
                 )
             );
         }
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings = Multisig
-                .MultisigSettings({
-                    onlyListed: true,
-                    minApprovals: 3,
-                    destinationMinDuration: 4 days
-                });
+            Multisig.MultisigSettings memory settings =
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
@@ -148,11 +116,7 @@ contract AragonTest is Test {
 
             multisig = Multisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE),
-                    abi.encodeCall(
-                        Multisig.initialize,
-                        (dao, signers, settings)
-                    )
+                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
                 )
             );
         }
@@ -160,20 +124,92 @@ contract AragonTest is Test {
         return (dao, multisig, optimisticPlugin);
     }
 
+    /// @notice Creates a mock DAO with an emergency multisig, a multisig with the address list and an optimistic token voting plugin.
+    /// @param owner The address that will be set as root on the DAO.
+    /// @return A tuple containing the DAO and the address of the plugin.
+    function makeDaoWithEmergencyMultisigAndOptimistic(address owner)
+        internal
+        returns (DAO, EmergencyMultisig, Multisig, OptimisticTokenVotingPlugin)
+    {
+        // Deploy a DAO with owner as root
+        DAO dao = DAO(
+            payable(
+                createProxyAndCall(
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, (EMPTY_BYTES, owner, address(0x0), ""))
+                )
+            )
+        );
+        Multisig multisig;
+        EmergencyMultisig emergencyMultisig;
+        OptimisticTokenVotingPlugin optimisticPlugin;
+
+        {
+            // Deploy ERC20 token
+            ERC20VotesMock votingToken = ERC20VotesMock(
+                createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
+            );
+            votingToken.mint();
+
+            // Deploy a target contract for passed proposals to be created in
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 10),
+                minDuration: 0,
+                minProposerVotingPower: 0
+            });
+
+            optimisticPlugin = OptimisticTokenVotingPlugin(
+                createProxyAndCall(
+                    address(OPTIMISTIC_BASE),
+                    abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, targetContractSettings, votingToken))
+                )
+            );
+        }
+
+        {
+            // Deploy a new multisig instance
+            Multisig.MultisigSettings memory settings =
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
+            address[] memory signers = new address[](4);
+            signers[0] = alice;
+            signers[1] = bob;
+            signers[2] = carol;
+            signers[3] = david;
+
+            multisig = Multisig(
+                createProxyAndCall(
+                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                )
+            );
+        }
+
+        {
+            // Deploy a new emergency multisig instance
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, memberListSource: multisig});
+
+            emergencyMultisig = EmergencyMultisig(
+                createProxyAndCall(
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+                )
+            );
+        }
+
+        return (dao, emergencyMultisig, multisig, optimisticPlugin);
+    }
+
     /// @notice Returns the address associated with a given label.
     /// @param label The label to get the address for.
     /// @return addr The address associated with the label.
     function account(string memory label) internal returns (address addr) {
-        (addr, ) = accountAndKey(label);
+        (addr,) = accountAndKey(label);
     }
 
     /// @notice Returns the address and private key associated with a given label.
     /// @param label The label to get the address and private key for.
     /// @return addr The address associated with the label.
     /// @return pk The private key associated with the label.
-    function accountAndKey(
-        string memory label
-    ) internal returns (address addr, uint256 pk) {
+    function accountAndKey(string memory label) internal returns (address addr, uint256 pk) {
         pk = uint256(keccak256(abi.encodePacked(label)));
         addr = vm.addr(pk);
         vm.label(addr, label);
