@@ -115,7 +115,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI, bytes32 destinationActionsHash
     );
 
-    /// @notice Emitted when a proposal is approve by an approver.
+    /// @notice Emitted when a proposal is approved by an approver.
     /// @param proposalId The ID of the proposal.
     /// @param approver The approver casting the approve.
     event Approved(uint256 indexed proposalId, address indexed approver);

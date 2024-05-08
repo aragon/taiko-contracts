@@ -1397,7 +1397,7 @@ contract MultisigTest is AragonTest {
     }
 
     function test_RevertsWhenCreatorWasListedBeforeButNotNow() public {
-        // reverts if `_msgSender` is not listed before although she was listed in the last block
+        // reverts if `_msgSender` is not listed although she was listed in the last block
 
         // Deploy a new multisig instance
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
