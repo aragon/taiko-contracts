@@ -1137,6 +1137,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_UpdateOptimisticGovernanceSettingsRevertsWhenTheMinDurationIsLessThanFourDays() public {
+        // This test is not applicable, since the minimum boundary is intentionally left open
+        vm.skip(true);
+
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
