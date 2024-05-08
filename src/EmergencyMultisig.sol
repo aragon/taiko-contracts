@@ -53,11 +53,11 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @notice A container for the plugin settings.
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
-    /// @param memberListSource The contract where the list of signers is defined
+    /// @param addresslistSource The contract where the list of signers is defined
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
-        Addresslist memberListSource;
+        Addresslist addresslistSource;
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -174,7 +174,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal
     ) external returns (uint256 proposalId) {
-        if (multisigSettings.onlyListed && !multisigSettings.memberListSource.isListed(msg.sender)) {
+        if (multisigSettings.onlyListed && !multisigSettings.addresslistSource.isListed(msg.sender)) {
             revert ProposalCreationForbidden(msg.sender);
         }
 
@@ -306,7 +306,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
 
     /// @inheritdoc IMembership
     function isMember(address _account) external view returns (bool) {
-        return multisigSettings.memberListSource.isListed(_account);
+        return multisigSettings.addresslistSource.isListed(_account);
     }
 
     /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
@@ -338,7 +338,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
             return false;
         }
 
-        if (!multisigSettings.memberListSource.isListedAtBlock(_account, proposal_.parameters.snapshotBlock)) {
+        if (!multisigSettings.addresslistSource.isListedAtBlock(_account, proposal_.parameters.snapshotBlock)) {
             // The approver has no voting power.
             return false;
         }
@@ -376,7 +376,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @notice Internal function to update the plugin settings.
     /// @param _multisigSettings The new settings.
     function _updateMultisigSettings(MultisigSettings calldata _multisigSettings) internal {
-        uint16 addresslistLength_ = uint16(multisigSettings.memberListSource.addresslistLength());
+        uint16 addresslistLength_ = uint16(multisigSettings.addresslistSource.addresslistLength());
 
         if (_multisigSettings.minApprovals > addresslistLength_) {
             revert MinApprovalsOutOfBounds({limit: addresslistLength_, actual: _multisigSettings.minApprovals});
@@ -386,7 +386,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
             revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
         }
 
-        if (!IERC165(address(_multisigSettings.memberListSource)).supportsInterface(type(Addresslist).interfaceId)) {
+        if (!IERC165(address(_multisigSettings.addresslistSource)).supportsInterface(type(Addresslist).interfaceId)) {
             revert InvalidAddressListSource();
         }
 

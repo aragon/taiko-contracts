@@ -25,7 +25,7 @@ contract EmergencyMultisigTest is AragonTest {
     OptimisticTokenVotingPlugin optimisticPlugin;
 
     // Events/errors to be tested here (duplicate)
-    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, uint64 destinationMinDuration);
+    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, Addresslist addresslistSource);
     event MembersAdded(address[] members);
     event MembersRemoved(address[] members);
 
@@ -44,86 +44,36 @@ contract EmergencyMultisigTest is AragonTest {
     event Executed(uint256 indexed proposalId);
 
     function setUp() public {
-        vm.skip(true);
-
-        vm.startPrank(alice);
+        switchTo(alice);
 
         (dao, plugin, multisig, optimisticPlugin) = makeDaoWithEmergencyMultisigAndOptimistic(alice);
     }
 
     function test_RevertsIfTryingToReinitialize() public {
-        vm.skip(true);
-
         // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         // Reinitialize should fail
         vm.expectRevert("Initializable: contract is already initialized");
-        plugin.initialize(dao, signers, settings);
-    }
-
-    function test_AddsInitialAddresses() public {
-        vm.skip(true);
-
-        // Deploy with 4 signers
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(plugin.isListed(alice), true, "Should be a member");
-        assertEq(plugin.isListed(bob), true, "Should be a member");
-        assertEq(plugin.isListed(carol), true, "Should be a member");
-        assertEq(plugin.isListed(david), true, "Should be a member");
-
-        // Redeploy with just 2 signers
-        settings.minApprovals = 1;
-
-        signers = new address[](2);
-        signers[0] = alice;
-        signers[1] = bob;
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(plugin.isListed(alice), true, "Should be a member");
-        assertEq(plugin.isListed(bob), true, "Should be a member");
-        assertEq(plugin.isListed(carol), false, "Should not be a member");
-        assertEq(plugin.isListed(david), false, "Should not be a member");
+        plugin.initialize(dao, settings);
     }
 
     function test_ShouldSetMinApprovals() public {
-        vm.skip(true);
-
         // 2
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         (, uint16 minApprovals,) = plugin.multisigSettings();
@@ -132,8 +82,10 @@ contract EmergencyMultisigTest is AragonTest {
         // Redeploy with 1
         settings.minApprovals = 1;
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         (, minApprovals,) = plugin.multisigSettings();
@@ -141,19 +93,14 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_ShouldSetOnlyListed() public {
-        vm.skip(true);
-
         // Deploy with true
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         (bool onlyListed,,) = plugin.multisigSettings();
@@ -162,133 +109,102 @@ contract EmergencyMultisigTest is AragonTest {
         // Redeploy with false
         settings.onlyListed = false;
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         (onlyListed,,) = plugin.multisigSettings();
         assertEq(onlyListed, false, "Incorrect onlyListed");
     }
 
-    function test_ShouldSetDestinationMinDuration() public {
-        vm.skip(true);
+    function test_ShouldSetAddresslistSource() public {
+        // Deploy the default multisig as source
+        EmergencyMultisig.MultisigSettings memory emSettings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
 
-        // Deploy with 5 days
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 5 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, emSettings))
+            )
         );
 
-        (,, uint64 minDuration) = plugin.multisigSettings();
-        assertEq(minDuration, 5 days, "Incorrect minDuration");
+        (,, Addresslist givenAddressListSource) = plugin.multisigSettings();
+        assertEq(address(givenAddressListSource), address(multisig), "Incorrect addresslistSource");
 
-        // Redeploy with 3 days
-        settings.destinationMinDuration = 3 days;
+        // Redeploy with a new addresslist source
+        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        emSettings.addresslistSource = newMultisig;
+
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, emSettings))
+            )
         );
 
-        (,, minDuration) = plugin.multisigSettings();
-        assertEq(minDuration, 3 days, "Incorrect minDuration");
+        (,, givenAddressListSource) = plugin.multisigSettings();
+        assertEq(address(givenAddressListSource), address(emSettings.addresslistSource), "Incorrect addresslistSource");
     }
 
     function test_ShouldEmitMultisigSettingsUpdatedOnInstall() public {
-        vm.skip(true);
-
-        // Deploy with true/3/2
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        // Deploy with true/3/default
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, uint16(3), 4 days);
+        emit MultisigSettingsUpdated(true, uint16(3), multisig);
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
-        // Deploy with false/2/7
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationMinDuration: 7 days});
+        // Deploy with false/2/new
+        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 2, addresslistSource: newMultisig});
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, uint16(2), 7 days);
+        emit MultisigSettingsUpdated(false, uint16(2), newMultisig);
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-    }
-
-    function test_ShouldRevertIfMembersListIsTooLong() public {
-        vm.skip(true);
-
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](65537);
-
-        vm.expectRevert(abi.encodeWithSelector(Multisig.AddresslistLengthOutOfBounds.selector, 65535, 65537));
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
     }
 
     // INTERFACES
 
     function test_DoesntSupportTheEmptyInterface() public view {
-        vm.skip(true);
-
         bool supported = plugin.supportsInterface(0);
         assertEq(supported, false, "Should not support the empty interface");
     }
 
     function test_SupportsIERC165Upgradeable() public view {
-        vm.skip(true);
-
         bool supported = plugin.supportsInterface(type(IERC165Upgradeable).interfaceId);
         assertEq(supported, true, "Should support IERC165Upgradeable");
     }
 
     function test_SupportsIPlugin() public view {
-        vm.skip(true);
-
         bool supported = plugin.supportsInterface(type(IPlugin).interfaceId);
         assertEq(supported, true, "Should support IPlugin");
     }
 
     function test_SupportsIProposal() public view {
-        vm.skip(true);
-
         bool supported = plugin.supportsInterface(type(IProposal).interfaceId);
         assertEq(supported, true, "Should support IProposal");
     }
 
     function test_SupportsIMembership() public view {
-        vm.skip(true);
-
         bool supported = plugin.supportsInterface(type(IMembership).interfaceId);
         assertEq(supported, true, "Should support IMembership");
     }
 
-    function test_SupportsAddresslist() public view {
-        vm.skip(true);
-
-        bool supported = plugin.supportsInterface(type(Addresslist).interfaceId);
-        assertEq(supported, true, "Should support Addresslist");
-    }
-
-    function test_SupportsIMultisig() public view {
-        vm.skip(true);
-
+    function test_SupportsIEmergencyMultisig() public view {
         bool supported = plugin.supportsInterface(type(IEmergencyMultisig).interfaceId);
         assertEq(supported, true, "Should support IEmergencyMultisig");
     }
@@ -296,102 +212,100 @@ contract EmergencyMultisigTest is AragonTest {
     // UPDATE MULTISIG SETTINGS
 
     function test_ShouldntAllowMinApprovalsHigherThenAddrListLength() public {
-        vm.skip(true);
-
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+        EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 5,
-            destinationMinDuration: 4 days // Greater than 4 members below
+            addresslistSource: multisig // Greater than 4 members
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 5));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 4, 5));
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         // Retry with onlyListed false
-        settings = Multisig.MultisigSettings({
+        settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 6,
-            destinationMinDuration: 4 days // Greater than 4 members below
+            addresslistSource: multisig // Greater than 4 members
         });
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 6));
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 4, 6));
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
     }
 
     function test_ShouldNotAllowMinApprovalsZero() public {
-        vm.skip(true);
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 0, addresslistSource: multisig});
 
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 0, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 1, 0));
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         // Retry with onlyListed false
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 0, destinationMinDuration: 4 days});
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        settings = EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 0, addresslistSource: multisig});
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 1, 0));
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
     }
 
     function test_ShouldEmitMultisigSettingsUpdated() public {
-        vm.skip(true);
-
         dao.grant(address(plugin), address(alice), plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         // 1
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 1, 4 days);
+        emit MultisigSettingsUpdated(true, 1, multisig);
         plugin.updateMultisigSettings(settings);
 
         // 2
-        settings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationMinDuration: 5 days});
+        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: newMultisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 2, 5 days);
+        emit MultisigSettingsUpdated(true, 2, newMultisig);
         plugin.updateMultisigSettings(settings);
 
         // 3
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 3, destinationMinDuration: 0});
+        (, newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 3, addresslistSource: newMultisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 3, 0);
+        emit MultisigSettingsUpdated(false, 3, newMultisig);
         plugin.updateMultisigSettings(settings);
 
         // 4
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 4, destinationMinDuration: 1 days});
+        settings = EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 4, addresslistSource: multisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 4, 1 days);
+        emit MultisigSettingsUpdated(false, 4, multisig);
         plugin.updateMultisigSettings(settings);
     }
 
     function test_onlyWalletWithPermissionsCanUpdateSettings() public {
-        vm.skip(true);
+        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
 
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 3 days});
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: newMultisig});
         vm.expectRevert(
             abi.encodeWithSelector(
                 DaoUnauthorized.selector,
@@ -402,482 +316,139 @@ contract EmergencyMultisigTest is AragonTest {
             )
         );
         plugin.updateMultisigSettings(settings);
+
+        // Nothing changed
+        (bool onlyListed, uint16 minApprovals, Addresslist currentSource) = plugin.multisigSettings();
+        assertEq(onlyListed, true);
+        assertEq(minApprovals, 3);
+        assertEq(address(currentSource), address(multisig));
 
         // Retry with the permission
         dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 1, 3 days);
+        emit MultisigSettingsUpdated(false, 1, newMultisig);
         plugin.updateMultisigSettings(settings);
     }
 
     function test_IsMemberShouldReturnWhenApropriate() public {
-        vm.skip(true);
+        assertEq(plugin.isMember(alice), true, "Should be a member");
+        assertEq(plugin.isMember(bob), true, "Should be a member");
+        assertEq(plugin.isMember(carol), true, "Should be a member");
+        assertEq(plugin.isMember(david), true, "Should be a member");
 
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         address[] memory signers = new address[](1);
-        signers[0] = alice;
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        signers[0] = bob;
+        multisig.removeAddresses(signers);
 
         assertEq(plugin.isMember(alice), true, "Should be a member");
         assertEq(plugin.isMember(bob), false, "Should not be a member");
-        assertEq(plugin.isMember(carol), false, "Should not be a member");
-        assertEq(plugin.isMember(david), false, "Should not be a member");
+        assertEq(plugin.isMember(carol), true, "Should be a member");
+        assertEq(plugin.isMember(david), true, "Should be a member");
 
-        // More members
-        settings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
-        signers = new address[](3);
-        signers[0] = bob;
-        signers[1] = carol;
-        signers[2] = david;
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        // 2
+        signers = new address[](1);
+        multisig.addAddresses(signers); // Add Bob back
+        signers[0] = alice;
+        multisig.removeAddresses(signers);
 
         assertEq(plugin.isMember(alice), false, "Should not be a member");
         assertEq(plugin.isMember(bob), true, "Should be a member");
         assertEq(plugin.isMember(carol), true, "Should be a member");
         assertEq(plugin.isMember(david), true, "Should be a member");
+
+        // 3
+        signers = new address[](1);
+        multisig.addAddresses(signers); // Add Alice back
+        signers[0] = carol;
+        multisig.removeAddresses(signers);
+
+        assertEq(plugin.isMember(alice), true, "Should be a member");
+        assertEq(plugin.isMember(bob), true, "Should be a member");
+        assertEq(plugin.isMember(carol), false, "Should not be a member");
+        assertEq(plugin.isMember(david), true, "Should be a member");
+
+        // 4
+        signers = new address[](1);
+        multisig.addAddresses(signers); // Add Carol back
+        signers[0] = david;
+        multisig.removeAddresses(signers);
+
+        assertEq(plugin.isMember(alice), true, "Should be a member");
+        assertEq(plugin.isMember(bob), true, "Should be a member");
+        assertEq(plugin.isMember(carol), true, "Should be a member");
+        assertEq(plugin.isMember(david), false, "Should not be a member");
     }
 
     function test_IsMemberIsListedShouldReturnTheSameValue() public {
-        vm.skip(true);
+        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
+        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
+        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
+        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
 
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         address[] memory signers = new address[](1);
         signers[0] = alice;
+        multisig.removeAddresses(signers);
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
+        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
+        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
+        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
 
-        assertEq(plugin.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(plugin.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(plugin.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(plugin.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
-
-        // More members
-        settings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
-        signers = new address[](3);
+        // 2
+        multisig.addAddresses(signers); // Add Alice back
         signers[0] = bob;
-        signers[1] = carol;
-        signers[2] = david;
+        multisig.removeAddresses(signers);
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
+        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
+        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
+        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
 
-        assertEq(plugin.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(plugin.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(plugin.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(plugin.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+        // 3
+        multisig.addAddresses(signers); // Add Bob back
+        signers[0] = carol;
+        multisig.removeAddresses(signers);
+
+        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
+        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
+        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
+        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+
+        // 4
+        multisig.addAddresses(signers); // Add Carol back
+        signers[0] = david;
+        multisig.removeAddresses(signers);
+
+        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
+        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
+        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
+        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
     }
 
     function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public {
-        vm.skip(true);
-
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](1); // 0x0... would be a member but the chance is negligible
-
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(plugin.isListed(randomWallet), false, "Should be false");
-        assertEq(
-            plugin.isListed(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
-        );
-    }
-
-    function test_AddsNewMembersAndEmits() public {
-        vm.skip(true);
-
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // No
-        assertEq(plugin.isMember(randomWallet), false, "Should not be a member");
-
-        address[] memory addrs = new address[](1);
-        addrs[0] = randomWallet;
-
-        vm.expectEmit();
-        emit MembersAdded({members: addrs});
-        plugin.addAddresses(addrs);
-
-        // Yes
-        assertEq(plugin.isMember(randomWallet), true, "Should be a member");
-
-        // Next
-        addrs = new address[](3);
-        addrs[0] = vm.addr(1234);
-        addrs[1] = vm.addr(2345);
-        addrs[2] = vm.addr(3456);
-
-        // No
-        assertEq(plugin.isMember(addrs[0]), false, "Should not be a member");
-        assertEq(plugin.isMember(addrs[1]), false, "Should not be a member");
-        assertEq(plugin.isMember(addrs[2]), false, "Should not be a member");
-
-        vm.expectEmit();
-        emit MembersAdded({members: addrs});
-        plugin.addAddresses(addrs);
-
-        // Yes
-        assertEq(plugin.isMember(addrs[0]), true, "Should be a member");
-        assertEq(plugin.isMember(addrs[1]), true, "Should be a member");
-        assertEq(plugin.isMember(addrs[2]), true, "Should be a member");
-    }
-
-    function test_RemovesMembersAndEmits() public {
-        vm.skip(true);
-
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
-        plugin.updateMultisigSettings(settings);
-
-        // Before
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
-
-        address[] memory addrs = new address[](2);
-        addrs[0] = alice;
-        addrs[1] = bob;
-
-        vm.expectEmit();
-        emit MembersRemoved({members: addrs});
-        plugin.removeAddresses(addrs);
-
-        // After
-        assertEq(plugin.isMember(alice), false, "Should not be a member");
-        assertEq(plugin.isMember(bob), false, "Should not be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
-
-        // Next
-        addrs = new address[](3);
-        addrs[0] = vm.addr(1234);
-        addrs[1] = vm.addr(2345);
-        addrs[2] = vm.addr(3456);
-        plugin.addAddresses(addrs);
-
-        // Remove
-        addrs = new address[](2);
-        addrs[0] = carol;
-        addrs[1] = david;
-
-        vm.expectEmit();
-        emit MembersRemoved({members: addrs});
-        plugin.removeAddresses(addrs);
-
-        // Yes
-        assertEq(plugin.isMember(carol), false, "Should not be a member");
-        assertEq(plugin.isMember(david), false, "Should not be a member");
-    }
-
-    function test_ShouldRevertIfEmptySignersList() public {
-        vm.skip(true);
-
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
-        plugin.updateMultisigSettings(settings);
-
-        // Before
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
-
-        // ok
-        address[] memory addrs = new address[](1);
-        addrs[0] = alice;
-        plugin.removeAddresses(addrs);
-
-        addrs[0] = bob;
-        plugin.removeAddresses(addrs);
-
-        addrs[0] = carol;
-        plugin.removeAddresses(addrs);
-
-        assertEq(plugin.isMember(alice), false, "Should not be a member");
-        assertEq(plugin.isMember(bob), false, "Should not be a member");
-        assertEq(plugin.isMember(carol), false, "Should not be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
-
-        // ko
-        addrs[0] = david;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
-        plugin.removeAddresses(addrs);
-
-        // Next
-        addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        plugin.addAddresses(addrs);
-
-        // Retry removing David
-        addrs = new address[](1);
-        addrs[0] = david;
-
-        plugin.removeAddresses(addrs);
-
-        // Yes
-        assertEq(plugin.isMember(david), false, "Should not be a member");
-    }
-
-    function test_ShouldRevertIfLessThanMinApproval() public {
-        vm.skip(true);
-
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // Before
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
-
-        // ok
-        address[] memory addrs = new address[](1);
-        addrs[0] = alice;
-        plugin.removeAddresses(addrs);
-
-        // ko
-        addrs[0] = bob;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 3, 2));
-        plugin.removeAddresses(addrs);
-
-        // ko
-        addrs[0] = carol;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 3, 2));
-        plugin.removeAddresses(addrs);
-
-        // ko
-        addrs[0] = david;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 3, 2));
-        plugin.removeAddresses(addrs);
-
-        // Add and retry removing
-
-        addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        plugin.addAddresses(addrs);
-
-        addrs = new address[](1);
-        addrs[0] = bob;
-        plugin.removeAddresses(addrs);
-
-        // 2
-        addrs = new address[](1);
-        addrs[0] = vm.addr(2345);
-        plugin.addAddresses(addrs);
-
-        addrs = new address[](1);
-        addrs[0] = carol;
-        plugin.removeAddresses(addrs);
-
-        // 3
-        addrs = new address[](1);
-        addrs[0] = vm.addr(3456);
-        plugin.addAddresses(addrs);
-
-        addrs = new address[](1);
-        addrs[0] = david;
-        plugin.removeAddresses(addrs);
-    }
-
-    function test_MinApprovalsBiggerThanTheListReverts() public {
-        vm.skip(true);
-
-        // MinApprovals should be within the boundaries of the list
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 5,
-            destinationMinDuration: 4 days // More than 4
-        });
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 5));
-        plugin.updateMultisigSettings(settings);
-
-        // More signers
-
+        // Deploy a new multisig instance
+        Multisig.MultisigSettings memory mSettings =
+            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
         address[] memory signers = new address[](1);
-        signers[0] = randomWallet;
-        plugin.addAddresses(signers);
+        signers[0] = address(0x0); // 0x0... would be a member but the chance is negligible
 
-        // should not fail now
-        plugin.updateMultisigSettings(settings);
-
-        // More than that, should fail again
-        settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 6,
-            destinationMinDuration: 4 days // More than 5
-        });
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 5, 6));
-        plugin.updateMultisigSettings(settings);
-    }
-
-    function test_ShouldRevertIfDuplicatingAddresses() public {
-        vm.skip(true);
-
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // ok
-        address[] memory addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        plugin.addAddresses(addrs);
-
-        // ko
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.addAddresses(addrs);
-
-        // 1
-        addrs[0] = alice;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.addAddresses(addrs);
-
-        // 2
-        addrs[0] = bob;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.addAddresses(addrs);
-
-        // 3
-        addrs[0] = carol;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.addAddresses(addrs);
-
-        // 4
-        addrs[0] = david;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.addAddresses(addrs);
-
-        // ok
-        addrs[0] = vm.addr(1234);
-        plugin.removeAddresses(addrs);
-
-        // ko
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.removeAddresses(addrs);
-
-        addrs[0] = vm.addr(2345);
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.removeAddresses(addrs);
-
-        addrs[0] = vm.addr(3456);
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.removeAddresses(addrs);
-
-        addrs[0] = vm.addr(4567);
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.removeAddresses(addrs);
-
-        addrs[0] = randomWallet;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        plugin.removeAddresses(addrs);
-    }
-
-    function test_onlyWalletWithPermissionsCanAddRemove() public {
-        vm.skip(true);
-
-        // ko
-        address[] memory addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                address(dao),
-                address(plugin),
-                alice,
-                plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+        multisig = Multisig(
+            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, mSettings)))
+        );
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
-        plugin.addAddresses(addrs);
 
-        // ko
-        addrs[0] = alice;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                address(dao),
-                address(plugin),
-                alice,
-                plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-            )
+        assertEq(
+            plugin.isMember(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
         );
-        plugin.removeAddresses(addrs);
-
-        // Permission
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // ok
-        addrs[0] = vm.addr(1234);
-        plugin.addAddresses(addrs);
-
-        addrs[0] = alice;
-        plugin.removeAddresses(addrs);
-    }
-
-    function testFuzz_PermissionedAddRemoveMembers(address randomAccount) public {
-        vm.skip(true);
-
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        assertEq(plugin.isMember(randomWallet), false, "Should be false");
-
-        // in
-        address[] memory addrs = new address[](1);
-        addrs[0] = randomWallet;
-        plugin.addAddresses(addrs);
-        assertEq(plugin.isMember(randomWallet), true, "Should be true");
-
-        // out
-        plugin.removeAddresses(addrs);
-        assertEq(plugin.isMember(randomWallet), false, "Should be false");
-
-        // someone else
-        if (randomAccount != alice) {
-            vm.stopPrank();
-            vm.startPrank(randomAccount);
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    DaoUnauthorized.selector,
-                    address(dao),
-                    address(plugin),
-                    randomAccount,
-                    plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-                )
-            );
-            plugin.addAddresses(addrs);
-            assertEq(plugin.isMember(randomWallet), false, "Should be false");
-
-            addrs[0] = carol;
-            assertEq(plugin.isMember(carol), true, "Should be true");
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    DaoUnauthorized.selector,
-                    address(dao),
-                    address(plugin),
-                    randomAccount,
-                    plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-                )
-            );
-            plugin.removeAddresses(addrs);
-
-            assertEq(plugin.isMember(carol), true, "Should be true");
-        }
-
-        vm.stopPrank();
-        vm.startPrank(alice);
     }
 
     function testFuzz_PermissionedUpdateSettings(address randomAccount) public {
@@ -891,8 +462,8 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(destMinDuration, 4 days, "Incorrect destMinDuration");
 
         // in
-        Multisig.MultisigSettings memory newSettings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationMinDuration: 5 days});
+        EmergencyMultisig.MultisigSettings memory newSettings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationMinDuration: 5 days});
         plugin.updateMultisigSettings(newSettings);
 
         (onlyListed, minApprovals, destMinDuration) = plugin.multisigSettings();
@@ -901,7 +472,8 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(destMinDuration, 5 days, "Incorrect destMinDuration");
 
         // out
-        newSettings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 6 days});
+        newSettings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 6 days});
         plugin.updateMultisigSettings(newSettings);
         (onlyListed, minApprovals, destMinDuration) = plugin.multisigSettings();
         assertEq(minApprovals, 1, "Should be 1");
@@ -916,7 +488,7 @@ contract EmergencyMultisigTest is AragonTest {
             vm.startPrank(randomAccount);
 
             newSettings =
-                Multisig.MultisigSettings({onlyListed: false, minApprovals: 4, destinationMinDuration: 4 days});
+                EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 4, addresslistSource: multisig});
 
             vm.expectRevert(
                 abi.encodeWithSelector(
@@ -936,7 +508,7 @@ contract EmergencyMultisigTest is AragonTest {
         }
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     // PROPOSAL CREATION
@@ -1012,7 +584,7 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].to = carol;
         actions[0].value = 1 ether;
         address[] memory addrs = new address[](1);
-        actions[0].data = abi.encodeCall(Multisig.addAddresses, (addrs));
+        actions[0].data = abi.encodeCall(EmergencyMultisig.addAddresses, (addrs));
 
         vm.expectEmit();
         emit ProposalCreated({
@@ -1028,7 +600,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // undo
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_RevertsIfSettingsChangedInSameBlock() public {
@@ -1038,7 +610,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 1
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, alice));
         plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
 
         // Next block
@@ -1052,16 +624,13 @@ contract EmergencyMultisigTest is AragonTest {
         // creates a proposal when unlisted accounts are allowed
 
         // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 3, destinationMinDuration: 4 days});
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 3, addresslistSource: multisig});
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
         );
 
         vm.stopPrank();
@@ -1072,7 +641,7 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_RevertsWhenOnlyListedAndAnotherWalletCreates() public {
@@ -1085,11 +654,11 @@ contract EmergencyMultisigTest is AragonTest {
         vm.roll(block.number + 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, randomWallet));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, randomWallet));
         plugin.createProposal("", actions, optimisticPlugin, false, 0, uint64(block.timestamp + 10));
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_RevertsWhenCreatorWasListedBeforeButNotNow() public {
@@ -1098,13 +667,15 @@ contract EmergencyMultisigTest is AragonTest {
         // reverts if `_msgSender` is not listed before although she was listed in the last block
 
         // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
         address[] memory addrs = new address[](1);
         addrs[0] = alice;
 
-        plugin = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, addrs, settings)))
+        plugin = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, addrs, settings))
+            )
         );
         dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         vm.roll(block.number + 1);
@@ -1118,7 +689,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice cannot create now
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, alice));
         plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
 
         // Bob can create now
@@ -1189,7 +760,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.warp(10); // timestamp = 10
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 10, 5));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.DateOutOfBounds.selector, 10, 5));
         plugin.createProposal(
             "",
             actions,
@@ -1200,7 +771,7 @@ contract EmergencyMultisigTest is AragonTest {
         );
 
         // 2
-        vm.expectRevert(abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 10, 9));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.DateOutOfBounds.selector, 10, 9));
         plugin.createProposal(
             "",
             actions,
@@ -1248,14 +819,14 @@ contract EmergencyMultisigTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
 
         // Start now (0) will be less than minDuration
-        vm.expectRevert(abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 10 + 4 days, 1234));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.DateOutOfBounds.selector, 10 + 4 days, 1234));
         plugin.createProposal("", actions, optimisticPlugin, false, 0, 1234);
 
         // Explicit start/end will be less than minDuration
-        vm.expectRevert(abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 50 + 4 days, 49));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.DateOutOfBounds.selector, 50 + 4 days, 49));
         plugin.createProposal("", actions, optimisticPlugin, false, 50, 49);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.DateOutOfBounds.selector, 100 + 4 days, 1234));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.DateOutOfBounds.selector, 100 + 4 days, 1234));
         plugin.createProposal("", actions, optimisticPlugin, false, 100, 1234);
 
         // ok
@@ -1273,14 +844,14 @@ contract EmergencyMultisigTest is AragonTest {
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
             address[] memory signers = new address[](1);
             signers[0] = alice;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             vm.roll(block.number + 1);
@@ -1306,17 +877,17 @@ contract EmergencyMultisigTest is AragonTest {
 
         // returns `false` if the approver has already approved
         {
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 4, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
             signers[2] = carol;
             signers[3] = david;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
         }
@@ -1353,7 +924,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canApprove(pid, david), false, "Should be false");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_CanApproveReturnsFalseIfExpired() public {
@@ -1427,7 +998,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canApprove(pid, david), false, "Should be false");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_CanApproveReturnsTrueIfListed() public {
@@ -1448,14 +1019,14 @@ contract EmergencyMultisigTest is AragonTest {
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: false, minApprovals: 1, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: multisig});
             address[] memory signers = new address[](1);
             signers[0] = randomWallet;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             vm.roll(block.number + 1);
@@ -1530,7 +1101,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.hasApproved(pid, david), true, "Should be true");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ApproveRevertsIfApprovingMultipleTimes() public {
@@ -1546,7 +1117,7 @@ contract EmergencyMultisigTest is AragonTest {
         // Alice
         plugin.approve(pid, true);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         plugin.approve(pid, true);
 
         // Bob
@@ -1554,7 +1125,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(bob);
         plugin.approve(pid, true);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, bob));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, bob));
         plugin.approve(pid, false);
 
         // Carol
@@ -1562,11 +1133,11 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(carol);
         plugin.approve(pid, false);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, carol));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
         plugin.approve(pid, true);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     // APPROVE
@@ -1609,7 +1180,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.hasApproved(pid, david), true, "Should be true");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ApproveRevertsIfExpired() public {
@@ -1626,11 +1197,11 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canApprove(pid, alice), true, "Should be true");
 
         vm.warp(10 days + 1);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         plugin.approve(pid, false);
 
         vm.warp(15 days);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         plugin.approve(pid, false);
 
         // 2
@@ -1640,11 +1211,11 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canApprove(pid, alice), true, "Should be true");
 
         vm.warp(10 + 10 days + 1);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         plugin.approve(pid, true);
 
         vm.warp(10 + 10 days + 500);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, alice));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         plugin.approve(pid, true);
     }
 
@@ -1685,7 +1256,7 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.approve(pid, false);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     // CAN EXECUTE
@@ -1697,17 +1268,17 @@ contract EmergencyMultisigTest is AragonTest {
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
             signers[2] = carol;
             signers[3] = david;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
@@ -1727,23 +1298,23 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
 
         // More approvals required (4)
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 4, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
             signers[2] = carol;
             signers[3] = david;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
@@ -1754,7 +1325,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, false);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
@@ -1777,7 +1348,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_CanExecuteReturnsFalseIfExpired() public {
@@ -1815,7 +1386,7 @@ contract EmergencyMultisigTest is AragonTest {
         pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 1000 days);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, false);
         vm.stopPrank();
         vm.startPrank(bob);
@@ -1832,7 +1403,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_CanExecuteReturnsFalseIfExecuted() public {
@@ -1865,7 +1436,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_CanExecuteReturnsTrueWhenAllGood() public {
@@ -1906,17 +1477,17 @@ contract EmergencyMultisigTest is AragonTest {
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
             signers[2] = carol;
             signers[3] = david;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
@@ -1927,7 +1498,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         plugin.approve(pid, false);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         // Bob
@@ -1938,21 +1509,21 @@ contract EmergencyMultisigTest is AragonTest {
 
         // More approvals required (4)
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 4, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
             signers[2] = carol;
             signers[3] = david;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
@@ -1963,23 +1534,23 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, false);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         // Bob
         vm.stopPrank();
         vm.startPrank(bob);
         plugin.approve(pid, false);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         // Carol
         vm.stopPrank();
         vm.startPrank(carol);
         plugin.approve(pid, false);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         // David
@@ -1989,7 +1560,7 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.execute(pid);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ExecuteRevertsIfExpired() public {
@@ -2015,7 +1586,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         vm.warp(10 days + 1);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         vm.warp(100 days);
@@ -2024,7 +1595,7 @@ contract EmergencyMultisigTest is AragonTest {
         pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 1000 days);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, false);
         vm.stopPrank();
         vm.startPrank(bob);
@@ -2036,11 +1607,11 @@ contract EmergencyMultisigTest is AragonTest {
 
         vm.warp(100 days + 10 days + 1);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ExecuteRevertsWhenAlreadyExecuted() public {
@@ -2070,11 +1641,11 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(plugin.canExecute(pid), true, "Should be true");
         plugin.execute(pid);
 
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         plugin.execute(pid);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ExecuteEmitsEvents() public {
@@ -2121,7 +1692,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, false);
 
         // Bob
@@ -2176,7 +1747,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, true, "Should be executed");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ExecuteEmitsWhenAutoExecutedFromApprove() public {
@@ -2226,7 +1797,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, true);
 
         // Bob
@@ -2262,7 +1833,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, true);
 
         // Bob
@@ -2290,7 +1861,7 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.approve(pid, true);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ExecutesWithEnoughApprovalsOnTime() public {
@@ -2336,7 +1907,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.approve(pid, false);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
@@ -2361,7 +1932,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, true, "Should be executed");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_ExecuteWhenPassedAndCalledByAnyone() public {
@@ -2402,7 +1973,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 2
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
 
         actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
@@ -2437,7 +2008,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, true, "Should be executed");
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
     }
 
     function test_GetProposalReturnsTheRightValues() public {
@@ -2564,7 +2135,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Execute
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.execute(pid);
 
         // Check round 4
@@ -2596,20 +2167,20 @@ contract EmergencyMultisigTest is AragonTest {
 
         // New proposal, new settings
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
 
         {
             // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationMinDuration: 4 days});
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
             address[] memory signers = new address[](3);
             signers[0] = alice;
             signers[1] = bob;
             signers[2] = carol;
 
-            plugin = Multisig(
+            plugin = EmergencyMultisig(
                 createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
             );
             vm.roll(block.number + 1);
@@ -2712,7 +2283,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Execute
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.execute(pid);
 
         // Check round 4
@@ -2779,7 +2350,7 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.approve(pid, false);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.execute(pid);
 
         // Check round
@@ -2828,7 +2399,7 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.approve(pid, false);
 
         vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
         plugin.execute(pid);
 
         // Check round

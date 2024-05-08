@@ -194,7 +194,7 @@ contract AragonTest is Test {
         {
             // Deploy a new emergency multisig instance
             EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, memberListSource: multisig});
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
 
             emergencyMultisig = EmergencyMultisig(
                 createProxyAndCall(
