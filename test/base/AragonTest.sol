@@ -28,6 +28,14 @@ contract AragonTest is Test {
 
     bytes internal constant EMPTY_BYTES = "";
 
+    constructor() {
+        vm.label(alice, "Alice");
+        vm.label(bob, "Bob");
+        vm.label(carol, "Carol");
+        vm.label(david, "David");
+        vm.label(randomWallet, "Random wallet");
+    }
+
     function makeDaoWithOptimisticTokenVoting(address owner)
         internal
         returns (DAO dao, OptimisticTokenVotingPlugin plugin, ERC20VotesMock votingToken)
@@ -198,18 +206,21 @@ contract AragonTest is Test {
         return (dao, emergencyMultisig, multisig, optimisticPlugin);
     }
 
-    /// @notice Returns the address associated with a given label.
-    /// @param label The label to get the address for.
-    /// @return addr The address associated with the label.
-    function account(string memory label) internal returns (address addr) {
-        (addr,) = accountAndKey(label);
+    /// @notice Tells Foundry to continue executing from the given wallet.
+    function switchTo(address target) internal {
+        vm.startPrank(target);
     }
 
-    /// @notice Returns the address and private key associated with a given label.
+    /// @notice Tells Foundry to stop using the last labeled wallet.
+    function undoSwitch() internal {
+        vm.stopPrank();
+    }
+
+    /// @notice Returns the address and private key associated to the given label.
     /// @param label The label to get the address and private key for.
     /// @return addr The address associated with the label.
     /// @return pk The private key associated with the label.
-    function accountAndKey(string memory label) internal returns (address addr, uint256 pk) {
+    function getWallet(string memory label) internal returns (address addr, uint256 pk) {
         pk = uint256(keccak256(abi.encodePacked(label)));
         addr = vm.addr(pk);
         vm.label(addr, label);
