@@ -1964,6 +1964,8 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
     }
 
+    // APPROVE
+
     function test_ApproveRevertsIfApprovingMultipleTimes() public {
         // reverts when approving multiple times
 
@@ -2022,8 +2024,6 @@ contract MultisigTest is AragonTest {
         vm.stopPrank();
         vm.startPrank(alice);
     }
-
-    // APPROVE
 
     function test_ApprovesWithTheSenderAddress() public {
         // approves with the msg.sender address
@@ -2140,7 +2140,6 @@ contract MultisigTest is AragonTest {
         // Approving a proposal emits the Approved event
 
         vm.roll(block.number + 1);
-        vm.warp(10); // timestamp = 10
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint pid = plugin.createProposal(

@@ -30,9 +30,21 @@ contract EmergencyMultisigTest is AragonTest {
     event MembersRemoved(address[] members);
 
     error InvalidAddresslistUpdate(address member);
+    error InvalidActions(uint256 proposalId);
 
+    /// @notice The emergency multisig event
     event ProposalCreated(
         uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI, bytes32 destinationActionsHash
+    );
+    /// @notice The OptimisticTokenVotingPlugin event
+    event ProposalCreated(
+        uint256 indexed proposalId,
+        address indexed creator,
+        uint64 startDate,
+        uint64 endDate,
+        bytes metadata,
+        IDAO.Action[] actions,
+        uint256 allowFailureMap
     );
     event Approved(uint256 indexed proposalId, address indexed approver);
     event Executed(uint256 indexed proposalId);
@@ -619,49 +631,6 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.createProposal("", bytes32(0), optimisticPlugin, false);
     }
 
-    function test_GetProposalReturnsAsExpected() public {
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
-
-        (
-            bool executed,
-            uint16 approvals,
-            EmergencyMultisig.ProposalParameters memory parameters,
-            bytes memory encryptedPayloadURI,
-            bytes32 destinationActionsHash,
-            OptimisticTokenVotingPlugin destinationPlugin
-        ) = plugin.getProposal(pid);
-
-        assertEq(executed, false);
-        assertEq(approvals, 0);
-        assertEq(parameters.minApprovals, 3);
-        assertEq(parameters.snapshotBlock, block.number - 1);
-        assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
-        assertEq(encryptedPayloadURI, "");
-        assertEq(destinationActionsHash, 0);
-        assertEq(address(destinationPlugin), address(optimisticPlugin));
-
-        // 2
-        (,,, OptimisticTokenVotingPlugin newOptimisticPlugin) = makeDaoWithEmergencyMultisigAndOptimistic(alice);
-        pid = plugin.createProposal(
-            "ipfs://12340000",
-            bytes32(0x1234000000000000000000000000000000000000000000000000000000000000),
-            newOptimisticPlugin,
-            true
-        );
-
-        (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
-            plugin.getProposal(pid);
-
-        assertEq(executed, false);
-        assertEq(approvals, 0);
-        assertEq(parameters.minApprovals, 3);
-        assertEq(parameters.snapshotBlock, block.number - 1);
-        assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
-        assertEq(encryptedPayloadURI, "ipfs://12340000");
-        assertEq(destinationActionsHash, bytes32(0x1234000000000000000000000000000000000000000000000000000000000000));
-        assertEq(address(destinationPlugin), address(newOptimisticPlugin));
-    }
-
     function test_CreatesWhenUnlistedAccountsAllowed() public {
         // creates a proposal when unlisted accounts are allowed
 
@@ -735,7 +704,6 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CreatesProposalWithoutApprovingIfUnspecified() public {
         // creates a proposal successfully and does not approve if not specified
 
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 pid = plugin.createProposal(
             "",
             0,
@@ -865,7 +833,6 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CanApproveReturnsFalseIfExpired() public {
         // returns `false` if the proposal has ended
 
-        blockForward(1);
         setTime(0);
 
         uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
@@ -895,8 +862,6 @@ contract EmergencyMultisigTest is AragonTest {
         // returns `false` if the proposal is already executed
 
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-
-        blockForward(1);
 
         bool executed;
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -940,7 +905,6 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CanApproveReturnsTrueIfListed() public {
         // returns `true` if the approver is listed
 
-        blockForward(1);
         setTime(10); // timestamp = 10
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -992,14 +956,9 @@ contract EmergencyMultisigTest is AragonTest {
     // HAS APPROVED
 
     function test_HasApprovedReturnsFalseWhenNotApproved() public {
-        vm.skip(true);
-
         // returns `false` if user hasn't approved yet
 
-        blockForward(1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
         assertEq(plugin.hasApproved(pid, alice), false, "Should be false");
@@ -1009,76 +968,35 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_HasApprovedReturnsTrueWhenUserApproved() public {
-        vm.skip(true);
-
         // returns `true` if user has approved
 
-        blockForward(1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
         assertEq(plugin.hasApproved(pid, alice), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, alice), true, "Should be true");
 
         // Bob
         undoSwitch();
         switchTo(bob);
         assertEq(plugin.hasApproved(pid, bob), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, bob), true, "Should be true");
 
         // Carol
         undoSwitch();
         switchTo(carol);
         assertEq(plugin.hasApproved(pid, carol), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, carol), true, "Should be true");
 
         // David
         undoSwitch();
         switchTo(david);
         assertEq(plugin.hasApproved(pid, david), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, david), true, "Should be true");
-
-        undoSwitch();
-        switchTo(alice);
-    }
-
-    function test_ApproveRevertsIfApprovingMultipleTimes() public {
-        vm.skip(true);
-
-        // reverts when approving multiple times
-
-        blockForward(1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
-
-        // Alice
-        plugin.approve(pid, true);
-
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid, true);
-
-        // Bob
-        undoSwitch();
-        switchTo(bob);
-        plugin.approve(pid, true);
-
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, bob));
-        plugin.approve(pid, false);
-
-        // Carol
-        undoSwitch();
-        switchTo(carol);
-        plugin.approve(pid, false);
-
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
-        plugin.approve(pid, true);
 
         undoSwitch();
         switchTo(alice);
@@ -1086,41 +1004,67 @@ contract EmergencyMultisigTest is AragonTest {
 
     // APPROVE
 
-    function test_ApprovesWithTheSenderAddress() public {
-        vm.skip(true);
+    function test_ApproveRevertsIfApprovingMultipleTimes() public {
+        // reverts when approving multiple times
 
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+
+        // Alice
+        plugin.approve(pid);
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
+        plugin.approve(pid);
+
+        // Bob
+        undoSwitch();
+        switchTo(bob);
+        plugin.approve(pid);
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, bob));
+        plugin.approve(pid);
+
+        // Carol
+        undoSwitch();
+        switchTo(carol);
+        plugin.approve(pid);
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
+        plugin.approve(pid);
+
+        undoSwitch();
+        switchTo(alice);
+    }
+
+    function test_ApprovesWithTheSenderAddress() public {
         // approves with the msg.sender address
         // Same as test_HasApprovedReturnsTrueWhenUserApproved()
 
-        blockForward(1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
         assertEq(plugin.hasApproved(pid, alice), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, alice), true, "Should be true");
 
         // Bob
         undoSwitch();
         switchTo(bob);
         assertEq(plugin.hasApproved(pid, bob), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, bob), true, "Should be true");
 
         // Carol
         undoSwitch();
         switchTo(carol);
         assertEq(plugin.hasApproved(pid, carol), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, carol), true, "Should be true");
 
         // David
         undoSwitch();
         switchTo(david);
         assertEq(plugin.hasApproved(pid, david), false, "Should be false");
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.hasApproved(pid, david), true, "Should be true");
 
         undoSwitch();
@@ -1128,76 +1072,66 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_ApproveRevertsIfExpired() public {
-        vm.skip(true);
-
         // reverts if the proposal has ended
 
-        blockForward(1);
-        setTime(0); // timestamp = 0
+        setTime(0);
 
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         assertEq(plugin.canApprove(pid, alice), true, "Should be true");
 
-        setTime(10 days + 1);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
-        setTime(15 days);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 15 days);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // 2
         setTime(10); // timestamp = 10
-        pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         assertEq(plugin.canApprove(pid, alice), true, "Should be true");
 
-        setTime(10 + 10 days + 1);
+        setTime(10 + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid, true);
+        plugin.approve(pid);
 
-        setTime(10 + 10 days + 500);
+        setTime(10 + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 500);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid, true);
+        plugin.approve(pid);
     }
 
     function test_ApprovingProposalsEmits() public {
-        vm.skip(true);
-
         // Approving a proposal emits the Approved event
 
-        blockForward(1);
-        setTime(10); // timestamp = 10
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         vm.expectEmit();
         emit Approved(pid, alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Bob
         undoSwitch();
         switchTo(bob);
         vm.expectEmit();
         emit Approved(pid, bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Carol
         undoSwitch();
         switchTo(carol);
         vm.expectEmit();
         emit Approved(pid, carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // David (even if it already passed)
         undoSwitch();
         switchTo(david);
         vm.expectEmit();
         emit Approved(pid, david);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         undoSwitch();
         switchTo(alice);
@@ -1206,19 +1140,12 @@ contract EmergencyMultisigTest is AragonTest {
     // CAN EXECUTE
 
     function test_CanExecuteReturnsFalseIfBelowMinApprovals() public {
-        vm.skip(true);
-
         // returns `false` if the proposal has not reached the minimum approvals yet
 
         {
             // Deploy a new multisig instance
             EmergencyMultisig.MultisigSettings memory settings =
                 EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
-            address[] memory signers = new address[](4);
-            signers[0] = alice;
-            signers[1] = bob;
-            signers[2] = carol;
-            signers[3] = david;
 
             plugin = EmergencyMultisig(
                 createProxyAndCall(
@@ -1228,17 +1155,16 @@ contract EmergencyMultisigTest is AragonTest {
             dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
             blockForward(1);
         }
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
         undoSwitch();
@@ -1250,11 +1176,6 @@ contract EmergencyMultisigTest is AragonTest {
             // Deploy a new multisig instance
             EmergencyMultisig.MultisigSettings memory settings =
                 EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
-            address[] memory signers = new address[](4);
-            signers[0] = alice;
-            signers[1] = bob;
-            signers[2] = carol;
-            signers[3] = david;
 
             plugin = EmergencyMultisig(
                 createProxyAndCall(
@@ -1265,30 +1186,30 @@ contract EmergencyMultisigTest is AragonTest {
             blockForward(1);
         }
 
-        pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
         undoSwitch();
         switchTo(alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // David
         undoSwitch();
         switchTo(david);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
         undoSwitch();
@@ -1296,54 +1217,48 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_CanExecuteReturnsFalseIfExpired() public {
-        vm.skip(true);
-
-        // returns `false` if the proposal has ended
-
-        blockForward(1);
+        // returns `false` if the proposal has expired
 
         // 1
-        setTime(0); // timestamp = 0
+        setTime(0);
 
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
-        setTime(10 days);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
-        setTime(10 days + 1);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // 2
-        setTime(0); // timestamp = 0
+        setTime(0);
 
-        actions = new IDAO.Action[](0);
-        pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 1000 days);
+        pid = plugin.createProposal("", 0, optimisticPlugin, false);
 
         undoSwitch();
         switchTo(alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
-        setTime(10 days);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
-        setTime(10 days + 1);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         undoSwitch();
@@ -1351,31 +1266,29 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_CanExecuteReturnsFalseIfExecuted() public {
-        vm.skip(true);
-
         // returns `false` if the proposal is already executed
 
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        blockForward(1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         assertEq(plugin.canExecute(pid), true, "Should be true");
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
@@ -1384,30 +1297,25 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_CanExecuteReturnsTrueWhenAllGood() public {
-        vm.skip(true);
-
         // returns `true` if the proposal can be executed
 
-        blockForward(1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), false, "Should be false");
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         assertEq(plugin.canExecute(pid), true, "Should be true");
     }
@@ -1415,19 +1323,12 @@ contract EmergencyMultisigTest is AragonTest {
     // EXECUTE
 
     function test_ExecuteRevertsIfBelowMinApprovals() public {
-        vm.skip(true);
-
         // reverts if minApprovals is not met yet
 
         {
             // Deploy a new multisig instance
             EmergencyMultisig.MultisigSettings memory settings =
                 EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
-            address[] memory signers = new address[](4);
-            signers[0] = alice;
-            signers[1] = bob;
-            signers[2] = carol;
-            signers[3] = david;
 
             plugin = EmergencyMultisig(
                 createProxyAndCall(
@@ -1438,18 +1339,19 @@ contract EmergencyMultisigTest is AragonTest {
             blockForward(1);
         }
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
-        plugin.execute(pid); // ok
+        plugin.approve(pid);
+        plugin.execute(pid, actions); // ok
 
         // More approvals required (4)
         undoSwitch();
@@ -1459,11 +1361,6 @@ contract EmergencyMultisigTest is AragonTest {
             // Deploy a new multisig instance
             EmergencyMultisig.MultisigSettings memory settings =
                 EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
-            address[] memory signers = new address[](4);
-            signers[0] = alice;
-            signers[1] = bob;
-            signers[2] = carol;
-            signers[3] = david;
 
             plugin = EmergencyMultisig(
                 createProxyAndCall(
@@ -1474,149 +1371,142 @@ contract EmergencyMultisigTest is AragonTest {
             blockForward(1);
         }
 
-        pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
         undoSwitch();
         switchTo(alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // David
         undoSwitch();
         switchTo(david);
-        plugin.approve(pid, false);
-        plugin.execute(pid);
+        plugin.approve(pid);
+        plugin.execute(pid, actions);
 
         undoSwitch();
         switchTo(alice);
     }
 
     function test_ExecuteRevertsIfExpired() public {
-        vm.skip(true);
-
         // reverts if the proposal has expired
 
-        blockForward(1);
         setTime(0);
 
         // 1
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
-        setTime(10 days + 1);
+        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         setTime(100 days);
 
         // 2
-        pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 1000 days);
+        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         undoSwitch();
         switchTo(alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         assertEq(plugin.canExecute(pid), true, "Should be true");
 
-        setTime(100 days + 10 days + 1);
+        setTime(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         undoSwitch();
         switchTo(alice);
     }
 
     function test_ExecuteRevertsWhenAlreadyExecuted() public {
-        vm.skip(true);
-
         // executes if the minimum approval is met when multisig with the `tryExecution` option
 
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        blockForward(1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         assertEq(plugin.canExecute(pid), true, "Should be true");
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         undoSwitch();
         switchTo(alice);
     }
 
     function test_ExecuteEmitsEvents() public {
-        vm.skip(true);
-
         // emits the `ProposalExecuted` and `ProposalCreated` events
-
-        blockForward(1);
 
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
         setTime(0);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // event
         vm.expectEmit();
@@ -1625,220 +1515,68 @@ contract EmergencyMultisigTest is AragonTest {
         emit ProposalCreated(
             0, address(plugin), uint64(block.timestamp), uint64(block.timestamp) + 4 days, "", actions, 0
         );
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // 2
         actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
-        pid = plugin.createProposal("ipfs://", actions, optimisticPlugin, false, 10 days, 50 days);
+        actionsHash = plugin.hashActions(actions);
+        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
         undoSwitch();
         switchTo(alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         // events
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
         emit ProposalCreated(1, address(plugin), 10 days, 50 days, "ipfs://", actions, 0);
-        plugin.execute(pid);
-    }
-
-    function test_ExecutesWhenApprovingWithTryExecutionAndEnoughApprovals() public {
-        vm.skip(true);
-
-        // executes if the minimum approval is met when multisig with the `tryExecution` option
-
-        blockForward(1);
-
-        dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
-        (bool executed,,,,,) = plugin.getProposal(pid);
-        assertEq(executed, false, "Should not be executed");
-
-        // Alice
-        plugin.approve(pid, true);
-        (executed,,,,,) = plugin.getProposal(pid);
-        assertEq(executed, false, "Should not be executed");
-
-        // Bob
-        undoSwitch();
-        switchTo(bob);
-        plugin.approve(pid, true);
-        (executed,,,,,) = plugin.getProposal(pid);
-        assertEq(executed, false, "Should not be executed");
-
-        // Carol
-        undoSwitch();
-        switchTo(carol);
-        plugin.approve(pid, true);
-
-        (executed,,,,,) = plugin.getProposal(pid);
-        assertEq(executed, true, "Should be executed");
-
-        undoSwitch();
-        switchTo(alice);
-    }
-
-    function test_ExecuteEmitsWhenAutoExecutedFromApprove() public {
-        vm.skip(true);
-
-        // emits the `Approved`, `ProposalExecuted`, and `ProposalCreated` events if execute is called inside the `approve` method
-
-        dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        blockForward(1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
-
-        // Alice
-        plugin.approve(pid, true);
-
-        // Bob
-        undoSwitch();
-        switchTo(bob);
-        plugin.approve(pid, true);
-
-        // Carol
-        undoSwitch();
-        switchTo(carol);
-        vm.expectEmit();
-        emit Approved(pid, carol);
-        vm.expectEmit();
-        emit Executed(pid);
-        vm.expectEmit();
-        emit ProposalCreated(
-            0, // foreign pid
-            address(plugin),
-            uint64(block.timestamp),
-            uint64(block.timestamp) + 4 days,
-            "",
-            actions,
-            0
-        );
-        plugin.approve(pid, true);
-
-        // 2
-        actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
-        actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
-        pid = plugin.createProposal("ipfs://", actions, optimisticPlugin, false, 5 days, 20 days);
-
-        // Alice
-        undoSwitch();
-        switchTo(alice);
-        plugin.approve(pid, true);
-
-        // Bob
-        undoSwitch();
-        switchTo(bob);
-        plugin.approve(pid, true);
-
-        // Carol
-        undoSwitch();
-        switchTo(carol);
-        vm.expectEmit();
-        emit Approved(pid, carol);
-        vm.expectEmit();
-        emit Executed(pid);
-        vm.expectEmit();
-        emit ProposalCreated(
-            1, // foreign pid
-            address(plugin),
-            5 days,
-            20 days,
-            "ipfs://",
-            actions,
-            0
-        );
-        plugin.approve(pid, true);
-
-        // 3
-        actions = new IDAO.Action[](1);
-        actions[0].value = 5 ether;
-        actions[0].to = address(carol);
-        actions[0].data = hex"44556677";
-        pid = plugin.createProposal("ipfs://...", actions, optimisticPlugin, false, 3 days, 500 days);
-
-        // Alice
-        undoSwitch();
-        switchTo(alice);
-        plugin.approve(pid, true);
-
-        // Bob
-        undoSwitch();
-        switchTo(bob);
-        plugin.approve(pid, true);
-
-        // Carol
-        undoSwitch();
-        switchTo(carol);
-        vm.expectEmit();
-        emit Approved(pid, carol);
-        vm.expectEmit();
-        emit Executed(pid);
-        vm.expectEmit();
-        emit ProposalCreated(
-            2, // foreign pid
-            address(plugin),
-            3 days,
-            500 days,
-            "ipfs://...",
-            actions,
-            0
-        );
-        plugin.approve(pid, true);
-
-        undoSwitch();
-        switchTo(alice);
+        plugin.execute(pid, actions);
     }
 
     function test_ExecutesWithEnoughApprovalsOnTime() public {
-        vm.skip(true);
-
         // executes if the minimum approval is met
 
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        blockForward(1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (bool executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
@@ -1847,30 +1585,32 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
-        pid = plugin.createProposal("ipfs://", actions, optimisticPlugin, false, 0, 0);
+
+        actionsHash = plugin.hashActions(actions);
+        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
         undoSwitch();
         switchTo(alice);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, true, "Should be executed");
@@ -1879,39 +1619,121 @@ contract EmergencyMultisigTest is AragonTest {
         switchTo(alice);
     }
 
-    function test_ExecuteWhenPassedAndCalledByAnyone() public {
-        vm.skip(true);
-
-        // executes if the minimum approval is met and can be called by an unlisted accounts
-
+    function test_ExecuteRevertsWhenTheGivenActionsDontMatchTheHash() public {
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        blockForward(1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 pid = plugin.createProposal("", actions, optimisticPlugin, false, 0, 0);
+        bytes32 actionsHash = 0; // invalid hash
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (bool executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidActions.selector));
+        plugin.execute(pid, actions);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // 2
+        actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+
+        actionsHash = plugin.hashActions(actions);
+        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+
+        // Alice
+        undoSwitch();
+        switchTo(alice);
+        plugin.approve(pid);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        undoSwitch();
+        switchTo(bob);
+        plugin.approve(pid);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        undoSwitch();
+        switchTo(carol);
+        plugin.approve(pid);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Fake actions
+        IDAO.Action[] memory otherActions = new IDAO.Action[](1);
+        actions[0].value = 10000 ether;
+        actions[0].to = address(carol);
+        actions[0].data = hex"44556677";
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidActions.selector));
+        plugin.execute(pid, otherActions);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // With ok actions
+        plugin.execute(pid, actions);
+
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        undoSwitch();
+        switchTo(alice);
+    }
+
+    function test_ExecuteWhenPassedAndCalledByAnyoneWithTheActions() public {
+        // executes if the minimum approval is met and can be called by an unlisted accounts
+
+        dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
+
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+
+        // Alice
+        plugin.approve(pid);
+        (bool executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        undoSwitch();
+        switchTo(bob);
+        plugin.approve(pid);
+        (executed,,,,,) = plugin.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        undoSwitch();
+        switchTo(carol);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         undoSwitch();
         switchTo(randomWallet);
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
@@ -1920,33 +1742,34 @@ contract EmergencyMultisigTest is AragonTest {
         switchTo(alice);
 
         actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
-        actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
-        pid = plugin.createProposal("ipfs://", actions, optimisticPlugin, false, 0, 0);
+        actions[0].value = 3 ether;
+        actions[0].to = address(carol);
+        actions[0].data = hex"0011223344556677";
+        actionsHash = plugin.hashActions(actions);
+        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         undoSwitch();
         switchTo(randomWallet);
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         (executed,,,,,) = plugin.getProposal(pid);
         assertEq(executed, true, "Should be executed");
@@ -1956,308 +1779,95 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_GetProposalReturnsTheRightValues() public {
-        vm.skip(true);
-
         // Get proposal returns the right values
 
-        bool executed;
-        uint16 approvals;
-        Multisig.ProposalParameters memory parameters;
-        bytes memory metadataURI;
-        IDAO.Action[] memory actions;
-        OptimisticTokenVotingPlugin destPlugin;
+        setTime(10);
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("ipfs://", actionsHash, optimisticPlugin, false);
 
-        blockForward(1);
+        (
+            bool executed,
+            uint16 approvals,
+            EmergencyMultisig.ProposalParameters memory parameters,
+            bytes memory encryptedPayloadURI,
+            bytes32 destinationActionsHash,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = plugin.getProposal(pid);
+
+        assertEq(executed, false);
+        assertEq(approvals, 0);
+        assertEq(parameters.minApprovals, 3);
+        assertEq(parameters.snapshotBlock, block.number - 1);
+        assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        assertEq(encryptedPayloadURI, "ipfs://");
+        assertEq(destinationActionsHash, actionsHash);
+        assertEq(address(destinationPlugin), address(optimisticPlugin));
+
+        // 2 new
+        (,,, OptimisticTokenVotingPlugin newOptimisticPlugin) = makeDaoWithEmergencyMultisigAndOptimistic(alice);
+        pid = plugin.createProposal("ipfs://12340000", actionsHash, newOptimisticPlugin, true);
+
+        (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
+            plugin.getProposal(pid);
+
+        assertEq(executed, false);
+        assertEq(approvals, 0);
+        assertEq(parameters.minApprovals, 3);
+        assertEq(parameters.snapshotBlock, block.number - 1);
+        assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        assertEq(encryptedPayloadURI, "ipfs://12340000");
+        assertEq(destinationActionsHash, actionsHash);
+        assertEq(address(destinationPlugin), address(newOptimisticPlugin));
+
+        // 3 approve
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        setTime(10); // timestamp = 10
 
-        IDAO.Action[] memory createActions = new IDAO.Action[](3);
-        createActions[0].to = alice;
-        createActions[0].value = 1 ether;
-        createActions[0].data = hex"001122334455";
-        createActions[1].to = bob;
-        createActions[1].value = 2 ether;
-        createActions[1].data = hex"112233445566";
-        createActions[2].to = carol;
-        createActions[2].value = 3 ether;
-        createActions[2].data = hex"223344556677";
-
-        uint256 pid = plugin.createProposal("ipfs://metadata", createActions, optimisticPlugin, false, 0, 15 days);
-        assertEq(pid, 0, "PID should be 0");
-
-        // Check round 1
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
-        assertEq(executed, false, "Should not be executed");
-        assertEq(approvals, 0, "Should be 0");
-
-        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 0, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 15 days, "Incorrect endDate");
-
-        assertEq(actions.length, 3, "Should be 3");
-
-        assertEq(actions[0].to, alice, "Incorrect to");
-        assertEq(actions[0].value, 1 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[1].to, bob, "Incorrect to");
-        assertEq(actions[1].value, 2 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
-        assertEq(actions[2].to, carol, "Incorrect to");
-        assertEq(actions[2].value, 3 ether, "Incorrect value");
-        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
-
-        // Approve
-        plugin.approve(pid, false);
-
-        // Check round 2
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
-        assertEq(executed, false, "Should not be executed");
-        assertEq(approvals, 1, "Should be 1");
-
-        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 0, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 15 days, "Incorrect endDate");
-
-        assertEq(actions.length, 3, "Should be 3");
-
-        assertEq(actions[0].to, alice, "Incorrect to");
-        assertEq(actions[0].value, 1 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[1].to, bob, "Incorrect to");
-        assertEq(actions[1].value, 2 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
-        assertEq(actions[2].to, carol, "Incorrect to");
-        assertEq(actions[2].value, 3 ether, "Incorrect value");
-        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
-
-        // Approve
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
-        // Check round 3
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
+        (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
+            plugin.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
         assertEq(approvals, 3, "Should be 3");
 
-        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 0, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 15 days, "Incorrect endDate");
-
-        assertEq(actions.length, 3, "Should be 3");
-
-        assertEq(actions[0].to, alice, "Incorrect to");
-        assertEq(actions[0].value, 1 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[1].to, bob, "Incorrect to");
-        assertEq(actions[1].value, 2 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
-        assertEq(actions[2].to, carol, "Incorrect to");
-        assertEq(actions[2].value, 3 ether, "Incorrect value");
-        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
+        assertEq(parameters.minApprovals, 3);
+        assertEq(parameters.snapshotBlock, block.number - 1);
+        assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        assertEq(encryptedPayloadURI, "ipfs://12340000");
+        assertEq(destinationActionsHash, actionsHash);
+        assertEq(address(destinationPlugin), address(newOptimisticPlugin));
 
         // Execute
         undoSwitch();
         switchTo(alice);
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
-        // Check round 4
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
+        // 4 execute
+        (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
+            plugin.getProposal(pid);
 
+        (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
+            plugin.getProposal(pid);
         assertEq(executed, true, "Should be executed");
         assertEq(approvals, 3, "Should be 3");
 
-        assertEq(parameters.minApprovals, 3, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 0, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 15 days, "Incorrect endDate");
-
-        assertEq(actions.length, 3, "Should be 3");
-
-        assertEq(actions[0].to, alice, "Incorrect to");
-        assertEq(actions[0].value, 1 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[1].to, bob, "Incorrect to");
-        assertEq(actions[1].value, 2 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
-        assertEq(actions[2].to, carol, "Incorrect to");
-        assertEq(actions[2].value, 3 ether, "Incorrect value");
-        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
-
-        // New proposal, new settings
-        undoSwitch();
-        switchTo(alice);
-
-        {
-            // Deploy a new multisig instance
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
-            address[] memory signers = new address[](3);
-            signers[0] = alice;
-            signers[1] = bob;
-            signers[2] = carol;
-
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            blockForward(1);
-            dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        }
-        createActions = new IDAO.Action[](2);
-        createActions[1].to = alice;
-        createActions[1].value = 1 ether;
-        createActions[1].data = hex"001122334455";
-        createActions[0].to = carol;
-        createActions[0].value = 3 ether;
-        createActions[0].data = hex"223344556677";
-
-        setTime(50); // Timestamp = 50
-
-        pid = plugin.createProposal("ipfs://different-metadata", createActions, optimisticPlugin, true, 1 days, 16 days);
-        assertEq(pid, 0, "PID should be 0");
-
-        // Check round 1
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
-        assertEq(executed, false, "Should not be executed");
-        assertEq(approvals, 1, "Should be 1");
-
-        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 1 days, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 16 days, "Incorrect endDate");
-
-        assertEq(actions.length, 2, "Should be 2");
-
-        assertEq(actions[1].to, alice, "Incorrect to");
-        assertEq(actions[1].value, 1 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[0].to, carol, "Incorrect to");
-        assertEq(actions[0].value, 3 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://different-metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
-
-        // Approve
-        undoSwitch();
-        switchTo(bob);
-        plugin.approve(pid, false);
-
-        // Check round 2
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
-        assertEq(executed, false, "Should not be executed");
-        assertEq(approvals, 2, "Should be 2");
-
-        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 1 days, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 16 days, "Incorrect endDate");
-
-        assertEq(actions.length, 2, "Should be 2");
-
-        assertEq(actions[1].to, alice, "Incorrect to");
-        assertEq(actions[1].value, 1 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[0].to, carol, "Incorrect to");
-        assertEq(actions[0].value, 3 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://different-metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
-
-        // Approve
-        undoSwitch();
-        switchTo(carol);
-        plugin.approve(pid, false);
-
-        // Check round 3
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
-        assertEq(executed, false, "Should not be executed");
-        assertEq(approvals, 3, "Should be 3");
-
-        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 1 days, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 16 days, "Incorrect endDate");
-
-        assertEq(actions.length, 2, "Should be 2");
-
-        assertEq(actions[1].to, alice, "Incorrect to");
-        assertEq(actions[1].value, 1 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[0].to, carol, "Incorrect to");
-        assertEq(actions[0].value, 3 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://different-metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
-
-        // Execute
-        undoSwitch();
-        switchTo(alice);
-        plugin.execute(pid);
-
-        // Check round 4
-        (executed, approvals, parameters, metadataURI, actions, destPlugin) = plugin.getProposal(pid);
-
-        assertEq(executed, true, "Should be executed");
-        assertEq(approvals, 3, "Should be 3");
-
-        assertEq(parameters.minApprovals, 2, "Incorrect minApprovals");
-        assertEq(parameters.snapshotBlock, block.number - 1, "Incorrect snapshotBlock");
-        assertEq(parameters.expirationDate, block.timestamp + 10 days, "Incorrect expirationDate");
-        assertEq(parameters.destinationStartDate, 1 days, "Incorrect startDate");
-        assertEq(parameters.destinationEndDate, 16 days, "Incorrect endDate");
-
-        assertEq(actions.length, 2, "Should be 2");
-
-        assertEq(actions[1].to, alice, "Incorrect to");
-        assertEq(actions[1].value, 1 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"001122334455", "Incorrect data");
-        assertEq(actions[0].to, carol, "Incorrect to");
-        assertEq(actions[0].value, 3 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"223344556677", "Incorrect data");
-
-        assertEq(metadataURI, "ipfs://different-metadata", "Incorrect metadata URI");
-        assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
+        assertEq(parameters.minApprovals, 3);
+        assertEq(parameters.snapshotBlock, block.number - 1);
+        assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        assertEq(encryptedPayloadURI, "ipfs://12340000");
+        assertEq(destinationActionsHash, actionsHash);
+        assertEq(address(destinationPlugin), address(newOptimisticPlugin));
     }
 
     function test_ProxiedProposalHasTheSameSettingsAsTheOriginal() public {
-        vm.skip(true);
-
         // Recreated proposal has the same settings and actions as registered here
 
         bool open;
@@ -2267,84 +1877,85 @@ contract EmergencyMultisigTest is AragonTest {
         IDAO.Action[] memory actions;
         uint256 allowFailureMap;
 
-        blockForward(1);
         dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-        setTime(0); // timestamp = 0
+        setTime(0);
+
+        vm.deal(address(dao), 100 ether);
 
         IDAO.Action[] memory createActions = new IDAO.Action[](3);
         createActions[0].to = alice;
         createActions[0].value = 1 ether;
-        createActions[0].data = hex"001122334455";
+        createActions[0].data = hex"";
         createActions[1].to = bob;
         createActions[1].value = 2 ether;
-        createActions[1].data = hex"112233445566";
+        createActions[1].data = hex"";
         createActions[2].to = carol;
         createActions[2].value = 3 ether;
-        createActions[2].data = hex"223344556677";
-
-        uint256 pid = plugin.createProposal("ipfs://metadata", createActions, optimisticPlugin, false, 0, 0);
+        createActions[2].data = hex"";
+        bytes32 actionsHash = plugin.hashActions(actions);
+        uint256 pid = plugin.createProposal("ipfs://metadata", actionsHash, optimisticPlugin, false);
 
         // Approve
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         undoSwitch();
         switchTo(alice);
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // Check round
         (open, executed, parameters, vetoTally, actions, allowFailureMap) = optimisticPlugin.getProposal(pid);
 
         assertEq(open, true, "Should be open");
-        assertEq(executed, false, "Should not be executed");
+        assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
-        assertEq(parameters.endDate, block.timestamp + 4 days, "Incorrect endDate");
+        assertEq(parameters.endDate, block.timestamp, "Incorrect endDate");
 
         assertEq(actions.length, 3, "Should be 3");
 
         assertEq(actions[0].to, alice, "Incorrect to");
         assertEq(actions[0].value, 1 ether, "Incorrect value");
-        assertEq(actions[0].data, hex"001122334455", "Incorrect data");
+        assertEq(actions[0].data, hex"", "Incorrect data");
         assertEq(actions[1].to, bob, "Incorrect to");
         assertEq(actions[1].value, 2 ether, "Incorrect value");
-        assertEq(actions[1].data, hex"112233445566", "Incorrect data");
+        assertEq(actions[1].data, hex"", "Incorrect data");
         assertEq(actions[2].to, carol, "Incorrect to");
         assertEq(actions[2].value, 3 ether, "Incorrect value");
-        assertEq(actions[2].data, hex"223344556677", "Incorrect data");
+        assertEq(actions[2].data, hex"", "Incorrect data");
 
         assertEq(allowFailureMap, 0, "Should be 0");
 
         // New proposal
 
         createActions = new IDAO.Action[](2);
-        createActions[1].to = alice;
-        createActions[1].value = 1 ether;
-        createActions[1].data = hex"001122334455";
-        createActions[0].to = carol;
-        createActions[0].value = 3 ether;
-        createActions[0].data = hex"223344556677";
-
-        pid = plugin.createProposal("ipfs://more-metadata", createActions, optimisticPlugin, false, 1 days, 6 days);
+        createActions[1].to = address(dao);
+        createActions[1].value = 0;
+        createActions[1].data = abi.encodeWithSelector(DAO.daoURI.selector);
+        createActions[0].to = address(dao);
+        createActions[0].value = 0;
+        createActions[0].data = abi.encodeWithSelector(DAO.getTrustedForwarder.selector);
+        actionsHash = plugin.hashActions(actions);
+        pid = plugin.createProposal("ipfs://more-metadata", actionsHash, optimisticPlugin, false);
 
         // Approve
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(bob);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
         undoSwitch();
         switchTo(carol);
-        plugin.approve(pid, false);
+        plugin.approve(pid);
 
         undoSwitch();
         switchTo(alice);
-        plugin.execute(pid);
+        plugin.execute(pid, actions);
 
         // Check round
         (open, executed, parameters, vetoTally, actions, allowFailureMap) = optimisticPlugin.getProposal(pid);
@@ -2366,9 +1977,5 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(actions[0].data, hex"223344556677", "Incorrect data");
 
         assertEq(allowFailureMap, 0, "Should be 0");
-    }
-
-    function test_ShouldPassWithSuperMajority() public {
-        vm.skip(true);
     }
 }

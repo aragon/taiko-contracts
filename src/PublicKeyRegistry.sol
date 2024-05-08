@@ -18,6 +18,7 @@ contract PublicKeyRegistry {
         if (publicKeys[msg.sender] != 0) revert AlreadySet();
 
         publicKeys[msg.sender] = _publicKey;
+        emit PublicKeyRegistered(msg.sender, _publicKey);
     }
 
     function getPublicKey(address _wallet) public view returns (bytes32) {

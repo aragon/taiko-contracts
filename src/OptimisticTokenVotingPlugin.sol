@@ -399,9 +399,13 @@ contract OptimisticTokenVotingPlugin is
             revert RatioOutOfBounds({limit: RATIO_BASE, actual: _governanceSettings.minVetoRatio});
         }
 
-        if (_governanceSettings.minDuration < 4 days) {
-            revert MinDurationOutOfBounds({limit: 4 days, actual: _governanceSettings.minDuration});
-        } else if (_governanceSettings.minDuration > 365 days) {
+        // MinDuration is not constrained on the lower side, since the emergency plugin needs to submit
+        // direct proposals after a super majority has approved them.
+
+        // StandardProposalCondition.sol ensures that all proposals created via the standard Multisig have
+        // the expected minimum duration.
+
+        if (_governanceSettings.minDuration > 365 days) {
             revert MinDurationOutOfBounds({limit: 365 days, actual: _governanceSettings.minDuration});
         }
 
