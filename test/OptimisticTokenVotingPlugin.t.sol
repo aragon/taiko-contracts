@@ -1230,9 +1230,53 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         plugin.updateOptimisticGovernanceSettings(newSettings);
     }
 
+    function test_GovernanceSettingsReturnsTheRightValues() public {
+        (uint32 minVetoRatio, uint64 minDuration, uint256 minProposerVotingPower) = plugin.governanceSettings();
+
+        assertEq(minVetoRatio, uint32(RATIO_BASE / 10));
+        assertEq(minDuration, 10 days);
+        assertEq(minProposerVotingPower, 0);
+
+        // Deploy a new plugin instance
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 2),
+            minDuration: 0,
+            minProposerVotingPower: 1234
+        });
+
+        plugin = OptimisticTokenVotingPlugin(
+            createProxyAndCall(
+                address(OPTIMISTIC_BASE),
+                abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, newSettings, votingToken))
+            )
+        );
+
+        (minVetoRatio, minDuration, minProposerVotingPower) = plugin.governanceSettings();
+        assertEq(minVetoRatio, uint32(RATIO_BASE / 2));
+        assertEq(minDuration, 0);
+        assertEq(minProposerVotingPower, 1234);
+
+        // updated settings
+        dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
+
+        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 15 days,
+            minProposerVotingPower: 5 ether
+        });
+
+        plugin.updateOptimisticGovernanceSettings(newSettings);
+
+        (minVetoRatio, minDuration, minProposerVotingPower) = plugin.governanceSettings();
+        assertEq(minVetoRatio, uint32(RATIO_BASE / 5));
+        assertEq(minDuration, 15 days);
+        assertEq(minProposerVotingPower, 5 ether);
+    }
+
     // Upgrade plugin
     function test_UpgradeToRevertsWhenCalledFromNonUpgrader() public {
-        address _pluginBase = address(new OptimisticTokenVotingPlugin());
+        address _newImplementation = address(new OptimisticTokenVotingPlugin());
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1240,13 +1284,15 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        plugin.upgradeTo(_pluginBase);
+        plugin.upgradeTo(_newImplementation);
+
+        assertEq(plugin.implementation(), address(OPTIMISTIC_BASE));
     }
 
     function test_UpgradeToAndCallRevertsWhenCalledFromNonUpgrader() public {
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
-        address _pluginBase = address(new OptimisticTokenVotingPlugin());
+        address _newImplementation = address(new OptimisticTokenVotingPlugin());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
             .OptimisticGovernanceSettings({
@@ -1262,29 +1308,34 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
 
         plugin.upgradeToAndCall(
-            _pluginBase, abi.encodeCall(OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings, (settings))
+            _newImplementation,
+            abi.encodeCall(OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings, (settings))
         );
+
+        assertEq(plugin.implementation(), address(OPTIMISTIC_BASE));
     }
 
     function test_UpgradeToSucceedsWhenCalledFromUpgrader() public {
         dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
 
-        address _pluginBase = address(new OptimisticTokenVotingPlugin());
+        address _newImplementation = address(new OptimisticTokenVotingPlugin());
 
         vm.expectEmit();
-        emit Upgraded(_pluginBase);
+        emit Upgraded(_newImplementation);
 
-        plugin.upgradeTo(_pluginBase);
+        plugin.upgradeTo(_newImplementation);
+
+        assertEq(plugin.implementation(), address(_newImplementation));
     }
 
     function test_UpgradeToAndCallSucceedsWhenCalledFromUpgrader() public {
         dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
-        address _pluginBase = address(new OptimisticTokenVotingPlugin());
+        address _newImplementation = address(new OptimisticTokenVotingPlugin());
 
         vm.expectEmit();
-        emit Upgraded(_pluginBase);
+        emit Upgraded(_newImplementation);
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
             .OptimisticGovernanceSettings({
@@ -1293,7 +1344,10 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minProposerVotingPower: 1 ether
         });
         plugin.upgradeToAndCall(
-            _pluginBase, abi.encodeCall(OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings, (settings))
+            _newImplementation,
+            abi.encodeCall(OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings, (settings))
         );
+
+        assertEq(plugin.implementation(), address(_newImplementation));
     }
 }

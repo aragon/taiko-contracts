@@ -48,6 +48,7 @@ contract EmergencyMultisigTest is AragonTest {
     );
     event Approved(uint256 indexed proposalId, address indexed approver);
     event Executed(uint256 indexed proposalId);
+    event Upgraded(address indexed implementation);
 
     function setUp() public {
         switchTo(alice);
@@ -1974,5 +1975,71 @@ contract EmergencyMultisigTest is AragonTest {
         );
 
         assertEq(allowFailureMap, 0, "Should be 0");
+    }
+
+    // Upgrade plugin
+
+    function test_UpgradeToRevertsWhenCalledFromNonUpgrader() public {
+        address _newImplementation = address(new EmergencyMultisig());
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID()
+            )
+        );
+
+        plugin.upgradeTo(_newImplementation);
+
+        assertEq(plugin.implementation(), address(EMERGENCY_MULTISIG_BASE));
+    }
+
+    function test_UpgradeToAndCallRevertsWhenCalledFromNonUpgrader() public {
+        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        address _newImplementation = address(new EmergencyMultisig());
+
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID()
+            )
+        );
+        plugin.upgradeToAndCall(
+            _newImplementation, abi.encodeCall(EmergencyMultisig.updateMultisigSettings, (settings))
+        );
+
+        assertEq(plugin.implementation(), address(EMERGENCY_MULTISIG_BASE));
+    }
+
+    function test_UpgradeToSucceedsWhenCalledFromUpgrader() public {
+        dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+
+        address _newImplementation = address(new EmergencyMultisig());
+
+        vm.expectEmit();
+        emit Upgraded(_newImplementation);
+
+        plugin.upgradeTo(_newImplementation);
+
+        assertEq(plugin.implementation(), address(_newImplementation));
+    }
+
+    function test_UpgradeToAndCallSucceedsWhenCalledFromUpgrader() public {
+        dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+
+        address _newImplementation = address(new EmergencyMultisig());
+
+        vm.expectEmit();
+        emit Upgraded(_newImplementation);
+
+        EmergencyMultisig.MultisigSettings memory settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+        plugin.upgradeToAndCall(
+            _newImplementation, abi.encodeCall(EmergencyMultisig.updateMultisigSettings, (settings))
+        );
+
+        assertEq(plugin.implementation(), address(_newImplementation));
     }
 }

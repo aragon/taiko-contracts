@@ -83,7 +83,7 @@ contract OptimisticTokenVotingPlugin is
     IVotesUpgradeable public votingToken;
 
     /// @notice The struct storing the governance settings.
-    OptimisticGovernanceSettings private governanceSettings;
+    OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
