@@ -750,6 +750,39 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(approvals, 1, "Should be 1");
     }
 
+    function test_HashActionsReturnsProperData() public view {
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].to = address(dao);
+        actions[0].value = 1 ether;
+        actions[0].data = hex"00112233";
+
+        bytes32 h1 = plugin.hashActions(actions);
+
+        // 2
+        actions[0].to = bob;
+        bytes32 h2 = plugin.hashActions(actions);
+        assertNotEq(h1, h2, "Hashes should differ");
+
+        // 3
+        actions[0].value = 2 ether;
+        bytes32 h3 = plugin.hashActions(actions);
+        assertNotEq(h2, h3, "Hashes should differ");
+
+        // 4
+        actions[0].data = hex"00112235";
+        bytes32 h4 = plugin.hashActions(actions);
+        assertNotEq(h3, h4, "Hashes should differ");
+
+        // 5
+        actions = new IDAO.Action[](0);
+        bytes32 h5 = plugin.hashActions(actions);
+        assertNotEq(h4, h5, "Hashes should differ");
+
+        // 5'
+        bytes32 h5b = plugin.hashActions(actions);
+        assertEq(h5, h5b, "Hashes should match");
+    }
+
     // CAN APPROVE
 
     function testFuzz_CanApproveReturnsfFalseIfNotListed(address _randomWallet) public {
