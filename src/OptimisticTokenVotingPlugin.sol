@@ -345,6 +345,11 @@ contract OptimisticTokenVotingPlugin is
                 ++i;
             }
         }
+
+        // For emergency multisig: execute if already possible
+        if (canExecute(proposalId)) {
+            execute(proposalId);
+        }
     }
 
     /// @inheritdoc IOptimisticTokenVoting

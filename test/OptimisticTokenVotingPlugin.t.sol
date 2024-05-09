@@ -167,8 +167,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Certain fuzzing values are expected to be true
         if (
-            _randomInterfaceId == plugin.OPTIMISTIC_GOVERNANCE_INTERFACE_ID()
-                || _randomInterfaceId == type(IERC165Upgradeable).interfaceId
+            _randomInterfaceId == type(IERC165Upgradeable).interfaceId
                 || _randomInterfaceId == type(IPlugin).interfaceId || _randomInterfaceId == type(IProposal).interfaceId
                 || _randomInterfaceId == type(IERC1822ProxiableUpgradeable).interfaceId
                 || _randomInterfaceId == type(IOptimisticTokenVoting).interfaceId

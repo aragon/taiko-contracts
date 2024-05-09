@@ -38,17 +38,17 @@ contract AragonTest is Test {
 
     function makeDaoWithOptimisticTokenVoting(address owner)
         internal
-        returns (DAO dao, OptimisticTokenVotingPlugin plugin, ERC20VotesMock votingToken)
+        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock)
     {
         // Deploy a DAO with owner as root
-        dao = DAO(
+        DAO dao = DAO(
             payable(
                 createProxyAndCall(address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", owner, address(0x0), "")))
             )
         );
 
         // Deploy ERC20 token
-        votingToken = ERC20VotesMock(
+        ERC20VotesMock votingToken = ERC20VotesMock(
             createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
         );
         votingToken.mint(alice, 10 ether);
@@ -63,12 +63,17 @@ contract AragonTest is Test {
             minProposerVotingPower: 0
         });
 
-        plugin = OptimisticTokenVotingPlugin(
+        OptimisticTokenVotingPlugin optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken))
             )
         );
+
+        vm.label(address(dao), "dao");
+        vm.label(address(optimisticPlugin), "optimisticPlugin");
+
+        return (dao, optimisticPlugin, votingToken);
     }
 
     /// @notice Creates a mock DAO with a multisig and an optimistic token voting plugin.
@@ -128,6 +133,10 @@ contract AragonTest is Test {
                 )
             );
         }
+
+        vm.label(address(dao), "dao");
+        vm.label(address(multisig), "multisig");
+        vm.label(address(optimisticPlugin), "optimisticPlugin");
 
         return (dao, multisig, optimisticPlugin);
     }
@@ -202,6 +211,14 @@ contract AragonTest is Test {
                 )
             );
         }
+
+        dao.grant(address(optimisticPlugin), address(emergencyMultisig), optimisticPlugin.PROPOSER_PERMISSION_ID());
+        dao.grant(address(dao), address(optimisticPlugin), dao.EXECUTE_PERMISSION_ID());
+
+        vm.label(address(dao), "dao");
+        vm.label(address(emergencyMultisig), "emergencyMultisig");
+        vm.label(address(multisig), "multisig");
+        vm.label(address(optimisticPlugin), "optimisticPlugin");
 
         return (dao, emergencyMultisig, multisig, optimisticPlugin);
     }
