@@ -2748,9 +2748,10 @@ contract MultisigTest is AragonTest {
         // event
         vm.expectEmit();
         emit Executed(pid);
+        uint256 targetPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 4 days) << 64;
         vm.expectEmit();
         emit ProposalCreated(
-            0,
+            targetPid,
             address(plugin),
             uint64(block.timestamp),
             uint64(block.timestamp) + 4 days,
@@ -2792,9 +2793,10 @@ contract MultisigTest is AragonTest {
         // events
         vm.expectEmit();
         emit Executed(pid);
+        targetPid = (uint256(block.timestamp + 10 days) << 128 | uint256(block.timestamp + 50 days) << 64) + 1;
         vm.expectEmit();
         emit ProposalCreated(
-            1,
+            targetPid,
             address(plugin),
             10 days,
             50 days,
@@ -2888,9 +2890,11 @@ contract MultisigTest is AragonTest {
         emit Approved(pid, carol);
         vm.expectEmit();
         emit Executed(pid);
+
+        uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 4 days) << 64);
         vm.expectEmit();
         emit ProposalCreated(
-            0, // foreign pid
+            targetPid,
             address(plugin),
             uint64(block.timestamp),
             uint64(block.timestamp) + 4 days,
@@ -2931,9 +2935,11 @@ contract MultisigTest is AragonTest {
         emit Approved(pid, carol);
         vm.expectEmit();
         emit Executed(pid);
+
+        targetPid = (uint256(5 days) << 128 | uint256(20 days) << 64) + 1;
         vm.expectEmit();
         emit ProposalCreated(
-            1, // foreign pid
+            targetPid, // foreign pid
             address(plugin),
             5 days,
             20 days,
@@ -2974,9 +2980,11 @@ contract MultisigTest is AragonTest {
         emit Approved(pid, carol);
         vm.expectEmit();
         emit Executed(pid);
+
+        targetPid = (uint256(3 days) << 128 | uint256(500 days) << 64) + 2;
         vm.expectEmit();
         emit ProposalCreated(
-            2, // foreign pid
+            targetPid,
             address(plugin),
             3 days,
             500 days,
@@ -3733,6 +3741,7 @@ contract MultisigTest is AragonTest {
         plugin.execute(pid);
 
         // Check round
+        uint targetPid = uint256(4 days) << 64; // start=0, end=4d, counter=0
         (
             open,
             executed,
@@ -3740,7 +3749,7 @@ contract MultisigTest is AragonTest {
             vetoTally,
             actions,
             allowFailureMap
-        ) = optimisticPlugin.getProposal(pid);
+        ) = optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");
@@ -3800,6 +3809,7 @@ contract MultisigTest is AragonTest {
         plugin.execute(pid);
 
         // Check round
+        targetPid = (uint256(block.timestamp + 1 days) << 128 | uint256(block.timestamp + 6 days) << 64) + 1;
         (
             open,
             executed,
@@ -3807,7 +3817,7 @@ contract MultisigTest is AragonTest {
             vetoTally,
             actions,
             allowFailureMap
-        ) = optimisticPlugin.getProposal(pid);
+        ) = optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, false, "Should not be executed");

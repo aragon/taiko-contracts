@@ -1542,7 +1542,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        emit ProposalCreated(0, address(plugin), 10, 10, "", actions, 0);
+        uint256 targetPid = 10 << 128 | 10 << 64;
+        emit ProposalCreated(targetPid, address(plugin), 10, 10, "", actions, 0);
         plugin.execute(pid, actions);
 
         // 2
@@ -1573,7 +1574,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        emit ProposalCreated(1, address(plugin), 20, 20, "ipfs://", actions, 0);
+        targetPid = (20 << 128 | 20 << 64) + 1;
+        emit ProposalCreated(targetPid, address(plugin), 20, 20, "ipfs://", actions, 0);
         plugin.execute(pid, actions);
     }
 
@@ -1938,7 +1940,9 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.execute(pid, submittedActions);
 
         // Check round
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) = optimisticPlugin.getProposal(pid);
+        uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64);
+        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
@@ -1987,7 +1991,9 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.execute(pid, submittedActions);
 
         // Check round
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) = optimisticPlugin.getProposal(pid);
+        targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1;
+        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");

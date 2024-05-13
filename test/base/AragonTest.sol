@@ -70,6 +70,12 @@ contract AragonTest is Test {
             )
         );
 
+        // The plugin can execute on the DAO
+        dao.grant(address(dao), address(optimisticPlugin), dao.EXECUTE_PERMISSION_ID());
+
+        // Alice can create proposals on the plugin
+        dao.grant(address(optimisticPlugin), alice, optimisticPlugin.PROPOSER_PERMISSION_ID());
+
         vm.label(address(dao), "dao");
         vm.label(address(optimisticPlugin), "optimisticPlugin");
 

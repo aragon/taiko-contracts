@@ -42,12 +42,6 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.startPrank(alice);
 
         (dao, plugin, votingToken) = makeDaoWithOptimisticTokenVoting(alice);
-
-        // The plugin can execute on the DAO
-        dao.grant(address(dao), address(plugin), dao.EXECUTE_PERMISSION_ID());
-
-        // Alice can create proposals on the plugin
-        dao.grant(address(plugin), alice, plugin.PROPOSER_PERMISSION_ID());
     }
 
     // Initialize
@@ -378,10 +372,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.startPrank(bob);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
-        assertEq(proposalId, 0);
-        proposalId = plugin.createProposal("", actions, 0, 0, 0);
-        assertEq(proposalId, 1);
+        uint256 proposalId1 = plugin.createProposal("", actions, 0, 0, 0);
+        uint256 proposalId2 = plugin.createProposal("", actions, 0, 0, 0);
+        assertEq(proposalId1 + 1, proposalId2, "Should be +1");
     }
 
     function test_CreateProposalRevertsWhenTheCallerOwnsLessThanTheMinimumVotingPower() public {
@@ -523,18 +516,41 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_CreateProposalReturnsTheProposalId() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
-        assertEq(proposalId == 0, true, "Should have created proposal 0");
+        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        assertEq(proposalId, expectedPid, "Should have created proposal 0");
 
         proposalId = plugin.createProposal("", actions, 0, 0, 0);
-        assertEq(proposalId == 1, true, "Should have created proposal 1");
+        expectedPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64) + 1;
+        assertEq(proposalId, expectedPid, "Should have created proposal 1");
     }
 
     function test_CreateProposalEmitsAnEvent() public {
+        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         vm.expectEmit();
-        emit ProposalCreated(0, alice, uint64(block.timestamp), uint64(block.timestamp + 10 days), "", actions, 0);
+        emit ProposalCreated(
+            expectedPid, alice, uint64(block.timestamp), uint64(block.timestamp + 10 days), "", actions, 0
+        );
         plugin.createProposal("", actions, 0, 0, 0);
+    }
+
+    function test_ParseProposalIdReturnsTheRightValues() public {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId1 = plugin.createProposal("", actions, 0, 0, 0);
+
+        timeForward(23456);
+        uint256 proposalId2 = plugin.createProposal("", actions, 0, 0, 0);
+
+        (uint256 counter1, uint64 startDate1, uint64 endDate1) = plugin.parseProposalId(proposalId1);
+        (uint256 counter2, uint64 startDate2, uint64 endDate2) = plugin.parseProposalId(proposalId2);
+
+        assertEq(counter1, 0, "Counter should be 0");
+        assertEq(counter2, 1, "Counter should be 1");
+        assertEq(startDate2 - startDate1, 23456, "Date diff should be +23456");
+        assertEq(endDate2 - endDate1, 23456, "Date diff should be +23456");
     }
 
     function test_GetProposalReturnsTheRightValues() public {

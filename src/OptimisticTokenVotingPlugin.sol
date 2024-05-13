@@ -395,6 +395,53 @@ contract OptimisticTokenVotingPlugin is
         _updateOptimisticGovernanceSettings(_governanceSettings);
     }
 
+    /// @notice Splits the components behind the given proposal ID
+    /// @param _proposalId The ID to split
+    function parseProposalId(uint256 _proposalId)
+        public
+        pure
+        returns (uint256 counter, uint64 startDate, uint64 endDate)
+    {
+        counter = _proposalId & type(uint64).max;
+        startDate = uint64((_proposalId & (uint256(type(uint64).max) << 128)) >> 128);
+        endDate = uint64((_proposalId & (uint256(type(uint64).max) << 64)) >> 64);
+    }
+
+    /// @dev Creates a new proposal ID, containing the start and end timestamps
+    function _makeProposalId(uint64 _startDate, uint64 _endDate) internal returns (uint256 proposalId) {
+        proposalId = uint256(_startDate) << 128 | uint256(_endDate) << 64;
+        proposalId |= _createProposalId();
+    }
+
+    /// @notice Internal function to create a proposal.
+    /// @param _metadata The proposal metadata.
+    /// @param _startDate The start date of the proposal in seconds.
+    /// @param _endDate The end date of the proposal in seconds.
+    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param _actions The actions that will be executed after the proposal passes.
+    /// @return proposalId The ID of the proposal.
+    function _createProposal(
+        address _creator,
+        bytes calldata _metadata,
+        uint64 _startDate,
+        uint64 _endDate,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap
+    ) internal override returns (uint256 proposalId) {
+        // Returns an autoincremental number
+        proposalId = _makeProposalId(_startDate, _endDate);
+
+        emit ProposalCreated({
+            proposalId: proposalId,
+            creator: _creator,
+            metadata: _metadata,
+            startDate: _startDate,
+            endDate: _endDate,
+            actions: _actions,
+            allowFailureMap: _allowFailureMap
+        });
+    }
+
     /// @notice Internal implementation
     function _updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings) internal {
         // Require the minimum veto ratio value to be in the interval [0, 10^6], because `>=` comparision is used.
