@@ -33,11 +33,9 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A container for the optimistic majority settings that will be applied as parameters on proposal creation.
     /// @param minVetoRatio The support threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
-    /// @param minProposerVotingPower The minimum vetoing power required to create a proposal.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
         uint64 minDuration;
-        uint256 minProposerVotingPower;
     }
 
     /// @notice A container for proposal-related information.
@@ -59,12 +57,12 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A container for the proposal parameters at the time of proposal creation.
     /// @param startDate The start date of the proposal vote.
     /// @param endDate The end date of the proposal vote.
-    /// @param snapshotBlock The number of the block prior to the proposal creation.
+    /// @param snapshotTimestamp The number of the block prior to the proposal creation.
     /// @param minVetoVotingPower The minimum voting power needed to defeat the proposal.
     struct ProposalParameters {
         uint64 startDate;
         uint64 endDate;
-        uint64 snapshotBlock;
+        uint64 snapshotTimestamp;
         uint256 minVetoVotingPower;
     }
 
@@ -87,8 +85,7 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Emitted when the vetoing settings are updated.
     /// @param minVetoRatio The support threshold value.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
-    /// @param minProposerVotingPower The minimum vetoing power required to create a proposal.
-    event OptimisticGovernanceSettingsUpdated(uint32 minVetoRatio, uint64 minDuration, uint256 minProposerVotingPower);
+    event OptimisticGovernanceSettingsUpdated(uint32 minVetoRatio, uint64 minDuration);
 
     /// @notice Emitted when a veto is cast by a voter.
     /// @param proposalId The ID of the proposal.
@@ -105,11 +102,6 @@ contract OptimisticTokenVotingPlugin is
     /// @param limit The limit value.
     /// @param actual The actual value.
     error MinDurationOutOfBounds(uint64 limit, uint64 actual);
-
-    /// @notice Thrown if the minimum voting power for creating a proposal is out of bounds (more than the token supply).
-    /// @param limit The limit value.
-    /// @param actual The actual value.
-    error MinProposerVotingPowerOutOfBounds(uint256 limit, uint256 actual);
 
     /// @notice Thrown when a sender is not allowed to create a proposal.
     /// @param sender The sender address.
@@ -197,7 +189,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // The voter has no voting power.
-        if (votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock) == 0) {
+        if (votingToken.getPastVotes(_voter, proposal_.parameters.snapshotTimestamp) == 0) {
             return false;
         }
 
@@ -241,11 +233,6 @@ contract OptimisticTokenVotingPlugin is
         return governanceSettings.minDuration;
     }
 
-    /// @inheritdoc IOptimisticTokenVoting
-    function minProposerVotingPower() public view virtual returns (uint256) {
-        return governanceSettings.minProposerVotingPower;
-    }
-
     /// @notice Returns all information for a proposal vote by its ID.
     /// @param _proposalId The ID of the proposal.
     /// @return open Whether the proposal is open or not.
@@ -285,27 +272,12 @@ contract OptimisticTokenVotingPlugin is
         uint64 _startDate,
         uint64 _endDate
     ) external auth(PROPOSER_PERMISSION_ID) returns (uint256 proposalId) {
-        // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
-        {
-            uint256 minProposerVotingPower_ = minProposerVotingPower();
-
-            if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `OptimisticTokenVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
-                if (
-                    votingToken.getVotes(_msgSender()) < minProposerVotingPower_
-                        && IERC20Upgradeable(address(votingToken)).balanceOf(_msgSender()) < minProposerVotingPower_
-                ) {
-                    revert ProposalCreationForbidden(_msgSender());
-                }
-            }
-        }
-
-        uint256 snapshotBlock;
+        uint256 snapshotTimestamp;
         unchecked {
-            snapshotBlock = block.number - 1; // The snapshot block must be mined already to protect the transaction against backrunning transactions causing census changes.
+            snapshotTimestamp = block.timestamp - 1; // The snapshot timestamp must in the past to protect the transaction against backrunning transactions causing census changes.
         }
 
-        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
+        uint256 totalVotingPower_ = totalVotingPower(snapshotTimestamp);
 
         if (totalVotingPower_ == 0) {
             revert NoVotingPower();
@@ -327,7 +299,7 @@ contract OptimisticTokenVotingPlugin is
 
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
-        proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
+        proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(totalVotingPower_, minVetoRatio());
 
         // Save gas
@@ -359,7 +331,7 @@ contract OptimisticTokenVotingPlugin is
         Proposal storage proposal_ = proposals[_proposalId];
 
         // This could re-enter, though we can assume the governance token is not malicious
-        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock);
+        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotTimestamp);
 
         // Not checking if the voter already voted, since canVeto() did it above
 
@@ -461,8 +433,7 @@ contract OptimisticTokenVotingPlugin is
 
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: _governanceSettings.minVetoRatio,
-            minDuration: _governanceSettings.minDuration,
-            minProposerVotingPower: _governanceSettings.minProposerVotingPower
+            minDuration: _governanceSettings.minDuration
         });
     }
 

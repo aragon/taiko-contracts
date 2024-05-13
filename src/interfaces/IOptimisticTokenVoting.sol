@@ -17,9 +17,7 @@ interface IOptimisticTokenVoting {
     /// @notice Returns the total voting power checkpointed for a specific block number.
     /// @param _blockNumber The block number.
     /// @return The total voting power.
-    function totalVotingPower(
-        uint256 _blockNumber
-    ) external view returns (uint256);
+    function totalVotingPower(uint256 _blockNumber) external view returns (uint256);
 
     /// @notice Returns the veto ratio parameter stored in the optimistic governance settings.
     /// @return The veto ratio parameter.
@@ -28,10 +26,6 @@ interface IOptimisticTokenVoting {
     /// @notice Returns the minimum duration parameter stored in the vetoing settings.
     /// @return The minimum duration parameter.
     function minDuration() external view returns (uint64);
-
-    /// @notice Returns the minimum vetoing power required to create a proposal stored in the vetoing settings.
-    /// @return The minimum vetoing power required to create a proposal.
-    function minProposerVotingPower() external view returns (uint256);
 
     /// @notice Creates a new optimistic proposal.
     /// @param _metadata The metadata of the proposal.
@@ -57,10 +51,7 @@ interface IOptimisticTokenVoting {
     /// @param _account The account address to be checked.
     /// @return Returns true if the account is allowed to veto.
     /// @dev The function assumes that the queried proposal exists.
-    function canVeto(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool);
+    function canVeto(uint256 _proposalId, address _account) external view returns (bool);
 
     /// @notice Registers the veto for the given proposal.
     /// @param _proposalId The ID of the proposal.
@@ -70,17 +61,12 @@ interface IOptimisticTokenVoting {
     /// @param _proposalId The ID of the proposal.
     /// @param _account The account address to be checked.
     /// @return The whether the given account has vetoed the given proposal.
-    function hasVetoed(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool);
+    function hasVetoed(uint256 _proposalId, address _account) external view returns (bool);
 
     /// @notice Checks if the total votes against a proposal is greater than the veto threshold.
     /// @param _proposalId The ID of the proposal.
     /// @return Returns `true` if the total veto power against the proposal is greater or equal than the threshold and `false` otherwise.
-    function isMinVetoRatioReached(
-        uint256 _proposalId
-    ) external view returns (bool);
+    function isMinVetoRatioReached(uint256 _proposalId) external view returns (bool);
 
     /// @notice Checks if a proposal can be executed.
     /// @param _proposalId The ID of the proposal to be checked.
