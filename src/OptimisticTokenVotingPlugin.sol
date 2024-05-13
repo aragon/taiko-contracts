@@ -14,6 +14,7 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -59,11 +60,13 @@ contract OptimisticTokenVotingPlugin is
     /// @param endDate The end date of the proposal vote.
     /// @param snapshotTimestamp The number of the block prior to the proposal creation.
     /// @param minVetoVotingPower The minimum voting power needed to defeat the proposal.
+    /// @param taikoL1PausedOnCreation Whether the Taiko L1 was paused when the proposal was created.
     struct ProposalParameters {
         uint64 startDate;
         uint64 endDate;
         uint64 snapshotTimestamp;
         uint256 minVetoVotingPower;
+        bool taikoL1PausedOnCreation;
     }
 
     /// @notice The ID of the permission required to create a proposal.
@@ -76,8 +79,14 @@ contract OptimisticTokenVotingPlugin is
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
+    /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
+    address taikoBridge;
+
     /// @notice The struct storing the governance settings.
     OptimisticGovernanceSettings public governanceSettings;
+
+    /// @notice Taiko L1 contract to check for paused() status when a proposal is created.
+    TaikoEssentialContract taikoL1;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -278,6 +287,11 @@ contract OptimisticTokenVotingPlugin is
         }
 
         uint256 totalVotingPower_ = totalVotingPower(snapshotTimestamp);
+        bool isTaikoL1Paused = taikoL1.paused();
+
+        if (isTaikoL1Paused) {
+            totalVotingPower_ -= votingToken.balanceOf(taikoBridge);
+        }
 
         if (totalVotingPower_ == 0) {
             revert NoVotingPower();
@@ -301,6 +315,7 @@ contract OptimisticTokenVotingPlugin is
         proposal_.parameters.endDate = _endDate;
         proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(totalVotingPower_, minVetoRatio());
+        proposal_.parameters.taikoL1PausedOnCreation = isTaikoL1Paused;
 
         // Save gas
         if (_allowFailureMap != 0) {
@@ -493,5 +508,5 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
-    uint256[50] private __gap;
+    uint256[45] private __gap;
 }
