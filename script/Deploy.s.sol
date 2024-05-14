@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {VmSafe} from "forge-std/Vm.sol";
-import {Script} from "forge-std/Script.sol";
+import {Script, console} from "forge-std/Script.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
@@ -14,6 +14,7 @@ import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/Pl
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
+import {PublicKeyRegistry} from "../src/PublicKeyRegistry.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
@@ -84,9 +85,27 @@ contract Deploy is Script {
 
         dao.revoke(address(dao), address(pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
 
+        address publicKeyRegistry = deployPublicKeyRegistry();
+
         // Remove ourselves as root
 
         dao.revoke(address(dao), getDeployerWallet(), dao.ROOT_PERMISSION_ID());
+
+        // Print summary
+        console.log("DAO contract", address(dao));
+        console.log("");
+
+        console.log("Multisig plugin", p1);
+        console.log("Emergency multisig plugin", p2);
+        console.log("Optimistic token voting plugin", p3);
+        console.log("");
+
+        console.log("Multisig plugin repository", address(pr1));
+        console.log("Emergency multisig plugin repository", address(pr2));
+        console.log("Optimistic token voting plugin repository", address(pr3));
+        console.log("");
+
+        console.log("Public key registry", publicKeyRegistry);
     }
 
     // Helpers
@@ -252,5 +271,9 @@ contract Deploy is Script {
             )
         );
         dao.execute(bytes32(uint256(0x1)), actions, 0);
+    }
+
+    function deployPublicKeyRegistry() internal returns (address) {
+        return address(new PublicKeyRegistry());
     }
 }
