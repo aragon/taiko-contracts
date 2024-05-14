@@ -14,7 +14,7 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {IEssentialContract as ITaikoEssentialContract} from "./interfaces/ITaikoEssentialContract.sol";
+import {ITaikoEssentialContract} from "./interfaces/ITaikoEssentialContract.sol";
 // import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 uint64 constant L2_AGGREGATION_PERIOD = 3 days;

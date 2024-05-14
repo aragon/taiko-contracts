@@ -10,6 +10,8 @@ import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {createProxyAndCall} from "../helpers.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
+import {TaikoL1UnpausedMock} from "../mocks/TaikoL1Mock.sol";
+import {ITaikoEssentialContract} from "../../src/interfaces/ITaikoEssentialContract.sol";
 
 import {Test} from "forge-std/Test.sol";
 
@@ -18,6 +20,7 @@ contract AragonTest is Test {
     address immutable bob = address(0xB0B);
     address immutable carol = address(0xc4601);
     address immutable david = address(0xd471d);
+    address immutable taikoBridge = address(0xb61d6e);
     address immutable randomWallet = vm.addr(1234567890);
 
     address immutable DAO_BASE = address(new DAO());
@@ -33,12 +36,13 @@ contract AragonTest is Test {
         vm.label(bob, "Bob");
         vm.label(carol, "Carol");
         vm.label(david, "David");
+        vm.label(taikoBridge, "Bridge");
         vm.label(randomWallet, "Random wallet");
     }
 
     function makeDaoWithOptimisticTokenVoting(address owner)
         internal
-        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock)
+        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock, ITaikoEssentialContract)
     {
         // Deploy a DAO with owner as root
         DAO dao = DAO(
@@ -53,20 +57,20 @@ contract AragonTest is Test {
         );
         votingToken.mint(alice, 10 ether);
         votingToken.delegate(alice);
-        vm.roll(block.number + 1);
+        blockForward(1);
 
         // Deploy a new plugin instance
+        TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
+
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 10 days,
-            minProposerVotingPower: 0
-        });
+            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
 
         OptimisticTokenVotingPlugin optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
-                abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken))
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, taikoL1, taikoBridge)
+                )
             )
         );
 
@@ -79,7 +83,7 @@ contract AragonTest is Test {
         vm.label(address(dao), "dao");
         vm.label(address(optimisticPlugin), "optimisticPlugin");
 
-        return (dao, optimisticPlugin, votingToken);
+        return (dao, optimisticPlugin, votingToken, ITaikoEssentialContract(taikoL1));
     }
 
     /// @notice Creates a mock DAO with a multisig and an optimistic token voting plugin.
@@ -108,17 +112,21 @@ contract AragonTest is Test {
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
+            TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
+
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: uint32(RATIO_BASE / 10),
-                minDuration: 4 days,
-                minProposerVotingPower: 0
+                minDuration: 4 days
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
                 createProxyAndCall(
                     address(OPTIMISTIC_BASE),
-                    abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, targetContractSettings, votingToken))
+                    abi.encodeCall(
+                        OptimisticTokenVotingPlugin.initialize,
+                        (dao, targetContractSettings, votingToken, taikoL1, taikoBridge)
+                    )
                 )
             );
         }
@@ -174,17 +182,21 @@ contract AragonTest is Test {
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
+            TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
+
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: uint32(RATIO_BASE / 10),
-                minDuration: 0,
-                minProposerVotingPower: 0
+                minDuration: 0
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
                 createProxyAndCall(
                     address(OPTIMISTIC_BASE),
-                    abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, targetContractSettings, votingToken))
+                    abi.encodeCall(
+                        OptimisticTokenVotingPlugin.initialize,
+                        (dao, targetContractSettings, votingToken, taikoL1, taikoBridge)
+                    )
                 )
             );
         }

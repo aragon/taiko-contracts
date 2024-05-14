@@ -123,7 +123,7 @@ contract Deploy is Script {
     ) public view returns (DAOFactory.PluginSettings[] memory pluginSettings) {
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
             memory votingSettings = OptimisticTokenVotingPlugin
-                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 6, 0);
+                .OptimisticGovernanceSettings(200000, 60 * 60 * 24 * 6);
         OptimisticTokenVotingPluginSetup.TokenSettings
             memory tokenSettings = OptimisticTokenVotingPluginSetup
                 .TokenSettings(tokenAddress, "", "");

@@ -21,6 +21,7 @@ import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSet
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
+import {ITaikoEssentialContract} from "../src/interfaces/ITaikoEssentialContract.sol";
 
 contract Deploy is Script {
     DAO immutable daoImplementation;
@@ -32,6 +33,8 @@ contract Deploy is Script {
     address immutable tokenAddress;
     address[] multisigMembers;
 
+    address immutable taikoL1;
+    address immutable taikoBridge;
     uint64 immutable minStdProposalDelay; // Minimum delay of proposals on the optimistic voting plugin
     uint16 immutable minStdApprovals;
     uint16 immutable minEmergencyApprovals;
@@ -48,6 +51,8 @@ contract Deploy is Script {
         pluginSetupProcessor = PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR"));
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
+        taikoL1 = vm.envAddress("TAIKO_L1_ADDRESS");
+        taikoBridge = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
 
         minStdProposalDelay = uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY"));
         minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
@@ -221,9 +226,8 @@ contract Deploy is Script {
         {
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory votingSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings(
-                200000, // minVetoRatio - 20%
-                0, // minDuration (the condition will enforce it)
-                0 // minProposerVotingPower
+                200_000, // minVetoRatio - 20%
+                0 // minDuration (the condition will enforce it)
             );
 
             OptimisticTokenVotingPluginSetup.TokenSettings memory tokenSettings =
@@ -233,7 +237,14 @@ contract Deploy is Script {
                 GovernanceERC20.MintSettings(new address[](0), new uint256[](0));
 
             settingsData = pluginSetup.encodeInstallationParams(
-                votingSettings, tokenSettings, mintSettings, minStdProposalDelay, stdProposer, emergencyProposer
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                ITaikoEssentialContract(taikoL1),
+                taikoBridge,
+                minStdProposalDelay,
+                stdProposer,
+                emergencyProposer
             );
         }
 

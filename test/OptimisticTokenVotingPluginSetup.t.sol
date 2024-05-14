@@ -14,6 +14,7 @@ import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
+import {ITaikoEssentialContract} from "../src/interfaces/ITaikoEssentialContract.sol";
 
 contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPluginSetup public pluginSetup;
@@ -26,6 +27,8 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPlugin.OptimisticGovernanceSettings votingSettings;
     OptimisticTokenVotingPluginSetup.TokenSettings tokenSettings;
     GovernanceERC20.MintSettings mintSettings;
+    ITaikoEssentialContract taikoL1;
+    address taikoBridge;
     uint64 stdProposalMinDuration;
     address stdProposer;
     address emergencyProposer;
@@ -37,54 +40,33 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function setUp() public {
         if (address(governanceERC20Base) == address(0x0)) {
             // Base
-            GovernanceERC20.MintSettings memory _mintSettings = GovernanceERC20
-                .MintSettings(new address[](0), new uint256[](0));
-            governanceERC20Base = new GovernanceERC20(
-                IDAO(address(0x0)),
-                "",
-                "",
-                _mintSettings
-            );
+            GovernanceERC20.MintSettings memory _mintSettings =
+                GovernanceERC20.MintSettings(new address[](0), new uint256[](0));
+            governanceERC20Base = new GovernanceERC20(IDAO(address(0x0)), "", "", _mintSettings);
             // Base
-            governanceWrappedERC20Base = new GovernanceWrappedERC20(
-                IERC20Upgradeable(address(0x0)),
-                "",
-                ""
-            );
+            governanceWrappedERC20Base = new GovernanceWrappedERC20(IERC20Upgradeable(address(0x0)), "", "");
             dao = DAO(
                 payable(
-                    createProxyAndCall(
-                        address(daoBase),
-                        abi.encodeCall(
-                            DAO.initialize,
-                            ("", alice, address(0x0), "")
-                        )
-                    )
+                    createProxyAndCall(address(daoBase), abi.encodeCall(DAO.initialize, ("", alice, address(0x0), "")))
                 )
             );
         }
 
-        pluginSetup = new OptimisticTokenVotingPluginSetup(
-            governanceERC20Base,
-            governanceWrappedERC20Base
-        );
+        pluginSetup = new OptimisticTokenVotingPluginSetup(governanceERC20Base, governanceWrappedERC20Base);
 
         // Default params
-        votingSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-                minVetoRatio: uint32(RATIO_BASE / 10),
-                minDuration: 5 days,
-                minProposerVotingPower: 0
-            });
+        votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 5 days
+        });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceERC20Base),
             name: "Wrapped Token",
             symbol: "wTK"
         });
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](0),
-            amounts: new uint256[](0)
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
+        taikoL1 = ITaikoEssentialContract(address(0x66666666));
+        taikoBridge = address(0x55555555);
         stdProposalMinDuration = 10 days;
         stdProposer = address(0x1234567890);
         emergencyProposer = address(0x2345678901);
@@ -96,35 +78,37 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
 
-        bytes
-            memory expected = hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        bytes memory expected =
+            hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
     function test_ShouldEncodeInstallationParams_1() public {
         // Custom 1
-        votingSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-                minVetoRatio: uint32(RATIO_BASE / 5),
-                minDuration: 60 * 60 * 24 * 5,
-                minProposerVotingPower: 123456
-            });
+        votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 60 * 60 * 24 * 5
+        });
         bytes memory output = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
 
-        bytes
-            memory expected = hex"0000000000000000000000000000000000000000000000000000000000030d400000000000000000000000000000000000000000000000000000000000069780000000000000000000000000000000000000000000000000000000000001e240000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        bytes memory expected =
+            hex"0000000000000000000000000000000000000000000000000000000000030d400000000000000000000000000000000000000000000000000000000000069780000000000000000000000000000000000000000000000000000000000001e240000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
@@ -139,13 +123,15 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
 
-        bytes
-            memory expected = hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000000000000000000000000000000000000000005678000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000001057726170706564204e657720436f696e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004774e434e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        bytes memory expected =
+            hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000000000000000000000000000000000000000005678000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000001057726170706564204e657720436f696e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004774e434e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
@@ -156,21 +142,20 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 1234567890;
 
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: receivers,
-            amounts: amounts
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         bytes memory output = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
-            stdProposalMinDuration,
+            ITaikoEssentialContract(address(0x1234)),
+            address(0x5678), // taikoBridge
+            5 days, // stdProposalMinDuration
             stdProposer,
             emergencyProposer
         );
 
-        bytes
-            memory expected = hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000006789000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000499602d2";
+        bytes memory expected =
+            hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000123456789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000006789000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000499602d2";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
@@ -182,23 +167,23 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
-            stdProposalMinDuration,
+            ITaikoEssentialContract(address(0x1111)),
+            address(0x2222), // taikoBridge
+            15 days, // stdProposalMinDuration
             stdProposer,
             emergencyProposer
         );
 
-        bytes
-            memory expected = hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000000056789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        bytes memory expected =
+            hex"00000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000697800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000000056789000000000000000000000000000000000000000000000000000000023456789010000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d5772617070656420546f6b656e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000377544b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
     function test_ShouldDecodeInstallationParams_1() public {
-        votingSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-                minVetoRatio: uint32(RATIO_BASE / 4),
-                minDuration: 10 days,
-                minProposerVotingPower: 55555555
-            });
+        votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 4),
+            minDuration: 10 days
+        });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
             name: "Super wToken",
@@ -210,115 +195,67 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 2000;
         amounts[1] = 5000;
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: receivers,
-            amounts: amounts
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         stdProposalMinDuration = 6 days;
         stdProposer = address(0x3456);
         emergencyProposer = address(0x7890);
 
         bytes memory _installationParams = pluginSetup.encodeInstallationParams(
-                votingSettings,
-                tokenSettings,
-                // only used for GovernanceERC20 (when a token is not passed)
-                mintSettings,
-                stdProposalMinDuration,
-                stdProposer,
-                emergencyProposer
-            );
+            votingSettings,
+            tokenSettings,
+            // only used for GovernanceERC20 (when a token is not passed)
+            mintSettings,
+            ITaikoEssentialContract(address(0x9999)),
+            address(0xaaaa),
+            stdProposalMinDuration,
+            stdProposer,
+            emergencyProposer
+        );
 
         // Decode
         (
-            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-                memory _votingSettings,
-            OptimisticTokenVotingPluginSetup.TokenSettings
-                memory _tokenSettings,
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory _votingSettings,
+            OptimisticTokenVotingPluginSetup.TokenSettings memory _tokenSettings,
             GovernanceERC20.MintSettings memory _mintSettings,
+            ITaikoEssentialContract _taikoL1,
+            address _taikoBridge,
             uint64 _stdMinDuration,
             address _stdProposer,
             address _emergencyProposer
         ) = pluginSetup.decodeInstallationParams(_installationParams);
 
         // Voting
-        assertEq(
-            _votingSettings.minVetoRatio,
-            uint32(RATIO_BASE / 4),
-            "Incorrect ratio"
-        );
-        assertEq(
-            _votingSettings.minDuration,
-            10 days,
-            "Incorrect min duration"
-        );
-        assertEq(
-            _votingSettings.minProposerVotingPower,
-            55555555,
-            "Incorrect min voting power"
-        );
+        assertEq(_votingSettings.minVetoRatio, uint32(RATIO_BASE / 4), "Incorrect ratio");
+        assertEq(_votingSettings.minDuration, 10 days, "Incorrect min duration");
 
         // Token
-        assertEq(
-            _tokenSettings.addr,
-            address(governanceWrappedERC20Base),
-            "Incorrect token address"
-        );
-        assertEq(
-            _tokenSettings.name,
-            "Super wToken",
-            "Incorrect token address"
-        );
+        assertEq(_tokenSettings.addr, address(governanceWrappedERC20Base), "Incorrect token address");
+        assertEq(_tokenSettings.name, "Super wToken", "Incorrect token address");
         assertEq(_tokenSettings.symbol, "SwTK", "Incorrect token address");
 
         // Mint
-        assertEq(
-            _mintSettings.receivers.length,
-            2,
-            "Incorrect receivers.length"
-        );
-        assertEq(
-            _mintSettings.receivers[0],
-            address(0x1234),
-            "Incorrect receivers[0]"
-        );
-        assertEq(
-            _mintSettings.receivers[1],
-            address(0x5678),
-            "Incorrect receivers[1]"
-        );
+        assertEq(_mintSettings.receivers.length, 2, "Incorrect receivers.length");
+        assertEq(_mintSettings.receivers[0], address(0x1234), "Incorrect receivers[0]");
+        assertEq(_mintSettings.receivers[1], address(0x5678), "Incorrect receivers[1]");
         assertEq(_mintSettings.amounts.length, 2, "Incorrect amounts.length");
         assertEq(_mintSettings.amounts[0], 2000, "Incorrect amounts[0]");
         assertEq(_mintSettings.amounts[1], 5000, "Incorrect amounts[1]");
 
         // Proposals
-        assertEq(
-            _stdMinDuration,
-            stdProposalMinDuration,
-            "Incorrect stdMinDuration"
-        );
+        assertEq(_stdMinDuration, stdProposalMinDuration, "Incorrect stdMinDuration");
         assertEq(_stdProposer, stdProposer, "Incorrect standard proposer");
-        assertEq(
-            _emergencyProposer,
-            emergencyProposer,
-            "Incorrect emergency proposer"
-        );
+        assertEq(_emergencyProposer, emergencyProposer, "Incorrect emergency proposer");
 
         assertEq(_stdMinDuration, 6 days, "Incorrect stdMinDuration");
         assertEq(stdProposer, address(0x3456), "Incorrect stdProposer");
-        assertEq(
-            emergencyProposer,
-            address(0x7890),
-            "Incorrect emergencyProposer"
-        );
+        assertEq(emergencyProposer, address(0x7890), "Incorrect emergencyProposer");
     }
 
     function test_ShouldDecodeInstallationParams_2() public {
-        votingSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-                minVetoRatio: uint32(RATIO_BASE / 5),
-                minDuration: 12 days,
-                minProposerVotingPower: 44444444
-            });
+        votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 12 days
+        });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
             name: "Mega wToken",
@@ -334,88 +271,50 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         amounts[1] = 2000;
         amounts[2] = 3000;
         amounts[3] = 4000;
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: receivers,
-            amounts: amounts
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         stdProposalMinDuration = 9 days;
         stdProposer = address(0x6666);
         emergencyProposer = address(0x8888);
 
         bytes memory _installationParams = pluginSetup.encodeInstallationParams(
-                votingSettings,
-                tokenSettings,
-                // only used for GovernanceERC20 (when a token is not passed)
-                mintSettings,
-                stdProposalMinDuration,
-                stdProposer,
-                emergencyProposer
-            );
+            votingSettings,
+            tokenSettings,
+            // only used for GovernanceERC20 (when a token is not passed)
+            mintSettings,
+            ITaikoEssentialContract(address(0xbbbb)),
+            address(0xcccc),
+            stdProposalMinDuration,
+            stdProposer,
+            emergencyProposer
+        );
 
         // Decode
         (
-            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings
-                memory _votingSettings,
-            OptimisticTokenVotingPluginSetup.TokenSettings
-                memory _tokenSettings,
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory _votingSettings,
+            OptimisticTokenVotingPluginSetup.TokenSettings memory _tokenSettings,
             GovernanceERC20.MintSettings memory _mintSettings,
+            ITaikoEssentialContract _taikoL1,
+            address _taikoBridge,
             uint64 _stdMinDuration,
             address _stdProposer,
             address _emergencyProposer
         ) = pluginSetup.decodeInstallationParams(_installationParams);
 
         // Voting
-        assertEq(
-            _votingSettings.minVetoRatio,
-            uint32(RATIO_BASE / 5),
-            "Incorrect ratio"
-        );
-        assertEq(
-            _votingSettings.minDuration,
-            12 days,
-            "Incorrect min duration"
-        );
-        assertEq(
-            _votingSettings.minProposerVotingPower,
-            44444444,
-            "Incorrect min voting power"
-        );
+        assertEq(_votingSettings.minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect ratio");
+        assertEq(_votingSettings.minDuration, 12 days, "Incorrect min duration");
 
         // Token
-        assertEq(
-            _tokenSettings.addr,
-            address(governanceWrappedERC20Base),
-            "Incorrect token address"
-        );
+        assertEq(_tokenSettings.addr, address(governanceWrappedERC20Base), "Incorrect token address");
         assertEq(_tokenSettings.name, "Mega wToken", "Incorrect token address");
         assertEq(_tokenSettings.symbol, "MwTK", "Incorrect token address");
 
         // Mint
-        assertEq(
-            _mintSettings.receivers.length,
-            4,
-            "Incorrect receivers.length"
-        );
-        assertEq(
-            _mintSettings.receivers[0],
-            address(0x1111),
-            "Incorrect receivers[0]"
-        );
-        assertEq(
-            _mintSettings.receivers[1],
-            address(0x2222),
-            "Incorrect receivers[1]"
-        );
-        assertEq(
-            _mintSettings.receivers[2],
-            address(0x3333),
-            "Incorrect receivers[2]"
-        );
-        assertEq(
-            _mintSettings.receivers[3],
-            address(0x4444),
-            "Incorrect receivers[3]"
-        );
+        assertEq(_mintSettings.receivers.length, 4, "Incorrect receivers.length");
+        assertEq(_mintSettings.receivers[0], address(0x1111), "Incorrect receivers[0]");
+        assertEq(_mintSettings.receivers[1], address(0x2222), "Incorrect receivers[1]");
+        assertEq(_mintSettings.receivers[2], address(0x3333), "Incorrect receivers[2]");
+        assertEq(_mintSettings.receivers[3], address(0x4444), "Incorrect receivers[3]");
         assertEq(_mintSettings.amounts.length, 4, "Incorrect amounts.length");
         assertEq(_mintSettings.amounts[0], 1000, "Incorrect amounts[0]");
         assertEq(_mintSettings.amounts[1], 2000, "Incorrect amounts[1]");
@@ -423,50 +322,32 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_mintSettings.amounts[3], 4000, "Incorrect amounts[3]");
 
         // Proposal
-        assertEq(
-            _stdMinDuration,
-            stdProposalMinDuration,
-            "Incorrect stdMinDuration"
-        );
+        assertEq(_stdMinDuration, stdProposalMinDuration, "Incorrect stdMinDuration");
         assertEq(_stdProposer, stdProposer, "Incorrect standard proposer");
-        assertEq(
-            _emergencyProposer,
-            emergencyProposer,
-            "Incorrect emergency proposer"
-        );
+        assertEq(_emergencyProposer, emergencyProposer, "Incorrect emergency proposer");
 
         assertEq(_stdMinDuration, 9 days, "Incorrect stdMinDuration");
         assertEq(stdProposer, address(0x6666), "Incorrect stdProposer");
-        assertEq(
-            emergencyProposer,
-            address(0x8888),
-            "Incorrect emergencyProposer"
-        );
+        assertEq(emergencyProposer, address(0x8888), "Incorrect emergencyProposer");
     }
 
-    function test_PrepareInstallationReturnsTheProperPermissions_Default()
-        public
-    {
+    function test_PrepareInstallationReturnsTheProperPermissions_Default() public {
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
 
-        (
-            address _plugin,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        assertEq(
-            _plugin != address(0),
-            true,
-            "Plugin address should not be zero"
-        );
+        assertEq(_plugin != address(0), true, "Plugin address should not be zero");
         assertEq(_preparedSetupData.helpers.length, 1, "One helper expected");
         assertEq(
             _preparedSetupData.permissions.length,
@@ -495,10 +376,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[1].where, _plugin);
         assertEq(_preparedSetupData.permissions[1].who, address(dao));
         assertEq(_preparedSetupData.permissions[1].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[1].permissionId,
-            keccak256("UPGRADE_PLUGIN_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[1].permissionId, keccak256("UPGRADE_PLUGIN_PERMISSION"));
         // 3
         assertEq(
             uint256(_preparedSetupData.permissions[2].operation),
@@ -508,10 +386,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[2].where, address(dao));
         assertEq(_preparedSetupData.permissions[2].who, _plugin);
         assertEq(_preparedSetupData.permissions[2].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[2].permissionId,
-            keccak256("EXECUTE_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[2].permissionId, keccak256("EXECUTE_PERMISSION"));
         // proposer 1
         assertEq(
             uint256(_preparedSetupData.permissions[3].operation),
@@ -521,10 +396,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
         assertEq(_preparedSetupData.permissions[3].who, address(stdProposer));
         assertNotEq(_preparedSetupData.permissions[3].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[3].permissionId,
-            keccak256("PROPOSER_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[3].permissionId, keccak256("PROPOSER_PERMISSION"));
         // proposer 2
         assertEq(
             uint256(_preparedSetupData.permissions[4].operation),
@@ -532,28 +404,18 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[4].where, _plugin);
-        assertEq(
-            _preparedSetupData.permissions[4].who,
-            address(emergencyProposer)
-        );
+        assertEq(_preparedSetupData.permissions[4].who, address(emergencyProposer));
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[4].permissionId,
-            keccak256("PROPOSER_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[4].permissionId, keccak256("PROPOSER_PERMISSION"));
 
         // no more: no minted token
     }
 
-    function test_PrepareInstallationReturnsTheProperPermissions_UseToken()
-        public
-    {
-        votingSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-                minVetoRatio: uint32(RATIO_BASE / 4),
-                minDuration: 10 days,
-                minProposerVotingPower: 0
-            });
+    function test_PrepareInstallationReturnsTheProperPermissions_UseToken() public {
+        votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 4),
+            minDuration: 10 days
+        });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
             name: "",
@@ -567,21 +429,17 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
 
-        (
-            address _plugin,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        assertEq(
-            _plugin != address(0),
-            true,
-            "Plugin address should not be zero"
-        );
+        assertEq(_plugin != address(0), true, "Plugin address should not be zero");
         assertEq(_preparedSetupData.helpers.length, 1, "One helper expected");
         assertEq(
             _preparedSetupData.permissions.length,
@@ -610,10 +468,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[1].where, _plugin);
         assertEq(_preparedSetupData.permissions[1].who, address(dao));
         assertEq(_preparedSetupData.permissions[1].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[1].permissionId,
-            keccak256("UPGRADE_PLUGIN_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[1].permissionId, keccak256("UPGRADE_PLUGIN_PERMISSION"));
         // 3
         assertEq(
             uint256(_preparedSetupData.permissions[2].operation),
@@ -623,10 +478,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[2].where, address(dao));
         assertEq(_preparedSetupData.permissions[2].who, _plugin);
         assertEq(_preparedSetupData.permissions[2].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[2].permissionId,
-            keccak256("EXECUTE_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[2].permissionId, keccak256("EXECUTE_PERMISSION"));
         // proposer 1
         assertEq(
             uint256(_preparedSetupData.permissions[3].operation),
@@ -636,10 +488,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
         assertEq(_preparedSetupData.permissions[3].who, address(stdProposer));
         assertNotEq(_preparedSetupData.permissions[3].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[3].permissionId,
-            keccak256("PROPOSER_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[3].permissionId, keccak256("PROPOSER_PERMISSION"));
         // proposer 2
         assertEq(
             uint256(_preparedSetupData.permissions[4].operation),
@@ -647,28 +496,18 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[4].where, _plugin);
-        assertEq(
-            _preparedSetupData.permissions[4].who,
-            address(emergencyProposer)
-        );
+        assertEq(_preparedSetupData.permissions[4].who, address(emergencyProposer));
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[4].permissionId,
-            keccak256("PROPOSER_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[4].permissionId, keccak256("PROPOSER_PERMISSION"));
 
         // no more: no minted token
     }
 
-    function test_PrepareInstallationReturnsTheProperPermissions_MintToken()
-        public
-    {
-        votingSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-                minVetoRatio: uint32(RATIO_BASE / 4),
-                minDuration: 10 days,
-                minProposerVotingPower: 4000
-            });
+    function test_PrepareInstallationReturnsTheProperPermissions_MintToken() public {
+        votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 4),
+            minDuration: 10 days
+        });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(0x0),
             name: "Wrapped Super New Token",
@@ -680,10 +519,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 2000;
         amounts[1] = 5000;
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: receivers,
-            amounts: amounts
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         stdProposer = address(0x3456);
         emergencyProposer = address(0x7890);
 
@@ -692,21 +528,17 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
 
-        (
-            address _plugin,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        assertEq(
-            _plugin != address(0),
-            true,
-            "Plugin address should not be zero"
-        );
+        assertEq(_plugin != address(0), true, "Plugin address should not be zero");
         assertEq(_preparedSetupData.helpers.length, 1, "One helper expected");
         assertEq(
             _preparedSetupData.permissions.length,
@@ -735,10 +567,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[1].where, _plugin);
         assertEq(_preparedSetupData.permissions[1].who, address(dao));
         assertEq(_preparedSetupData.permissions[1].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[1].permissionId,
-            keccak256("UPGRADE_PLUGIN_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[1].permissionId, keccak256("UPGRADE_PLUGIN_PERMISSION"));
         // 3
         assertEq(
             uint256(_preparedSetupData.permissions[2].operation),
@@ -748,10 +577,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[2].where, address(dao));
         assertEq(_preparedSetupData.permissions[2].who, _plugin);
         assertEq(_preparedSetupData.permissions[2].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[2].permissionId,
-            keccak256("EXECUTE_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[2].permissionId, keccak256("EXECUTE_PERMISSION"));
         // proposer 1
         assertEq(
             uint256(_preparedSetupData.permissions[3].operation),
@@ -761,10 +587,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
         assertEq(_preparedSetupData.permissions[3].who, address(stdProposer));
         assertNotEq(_preparedSetupData.permissions[3].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[3].permissionId,
-            keccak256("PROPOSER_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[3].permissionId, keccak256("PROPOSER_PERMISSION"));
         // proposer 2
         assertEq(
             uint256(_preparedSetupData.permissions[4].operation),
@@ -772,15 +595,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[4].where, _plugin);
-        assertEq(
-            _preparedSetupData.permissions[4].who,
-            address(emergencyProposer)
-        );
+        assertEq(_preparedSetupData.permissions[4].who, address(emergencyProposer));
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[4].permissionId,
-            keccak256("PROPOSER_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[4].permissionId, keccak256("PROPOSER_PERMISSION"));
 
         // minting
         assertEq(
@@ -788,16 +605,10 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             uint256(PermissionLib.Operation.Grant),
             "Incorrect operation"
         );
-        assertEq(
-            _preparedSetupData.permissions[5].where,
-            _preparedSetupData.helpers[0]
-        );
+        assertEq(_preparedSetupData.permissions[5].where, _preparedSetupData.helpers[0]);
         assertEq(_preparedSetupData.permissions[5].who, address(dao));
         assertEq(_preparedSetupData.permissions[5].condition, address(0));
-        assertEq(
-            _preparedSetupData.permissions[5].permissionId,
-            keccak256("MINT_PERMISSION")
-        );
+        assertEq(_preparedSetupData.permissions[5].permissionId, keccak256("MINT_PERMISSION"));
     }
 
     function test_PrepareUninstallationReturnsTheProperPermissions_1() public {
@@ -806,228 +617,139 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
-        (
-            address _dummyPlugin,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        OptimisticTokenVotingPluginSetup.SetupPayload
-            memory _payload = IPluginSetup.SetupPayload({
-                plugin: _dummyPlugin,
-                currentHelpers: _preparedSetupData.helpers,
-                data: hex""
-            });
+        OptimisticTokenVotingPluginSetup.SetupPayload memory _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
 
         // Check uninstall
-        PermissionLib.MultiTargetPermission[]
-            memory _permissionChanges = pluginSetup.prepareUninstallation(
-                address(dao),
-                _payload
-            );
+        PermissionLib.MultiTargetPermission[] memory _permissionChanges =
+            pluginSetup.prepareUninstallation(address(dao), _payload);
 
-        assertEq(
-            _permissionChanges.length,
-            4,
-            "Incorrect permission changes length"
-        );
+        assertEq(_permissionChanges.length, 4, "Incorrect permission changes length");
         // 1
         assertEq(
-            uint256(_permissionChanges[0].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[0].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
         assertEq(_permissionChanges[0].where, _dummyPlugin);
         assertEq(_permissionChanges[0].who, address(dao));
         assertEq(_permissionChanges[0].condition, address(0));
-        assertEq(
-            _permissionChanges[0].permissionId,
-            keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION")
-        );
+        assertEq(_permissionChanges[0].permissionId, keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION"));
         // 2
         assertEq(
-            uint256(_permissionChanges[1].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[1].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
         assertEq(_permissionChanges[1].where, _dummyPlugin);
         assertEq(_permissionChanges[1].who, address(dao));
         assertEq(_permissionChanges[1].condition, address(0));
-        assertEq(
-            _permissionChanges[1].permissionId,
-            keccak256("UPGRADE_PLUGIN_PERMISSION")
-        );
+        assertEq(_permissionChanges[1].permissionId, keccak256("UPGRADE_PLUGIN_PERMISSION"));
         // 3
         assertEq(
-            uint256(_permissionChanges[2].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[2].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
         assertEq(_permissionChanges[2].where, address(dao));
         assertEq(_permissionChanges[2].who, _dummyPlugin);
         assertEq(_permissionChanges[2].condition, address(0));
-        assertEq(
-            _permissionChanges[2].permissionId,
-            keccak256("EXECUTE_PERMISSION")
-        );
+        assertEq(_permissionChanges[2].permissionId, keccak256("EXECUTE_PERMISSION"));
         // minting 1
         assertEq(
-            uint256(_permissionChanges[3].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[3].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
-        assertEq(
-            _permissionChanges[3].where,
-            address(governanceERC20Base),
-            "Incorrect where"
-        );
+        assertEq(_permissionChanges[3].where, address(governanceERC20Base), "Incorrect where");
         assertEq(_permissionChanges[3].who, address(dao), "Incorrect who");
-        assertEq(
-            _permissionChanges[3].condition,
-            address(0),
-            "Incorrect condition"
-        );
-        assertEq(
-            _permissionChanges[3].permissionId,
-            keccak256("MINT_PERMISSION"),
-            "Incorrect permission"
-        );
+        assertEq(_permissionChanges[3].condition, address(0), "Incorrect condition");
+        assertEq(_permissionChanges[3].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
     }
 
     function test_PrepareUninstallationReturnsTheProperPermissions_2() public {
         // Prepare a dummy install
-        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
-            addr: address(0x0),
-            name: "Dummy Token",
-            symbol: "DTK"
-        });
+        tokenSettings =
+            OptimisticTokenVotingPluginSetup.TokenSettings({addr: address(0x0), name: "Dummy Token", symbol: "DTK"});
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
-        (
-            address _dummyPlugin,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        OptimisticTokenVotingPluginSetup.SetupPayload
-            memory _payload = IPluginSetup.SetupPayload({
-                plugin: _dummyPlugin,
-                currentHelpers: _preparedSetupData.helpers,
-                data: hex""
-            });
+        OptimisticTokenVotingPluginSetup.SetupPayload memory _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
 
         // Check uninstall
-        PermissionLib.MultiTargetPermission[]
-            memory _permissionChanges = pluginSetup.prepareUninstallation(
-                address(dao),
-                _payload
-            );
+        PermissionLib.MultiTargetPermission[] memory _permissionChanges =
+            pluginSetup.prepareUninstallation(address(dao), _payload);
 
-        assertEq(
-            _permissionChanges.length,
-            4,
-            "Incorrect permission changes length"
-        );
+        assertEq(_permissionChanges.length, 4, "Incorrect permission changes length");
         // 1
         assertEq(
-            uint256(_permissionChanges[0].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[0].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
         assertEq(_permissionChanges[0].where, _dummyPlugin);
         assertEq(_permissionChanges[0].who, address(dao));
         assertEq(_permissionChanges[0].condition, address(0));
-        assertEq(
-            _permissionChanges[0].permissionId,
-            keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION")
-        );
+        assertEq(_permissionChanges[0].permissionId, keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION"));
         // 2
         assertEq(
-            uint256(_permissionChanges[1].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[1].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
         assertEq(_permissionChanges[1].where, _dummyPlugin);
         assertEq(_permissionChanges[1].who, address(dao));
         assertEq(_permissionChanges[1].condition, address(0));
-        assertEq(
-            _permissionChanges[1].permissionId,
-            keccak256("UPGRADE_PLUGIN_PERMISSION")
-        );
+        assertEq(_permissionChanges[1].permissionId, keccak256("UPGRADE_PLUGIN_PERMISSION"));
         // 3
         assertEq(
-            uint256(_permissionChanges[2].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[2].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
         assertEq(_permissionChanges[2].where, address(dao));
         assertEq(_permissionChanges[2].who, _dummyPlugin);
         assertEq(_permissionChanges[2].condition, address(0));
-        assertEq(
-            _permissionChanges[2].permissionId,
-            keccak256("EXECUTE_PERMISSION")
-        );
+        assertEq(_permissionChanges[2].permissionId, keccak256("EXECUTE_PERMISSION"));
         // minting 1
         assertEq(
-            uint256(_permissionChanges[3].operation),
-            uint256(PermissionLib.Operation.Revoke),
-            "Incorrect operation"
+            uint256(_permissionChanges[3].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
-        assertEq(
-            _permissionChanges[3].where,
-            _preparedSetupData.helpers[0],
-            "Incorrect where"
-        );
+        assertEq(_permissionChanges[3].where, _preparedSetupData.helpers[0], "Incorrect where");
         assertEq(_permissionChanges[3].who, address(dao), "Incorrect who");
-        assertEq(
-            _permissionChanges[3].condition,
-            address(0),
-            "Incorrect condition"
-        );
-        assertEq(
-            _permissionChanges[3].permissionId,
-            keccak256("MINT_PERMISSION"),
-            "Incorrect permission"
-        );
+        assertEq(_permissionChanges[3].condition, address(0), "Incorrect condition");
+        assertEq(_permissionChanges[3].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
     }
 
     function test_CreatesANewERC20Token() public {
         // new Token
-        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
-            addr: address(0x0),
-            name: "New Token",
-            symbol: "NTK"
-        });
+        tokenSettings =
+            OptimisticTokenVotingPluginSetup.TokenSettings({addr: address(0x0), name: "New Token", symbol: "NTK"});
 
         address[] memory receivers = new address[](1);
         receivers[0] = address(0x1234);
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 100;
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: receivers,
-            amounts: amounts
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             // only used for GovernanceERC20 (when a token is not passed)
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
-        (
-            ,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
         GovernanceERC20 _token = GovernanceERC20(_preparedSetupData.helpers[0]);
         assertEq(_token.balanceOf(address(0x1234)), 100);
@@ -1055,18 +777,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
-        (
-            ,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        GovernanceWrappedERC20 _wrappedToken = GovernanceWrappedERC20(
-            _preparedSetupData.helpers[0]
-        );
+        GovernanceWrappedERC20 _wrappedToken = GovernanceWrappedERC20(_preparedSetupData.helpers[0]);
         assertEq(_wrappedToken.balanceOf(address(0x1234)), 0);
         assertEq(_wrappedToken.balanceOf(address(0x5678)), 0);
         assertEq(_wrappedToken.balanceOf(address(0x0)), 0);
@@ -1097,42 +817,30 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 100;
         amounts[1] = 200;
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: receivers,
-            amounts: amounts
-        });
+        mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         GovernanceERC20 _token = GovernanceERC20(
             payable(
                 createProxyAndCall(
                     address(governanceERC20Base),
-                    abi.encodeCall(
-                        GovernanceERC20.initialize,
-                        (IDAO(dao), "My Token", "MTK", mintSettings)
-                    )
+                    abi.encodeCall(GovernanceERC20.initialize, (IDAO(dao), "My Token", "MTK", mintSettings))
                 )
             )
         );
-        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
-            addr: address(_token),
-            name: "",
-            symbol: ""
-        });
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({addr: address(_token), name: "", symbol: ""});
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
             votingSettings,
             tokenSettings,
             mintSettings,
+            taikoL1,
+            taikoBridge,
             stdProposalMinDuration,
             stdProposer,
             emergencyProposer
         );
-        (
-            ,
-            IPluginSetup.PreparedSetupData memory _preparedSetupData
-        ) = pluginSetup.prepareInstallation(address(dao), installationParams);
+        (, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
 
-        GovernanceWrappedERC20 _wrappedToken = GovernanceWrappedERC20(
-            _preparedSetupData.helpers[0]
-        );
+        GovernanceWrappedERC20 _wrappedToken = GovernanceWrappedERC20(_preparedSetupData.helpers[0]);
         assertEq(_wrappedToken.name(), "My Token");
         assertEq(_wrappedToken.symbol(), "MTK");
 
@@ -1142,10 +850,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     }
 
     // HELPERS
-    function createProxyAndCall(
-        address _logic,
-        bytes memory _data
-    ) private returns (address) {
+    function createProxyAndCall(address _logic, bytes memory _data) private returns (address) {
         return address(new ERC1967Proxy(_logic, _data));
     }
 }
