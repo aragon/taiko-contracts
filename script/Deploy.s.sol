@@ -237,14 +237,16 @@ contract Deploy is Script {
                 GovernanceERC20.MintSettings(new address[](0), new uint256[](0));
 
             settingsData = pluginSetup.encodeInstallationParams(
-                votingSettings,
-                tokenSettings,
-                mintSettings,
-                ITaikoEssentialContract(taikoL1),
-                taikoBridge,
-                minStdProposalDelay,
-                stdProposer,
-                emergencyProposer
+                OptimisticTokenVotingPluginSetup.InstallationParameters(
+                    votingSettings,
+                    tokenSettings,
+                    mintSettings,
+                    ITaikoEssentialContract(taikoL1),
+                    taikoBridge,
+                    minStdProposalDelay,
+                    stdProposer,
+                    emergencyProposer
+                )
             );
         }
 

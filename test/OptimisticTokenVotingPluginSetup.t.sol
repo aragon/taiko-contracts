@@ -75,14 +75,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_ShouldEncodeInstallationParams_Default() public view {
         // Default
         bytes memory output = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         bytes memory expected =
@@ -97,14 +99,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             minDuration: 60 * 60 * 24 * 5
         });
         bytes memory output = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         bytes memory expected =
@@ -120,14 +124,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             symbol: "wNCN"
         });
         bytes memory output = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         bytes memory expected =
@@ -144,14 +150,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
 
         mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         bytes memory output = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            ITaikoEssentialContract(address(0x1234)),
-            address(0x5678), // taikoBridge
-            5 days, // stdProposalMinDuration
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                ITaikoEssentialContract(address(0x1234)),
+                address(0x5678), // taikoBridge
+                5 days, // stdProposalMinDuration
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         bytes memory expected =
@@ -164,14 +172,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         stdProposer = address(0x567890);
 
         bytes memory output = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            ITaikoEssentialContract(address(0x1111)),
-            address(0x2222), // taikoBridge
-            15 days, // stdProposalMinDuration
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                ITaikoEssentialContract(address(0x1111)),
+                address(0x2222), // taikoBridge
+                15 days, // stdProposalMinDuration
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         bytes memory expected =
@@ -201,54 +211,50 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         emergencyProposer = address(0x7890);
 
         bytes memory _installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            // only used for GovernanceERC20 (when a token is not passed)
-            mintSettings,
-            ITaikoEssentialContract(address(0x9999)),
-            address(0xaaaa),
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                ITaikoEssentialContract(address(0x9999)),
+                address(0xaaaa),
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         // Decode
-        (
-            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory _votingSettings,
-            OptimisticTokenVotingPluginSetup.TokenSettings memory _tokenSettings,
-            GovernanceERC20.MintSettings memory _mintSettings,
-            ITaikoEssentialContract _taikoL1,
-            address _taikoBridge,
-            uint64 _stdMinDuration,
-            address _stdProposer,
-            address _emergencyProposer
-        ) = pluginSetup.decodeInstallationParams(_installationParams);
+        OptimisticTokenVotingPluginSetup.InstallationParameters memory _decodedInstallationParams =
+            pluginSetup.decodeInstallationParams(_installationParams);
 
         // Voting
-        assertEq(_votingSettings.minVetoRatio, uint32(RATIO_BASE / 4), "Incorrect ratio");
-        assertEq(_votingSettings.minDuration, 10 days, "Incorrect min duration");
+        assertEq(_decodedInstallationParams.votingSettings.minVetoRatio, uint32(RATIO_BASE / 4), "Incorrect ratio");
+        assertEq(_decodedInstallationParams.votingSettings.minDuration, 10 days, "Incorrect min duration");
 
         // Token
-        assertEq(_tokenSettings.addr, address(governanceWrappedERC20Base), "Incorrect token address");
-        assertEq(_tokenSettings.name, "Super wToken", "Incorrect token address");
-        assertEq(_tokenSettings.symbol, "SwTK", "Incorrect token address");
+        assertEq(
+            _decodedInstallationParams.tokenSettings.addr,
+            address(governanceWrappedERC20Base),
+            "Incorrect token address"
+        );
+        assertEq(_decodedInstallationParams.tokenSettings.name, "Super wToken", "Incorrect token address");
+        assertEq(_decodedInstallationParams.tokenSettings.symbol, "SwTK", "Incorrect token address");
 
         // Mint
-        assertEq(_mintSettings.receivers.length, 2, "Incorrect receivers.length");
-        assertEq(_mintSettings.receivers[0], address(0x1234), "Incorrect receivers[0]");
-        assertEq(_mintSettings.receivers[1], address(0x5678), "Incorrect receivers[1]");
-        assertEq(_mintSettings.amounts.length, 2, "Incorrect amounts.length");
-        assertEq(_mintSettings.amounts[0], 2000, "Incorrect amounts[0]");
-        assertEq(_mintSettings.amounts[1], 5000, "Incorrect amounts[1]");
+        assertEq(_decodedInstallationParams.mintSettings.receivers.length, 2, "Incorrect receivers.length");
+        assertEq(_decodedInstallationParams.mintSettings.receivers[0], address(0x1234), "Incorrect receivers[0]");
+        assertEq(_decodedInstallationParams.mintSettings.receivers[1], address(0x5678), "Incorrect receivers[1]");
+        assertEq(_decodedInstallationParams.mintSettings.amounts.length, 2, "Incorrect amounts.length");
+        assertEq(_decodedInstallationParams.mintSettings.amounts[0], 2000, "Incorrect amounts[0]");
+        assertEq(_decodedInstallationParams.mintSettings.amounts[1], 5000, "Incorrect amounts[1]");
 
         // Proposals
-        assertEq(_stdMinDuration, stdProposalMinDuration, "Incorrect stdMinDuration");
-        assertEq(_stdProposer, stdProposer, "Incorrect standard proposer");
-        assertEq(_emergencyProposer, emergencyProposer, "Incorrect emergency proposer");
+        assertEq(_decodedInstallationParams.stdProposalMinDelay, 6 days, "Incorrect stdProposalMinDelay");
+        assertEq(_decodedInstallationParams.stdProposer, address(0x3456), "Incorrect standard proposer");
+        assertEq(_decodedInstallationParams.emergencyProposer, address(0x7890), "Incorrect emergency proposer");
 
-        assertEq(_stdMinDuration, 6 days, "Incorrect stdMinDuration");
-        assertEq(stdProposer, address(0x3456), "Incorrect stdProposer");
-        assertEq(emergencyProposer, address(0x7890), "Incorrect emergencyProposer");
+        assertEq(_decodedInstallationParams.stdProposalMinDelay, 6 days, "Incorrect stdProposalMinDelay");
     }
 
     function test_ShouldDecodeInstallationParams_2() public {
@@ -277,71 +283,67 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         emergencyProposer = address(0x8888);
 
         bytes memory _installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            // only used for GovernanceERC20 (when a token is not passed)
-            mintSettings,
-            ITaikoEssentialContract(address(0xbbbb)),
-            address(0xcccc),
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                ITaikoEssentialContract(address(0xbbbb)),
+                address(0xcccc),
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         // Decode
-        (
-            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory _votingSettings,
-            OptimisticTokenVotingPluginSetup.TokenSettings memory _tokenSettings,
-            GovernanceERC20.MintSettings memory _mintSettings,
-            ITaikoEssentialContract _taikoL1,
-            address _taikoBridge,
-            uint64 _stdMinDuration,
-            address _stdProposer,
-            address _emergencyProposer
-        ) = pluginSetup.decodeInstallationParams(_installationParams);
+        OptimisticTokenVotingPluginSetup.InstallationParameters memory _decodedInstallationParams =
+            pluginSetup.decodeInstallationParams(_installationParams);
 
         // Voting
-        assertEq(_votingSettings.minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect ratio");
-        assertEq(_votingSettings.minDuration, 12 days, "Incorrect min duration");
+        assertEq(_decodedInstallationParams.votingSettings.minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect ratio");
+        assertEq(_decodedInstallationParams.votingSettings.minDuration, 12 days, "Incorrect min duration");
 
         // Token
-        assertEq(_tokenSettings.addr, address(governanceWrappedERC20Base), "Incorrect token address");
-        assertEq(_tokenSettings.name, "Mega wToken", "Incorrect token address");
-        assertEq(_tokenSettings.symbol, "MwTK", "Incorrect token address");
+        assertEq(
+            _decodedInstallationParams.tokenSettings.addr,
+            address(governanceWrappedERC20Base),
+            "Incorrect token address"
+        );
+        assertEq(_decodedInstallationParams.tokenSettings.name, "Mega wToken", "Incorrect token address");
+        assertEq(_decodedInstallationParams.tokenSettings.symbol, "MwTK", "Incorrect token address");
 
         // Mint
-        assertEq(_mintSettings.receivers.length, 4, "Incorrect receivers.length");
-        assertEq(_mintSettings.receivers[0], address(0x1111), "Incorrect receivers[0]");
-        assertEq(_mintSettings.receivers[1], address(0x2222), "Incorrect receivers[1]");
-        assertEq(_mintSettings.receivers[2], address(0x3333), "Incorrect receivers[2]");
-        assertEq(_mintSettings.receivers[3], address(0x4444), "Incorrect receivers[3]");
-        assertEq(_mintSettings.amounts.length, 4, "Incorrect amounts.length");
-        assertEq(_mintSettings.amounts[0], 1000, "Incorrect amounts[0]");
-        assertEq(_mintSettings.amounts[1], 2000, "Incorrect amounts[1]");
-        assertEq(_mintSettings.amounts[2], 3000, "Incorrect amounts[2]");
-        assertEq(_mintSettings.amounts[3], 4000, "Incorrect amounts[3]");
+        assertEq(_decodedInstallationParams.mintSettings.receivers.length, 4, "Incorrect receivers.length");
+        assertEq(_decodedInstallationParams.mintSettings.receivers[0], address(0x1111), "Incorrect receivers[0]");
+        assertEq(_decodedInstallationParams.mintSettings.receivers[1], address(0x2222), "Incorrect receivers[1]");
+        assertEq(_decodedInstallationParams.mintSettings.receivers[2], address(0x3333), "Incorrect receivers[2]");
+        assertEq(_decodedInstallationParams.mintSettings.receivers[3], address(0x4444), "Incorrect receivers[3]");
+        assertEq(_decodedInstallationParams.mintSettings.amounts.length, 4, "Incorrect amounts.length");
+        assertEq(_decodedInstallationParams.mintSettings.amounts[0], 1000, "Incorrect amounts[0]");
+        assertEq(_decodedInstallationParams.mintSettings.amounts[1], 2000, "Incorrect amounts[1]");
+        assertEq(_decodedInstallationParams.mintSettings.amounts[2], 3000, "Incorrect amounts[2]");
+        assertEq(_decodedInstallationParams.mintSettings.amounts[3], 4000, "Incorrect amounts[3]");
 
         // Proposal
-        assertEq(_stdMinDuration, stdProposalMinDuration, "Incorrect stdMinDuration");
-        assertEq(_stdProposer, stdProposer, "Incorrect standard proposer");
-        assertEq(_emergencyProposer, emergencyProposer, "Incorrect emergency proposer");
-
-        assertEq(_stdMinDuration, 9 days, "Incorrect stdMinDuration");
-        assertEq(stdProposer, address(0x6666), "Incorrect stdProposer");
-        assertEq(emergencyProposer, address(0x8888), "Incorrect emergencyProposer");
+        assertEq(_decodedInstallationParams.stdProposalMinDelay, 9 days, "Incorrect stdProposalMinDelay");
+        assertEq(_decodedInstallationParams.stdProposer, address(0x6666), "Incorrect standard proposer");
+        assertEq(_decodedInstallationParams.emergencyProposer, address(0x8888), "Incorrect emergency proposer");
     }
 
     function test_PrepareInstallationReturnsTheProperPermissions_Default() public {
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            // only used for GovernanceERC20 (when a token is not passed)
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
@@ -425,15 +427,17 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         emergencyProposer = address(0x7890);
 
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            // only used for GovernanceERC20 (when a token is not passed)
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
@@ -524,15 +528,17 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         emergencyProposer = address(0x7890);
 
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            // only used for GovernanceERC20 (when a token is not passed)
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
 
         (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
@@ -614,14 +620,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_PrepareUninstallationReturnsTheProperPermissions_1() public {
         // Prepare a dummy install
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
         (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);
@@ -673,14 +681,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         tokenSettings =
             OptimisticTokenVotingPluginSetup.TokenSettings({addr: address(0x0), name: "Dummy Token", symbol: "DTK"});
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
         (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);
@@ -738,15 +748,17 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         amounts[0] = 100;
         mintSettings = GovernanceERC20.MintSettings({receivers: receivers, amounts: amounts});
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            // only used for GovernanceERC20 (when a token is not passed)
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
         (, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);
@@ -774,14 +786,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             symbol: "wMTK"
         });
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
         (, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);
@@ -828,14 +842,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         );
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({addr: address(_token), name: "", symbol: ""});
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            votingSettings,
-            tokenSettings,
-            mintSettings,
-            taikoL1,
-            taikoBridge,
-            stdProposalMinDuration,
-            stdProposer,
-            emergencyProposer
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                taikoL1,
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
         );
         (, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);
