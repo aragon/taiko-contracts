@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity 0.8.17;
+pragma solidity ^0.8.17;
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
@@ -28,10 +28,7 @@ interface IMultisig {
     /// @param _account The address of the user to check.
     /// @return Returns true if the account is allowed to vote.
     /// @dev The function assumes the queried proposal exists.
-    function canApprove(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool);
+    function canApprove(uint256 _proposalId, address _account) external view returns (bool);
 
     /// @notice Checks if a proposal can be executed.
     /// @param _proposalId The ID of the proposal to be checked.
@@ -42,10 +39,7 @@ interface IMultisig {
     /// @param _proposalId The ID of the proposal.
     /// @param _account The account address to be checked.
     /// @return The vote option cast by a voter for a certain proposal.
-    function hasApproved(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool);
+    function hasApproved(uint256 _proposalId, address _account) external view returns (bool);
 
     /// @notice Executes a proposal.
     /// @param _proposalId The ID of the proposal to be executed.
