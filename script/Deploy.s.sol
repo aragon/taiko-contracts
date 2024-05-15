@@ -41,6 +41,7 @@ contract Deploy is Script {
 
     string stdMultisigEnsDomain;
     string emergencyMultisigEnsDomain;
+    string optimisticTokenVotingEnsDomain;
 
     constructor() {
         // Implementations
@@ -60,6 +61,7 @@ contract Deploy is Script {
 
         stdMultisigEnsDomain = vm.envString("STD_MULTISIG_ENS_DOMAIN");
         emergencyMultisigEnsDomain = vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN");
+        optimisticTokenVotingEnsDomain = vm.envString("OPTIMISTIC_TOKEN_VOTING_ENS_DOMAIN");
 
         // JSON list of members
         string memory root = vm.projectRoot();
@@ -152,7 +154,7 @@ contract Deploy is Script {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory).createPluginRepoWithFirstVersion(
-            stdMultisigEnsDomain, address(pluginSetup), msg.sender, "0x", "0x"
+            stdMultisigEnsDomain, address(pluginSetup), msg.sender, "", ""
         );
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
@@ -184,7 +186,7 @@ contract Deploy is Script {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory).createPluginRepoWithFirstVersion(
-            emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, "0x", "0x"
+            emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, "", ""
         );
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
@@ -218,7 +220,7 @@ contract Deploy is Script {
 
         // Publish repo
         pluginRepo = PluginRepoFactory(pluginRepoFactory).createPluginRepoWithFirstVersion(
-            "ens-of-the-optimistic-token-voting", address(pluginSetup), msg.sender, "0x", "0x"
+            optimisticTokenVotingEnsDomain, address(pluginSetup), msg.sender, "", ""
         );
 
         // Plugin settings
