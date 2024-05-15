@@ -69,25 +69,21 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice The ID of the permission required to create a proposal.
-    bytes32 public constant PROPOSER_PERMISSION_ID =
-        keccak256("PROPOSER_PERMISSION");
+    bytes32 public constant PROPOSER_PERMISSION_ID = keccak256("PROPOSER_PERMISSION");
 
     /// @notice The ID of the permission required to call the `updateOptimisticGovernanceSettings` function.
-    bytes32
-        public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
+    bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
     bytes4 public constant OPTIMISTIC_GOVERNANCE_INTERFACE_ID =
-        this.initialize.selector ^
-            this.getProposal.selector ^
-            this.updateOptimisticGovernanceSettings.selector;
+        this.initialize.selector ^ this.getProposal.selector ^ this.updateOptimisticGovernanceSettings.selector;
 
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
     /// @notice The struct storing the governance settings.
-    OptimisticGovernanceSettings private governanceSettings;
+    OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -96,21 +92,13 @@ contract OptimisticTokenVotingPlugin is
     /// @param minVetoRatio The support threshold value.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param minProposerVotingPower The minimum vetoing power required to create a proposal.
-    event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio,
-        uint64 minDuration,
-        uint256 minProposerVotingPower
-    );
+    event OptimisticGovernanceSettingsUpdated(uint32 minVetoRatio, uint64 minDuration, uint256 minProposerVotingPower);
 
     /// @notice Emitted when a veto is cast by a voter.
     /// @param proposalId The ID of the proposal.
     /// @param voter The voter casting the veto.
     /// @param votingPower The voting power behind this veto.
-    event VetoCast(
-        uint256 indexed proposalId,
-        address indexed voter,
-        uint256 votingPower
-    );
+    event VetoCast(uint256 indexed proposalId, address indexed voter, uint256 votingPower);
 
     /// @notice Thrown if a date is out of bounds.
     /// @param limit The limit value.
@@ -152,11 +140,10 @@ contract OptimisticTokenVotingPlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
-    function initialize(
-        IDAO _dao,
-        OptimisticGovernanceSettings calldata _governanceSettings,
-        IVotesUpgradeable _token
-    ) external initializer {
+    function initialize(IDAO _dao, OptimisticGovernanceSettings calldata _governanceSettings, IVotesUpgradeable _token)
+        external
+        initializer
+    {
         __PluginUUPSUpgradeable_init(_dao);
 
         votingToken = _token;
@@ -168,20 +155,14 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Checks if this or the parent contract supports an interface by its ID.
     /// @param _interfaceId The ID of the interface.
     /// @return Returns `true` if the interface is supported.
-    function supportsInterface(
-        bytes4 _interfaceId
-    )
+    function supportsInterface(bytes4 _interfaceId)
         public
         view
         virtual
         override(ERC165Upgradeable, PluginUUPSUpgradeable, ProposalUpgradeable)
         returns (bool)
     {
-        return
-            _interfaceId == OPTIMISTIC_GOVERNANCE_INTERFACE_ID ||
-            _interfaceId == type(IOptimisticTokenVoting).interfaceId ||
-            _interfaceId == type(IMembership).interfaceId ||
-            super.supportsInterface(_interfaceId);
+        return super.supportsInterface(_interfaceId);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -190,33 +171,23 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function totalVotingPower(
-        uint256 _blockNumber
-    ) public view returns (uint256) {
+    function totalVotingPower(uint256 _blockNumber) public view returns (uint256) {
         return votingToken.getPastTotalSupply(_blockNumber);
     }
 
     /// @inheritdoc IMembership
     function isMember(address _account) external view returns (bool) {
         // A member must own at least one token or have at least one token delegated to her/him.
-        return
-            votingToken.getVotes(_account) > 0 ||
-            IERC20Upgradeable(address(votingToken)).balanceOf(_account) > 0;
+        return votingToken.getVotes(_account) > 0 || IERC20Upgradeable(address(votingToken)).balanceOf(_account) > 0;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function hasVetoed(
-        uint256 _proposalId,
-        address _voter
-    ) public view returns (bool) {
+    function hasVetoed(uint256 _proposalId, address _voter) public view returns (bool) {
         return proposals[_proposalId].vetoVoters[_voter];
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function canVeto(
-        uint256 _proposalId,
-        address _voter
-    ) public view virtual returns (bool) {
+    function canVeto(uint256 _proposalId, address _voter) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         // The proposal vote hasn't started or has already ended.
@@ -230,12 +201,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // The voter has no voting power.
-        if (
-            votingToken.getPastVotes(
-                _voter,
-                proposal_.parameters.snapshotBlock
-            ) == 0
-        ) {
+        if (votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock) == 0) {
             return false;
         }
 
@@ -243,9 +209,7 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function canExecute(
-        uint256 _proposalId
-    ) public view virtual returns (bool) {
+    function canExecute(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         // Verify that the vote has not been executed already.
@@ -265,9 +229,7 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function isMinVetoRatioReached(
-        uint256 _proposalId
-    ) public view virtual returns (bool) {
+    function isMinVetoRatioReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         return proposal_.vetoTally >= proposal_.parameters.minVetoVotingPower;
@@ -296,9 +258,7 @@ contract OptimisticTokenVotingPlugin is
     /// @return vetoTally The current voting power used to veto the proposal.
     /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
     /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
-    function getProposal(
-        uint256 _proposalId
-    )
+    function getProposal(uint256 _proposalId)
         public
         view
         virtual
@@ -336,12 +296,8 @@ contract OptimisticTokenVotingPlugin is
             if (minProposerVotingPower_ != 0) {
                 // Because of the checks in `OptimisticTokenVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
                 if (
-                    votingToken.getVotes(_msgSender()) <
-                    minProposerVotingPower_ &&
-                    IERC20Upgradeable(address(votingToken)).balanceOf(
-                        _msgSender()
-                    ) <
-                    minProposerVotingPower_
+                    votingToken.getVotes(_msgSender()) < minProposerVotingPower_
+                        && IERC20Upgradeable(address(votingToken)).balanceOf(_msgSender()) < minProposerVotingPower_
                 ) {
                     revert ProposalCreationForbidden(_msgSender());
                 }
@@ -376,21 +332,23 @@ contract OptimisticTokenVotingPlugin is
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
         proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
-        proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(
-            totalVotingPower_,
-            minVetoRatio()
-        );
+        proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(totalVotingPower_, minVetoRatio());
 
         // Save gas
         if (_allowFailureMap != 0) {
             proposal_.allowFailureMap = _allowFailureMap;
         }
 
-        for (uint256 i; i < _actions.length; ) {
+        for (uint256 i; i < _actions.length;) {
             proposal_.actions.push(_actions[i]);
             unchecked {
                 ++i;
             }
+        }
+
+        // For emergency multisig: execute if already possible
+        if (canExecute(proposalId)) {
+            execute(proposalId);
         }
     }
 
@@ -399,19 +357,13 @@ contract OptimisticTokenVotingPlugin is
         address _voter = _msgSender();
 
         if (!canVeto(_proposalId, _voter)) {
-            revert ProposalVetoingForbidden({
-                proposalId: _proposalId,
-                account: _voter
-            });
+            revert ProposalVetoingForbidden({proposalId: _proposalId, account: _voter});
         }
 
         Proposal storage proposal_ = proposals[_proposalId];
 
         // This could re-enter, though we can assume the governance token is not malicious
-        uint256 votingPower = votingToken.getPastVotes(
-            _voter,
-            proposal_.parameters.snapshotBlock
-        );
+        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock);
 
         // Not checking if the voter already voted, since canVeto() did it above
 
@@ -419,11 +371,7 @@ contract OptimisticTokenVotingPlugin is
         proposal_.vetoTally += votingPower;
         proposal_.vetoVoters[_voter] = true;
 
-        emit VetoCast({
-            proposalId: _proposalId,
-            voter: _voter,
-            votingPower: votingPower
-        });
+        emit VetoCast({proposalId: _proposalId, voter: _voter, votingPower: votingPower});
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -434,49 +382,36 @@ contract OptimisticTokenVotingPlugin is
 
         proposals[_proposalId].executed = true;
 
-        _executeProposal(
-            dao(),
-            _proposalId,
-            proposals[_proposalId].actions,
-            proposals[_proposalId].allowFailureMap
-        );
+        _executeProposal(dao(), _proposalId, proposals[_proposalId].actions, proposals[_proposalId].allowFailureMap);
     }
 
     /// @notice Updates the governance settings.
     /// @param _governanceSettings The new governance settings.
-    function updateOptimisticGovernanceSettings(
-        OptimisticGovernanceSettings calldata _governanceSettings
-    ) public virtual auth(UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID) {
+    function updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings)
+        public
+        virtual
+        auth(UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID)
+    {
         _updateOptimisticGovernanceSettings(_governanceSettings);
     }
 
     /// @notice Internal implementation
-    function _updateOptimisticGovernanceSettings(
-        OptimisticGovernanceSettings calldata _governanceSettings
-    ) internal {
+    function _updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings) internal {
         // Require the minimum veto ratio value to be in the interval [0, 10^6], because `>=` comparision is used.
         if (_governanceSettings.minVetoRatio == 0) {
-            revert RatioOutOfBounds({
-                limit: 1,
-                actual: _governanceSettings.minVetoRatio
-            });
+            revert RatioOutOfBounds({limit: 1, actual: _governanceSettings.minVetoRatio});
         } else if (_governanceSettings.minVetoRatio > RATIO_BASE) {
-            revert RatioOutOfBounds({
-                limit: RATIO_BASE,
-                actual: _governanceSettings.minVetoRatio
-            });
+            revert RatioOutOfBounds({limit: RATIO_BASE, actual: _governanceSettings.minVetoRatio});
         }
 
-        if (_governanceSettings.minDuration < 4 days) {
-            revert MinDurationOutOfBounds({
-                limit: 4 days,
-                actual: _governanceSettings.minDuration
-            });
-        } else if (_governanceSettings.minDuration > 365 days) {
-            revert MinDurationOutOfBounds({
-                limit: 365 days,
-                actual: _governanceSettings.minDuration
-            });
+        // MinDuration is not constrained on the lower side, since the emergency plugin needs to submit
+        // direct proposals after a super majority has approved them.
+
+        // StandardProposalCondition.sol ensures that all proposals created via the standard Multisig have
+        // the expected minimum duration.
+
+        if (_governanceSettings.minDuration > 365 days) {
+            revert MinDurationOutOfBounds({limit: 365 days, actual: _governanceSettings.minDuration});
         }
 
         governanceSettings = _governanceSettings;
@@ -491,23 +426,17 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Internal function to check if a proposal vote is open.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal vote is open, false otherwise.
-    function _isProposalOpen(
-        Proposal storage proposal_
-    ) internal view virtual returns (bool) {
+    function _isProposalOpen(Proposal storage proposal_) internal view virtual returns (bool) {
         uint64 currentTime = block.timestamp.toUint64();
 
-        return
-            proposal_.parameters.startDate <= currentTime &&
-            currentTime < proposal_.parameters.endDate &&
-            !proposal_.executed;
+        return proposal_.parameters.startDate <= currentTime && currentTime < proposal_.parameters.endDate
+            && !proposal_.executed;
     }
 
     /// @notice Internal function to check if a proposal already ended.
     /// @param proposal_ The proposal struct.
     /// @return True if the end date of the proposal is already in the past, false otherwise.
-    function _isProposalEnded(
-        Proposal storage proposal_
-    ) internal view virtual returns (bool) {
+    function _isProposalEnded(Proposal storage proposal_) internal view virtual returns (bool) {
         uint64 currentTime = block.timestamp.toUint64();
 
         return currentTime >= proposal_.parameters.endDate;
@@ -518,10 +447,12 @@ contract OptimisticTokenVotingPlugin is
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
     /// @return startDate The validated start date of the proposal vote.
     /// @return endDate The validated end date of the proposal vote.
-    function _validateProposalDates(
-        uint64 _start,
-        uint64 _end
-    ) internal view virtual returns (uint64 startDate, uint64 endDate) {
+    function _validateProposalDates(uint64 _start, uint64 _end)
+        internal
+        view
+        virtual
+        returns (uint64 startDate, uint64 endDate)
+    {
         uint64 currentTimestamp = block.timestamp.toUint64();
 
         if (_start == 0) {
@@ -530,10 +461,7 @@ contract OptimisticTokenVotingPlugin is
             startDate = _start;
 
             if (startDate < currentTimestamp) {
-                revert DateOutOfBounds({
-                    limit: currentTimestamp,
-                    actual: startDate
-                });
+                revert DateOutOfBounds({limit: currentTimestamp, actual: startDate});
             }
         }
 
@@ -545,10 +473,7 @@ contract OptimisticTokenVotingPlugin is
             endDate = _end;
 
             if (endDate < earliestEndDate) {
-                revert DateOutOfBounds({
-                    limit: earliestEndDate,
-                    actual: endDate
-                });
+                revert DateOutOfBounds({limit: earliestEndDate, actual: endDate});
             }
         }
     }

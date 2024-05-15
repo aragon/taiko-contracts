@@ -42,6 +42,7 @@ contract MultisigTest is AragonTest {
     );
     event Approved(uint256 indexed proposalId, address indexed approver);
     event Executed(uint256 indexed proposalId);
+    event Upgraded(address indexed implementation);
 
     function setUp() public {
         vm.startPrank(alice);
@@ -49,7 +50,7 @@ contract MultisigTest is AragonTest {
         (dao, plugin, optimisticPlugin) = makeDaoWithMultisigAndOptimistic(alice);
     }
 
-    function test_RevertsIfTryingToReinitializa() public {
+    function test_RevertsIfTryingToReinitialize() public {
         // Deploy a new multisig instance
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: true,
@@ -1397,7 +1398,7 @@ contract MultisigTest is AragonTest {
     }
 
     function test_RevertsWhenCreatorWasListedBeforeButNotNow() public {
-        // reverts if `_msgSender` is not listed before although she was listed in the last block
+        // reverts if `_msgSender` is not listed although she was listed in the last block
 
         // Deploy a new multisig instance
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
@@ -1964,6 +1965,8 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
     }
 
+    // APPROVE
+
     function test_ApproveRevertsIfApprovingMultipleTimes() public {
         // reverts when approving multiple times
 
@@ -2022,8 +2025,6 @@ contract MultisigTest is AragonTest {
         vm.stopPrank();
         vm.startPrank(alice);
     }
-
-    // APPROVE
 
     function test_ApprovesWithTheSenderAddress() public {
         // approves with the msg.sender address
@@ -2140,7 +2141,6 @@ contract MultisigTest is AragonTest {
         // Approving a proposal emits the Approved event
 
         vm.roll(block.number + 1);
-        vm.warp(10); // timestamp = 10
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint pid = plugin.createProposal(
@@ -3826,5 +3826,67 @@ contract MultisigTest is AragonTest {
         assertEq(actions[0].data, hex"223344556677", "Incorrect data");
 
         assertEq(allowFailureMap, 0, "Should be 0");
+    }
+
+    // Upgrade plugin
+
+    function test_UpgradeToRevertsWhenCalledFromNonUpgrader() public {
+        address _newImplementation = address(new Multisig());
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID()
+            )
+        );
+
+        plugin.upgradeTo(_newImplementation);
+
+        assertEq(plugin.implementation(), address(MULTISIG_BASE));
+    }
+
+    function test_UpgradeToAndCallRevertsWhenCalledFromNonUpgrader() public {
+        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        address _newImplementation = address(new Multisig());
+
+        Multisig.MultisigSettings memory settings =
+            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationMinDuration: 14 days});
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID()
+            )
+        );
+        plugin.upgradeToAndCall(_newImplementation, abi.encodeCall(Multisig.updateMultisigSettings, (settings)));
+
+        assertEq(plugin.implementation(), address(MULTISIG_BASE));
+    }
+
+    function test_UpgradeToSucceedsWhenCalledFromUpgrader() public {
+        dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+
+        address _newImplementation = address(new Multisig());
+
+        vm.expectEmit();
+        emit Upgraded(_newImplementation);
+
+        plugin.upgradeTo(_newImplementation);
+
+        assertEq(plugin.implementation(), address(_newImplementation));
+    }
+
+    function test_UpgradeToAndCallSucceedsWhenCalledFromUpgrader() public {
+        dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+
+        address _newImplementation = address(new Multisig());
+
+        vm.expectEmit();
+        emit Upgraded(_newImplementation);
+
+        Multisig.MultisigSettings memory settings =
+            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationMinDuration: 14 days});
+        plugin.upgradeToAndCall(_newImplementation, abi.encodeCall(Multisig.updateMultisigSettings, (settings)));
+
+        assertEq(plugin.implementation(), address(_newImplementation));
     }
 }

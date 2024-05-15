@@ -21,31 +21,20 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     }
 
     /// @inheritdoc IPluginSetup
-    function prepareInstallation(
-        address _dao,
-        bytes calldata _data
-    )
+    function prepareInstallation(address _dao, bytes calldata _data)
         external
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
         // Decode `_data` to extract the params needed for deploying and initializing `EmergencyMultisig` plugin.
-        (
-            address[] memory members,
-            EmergencyMultisig.MultisigSettings memory multisigSettings
-        ) = decodeInstallationParams(_data);
+        (EmergencyMultisig.MultisigSettings memory multisigSettings) = decodeInstallationParams(_data);
 
         // Prepare and Deploy the plugin proxy.
         plugin = createERC1967Proxy(
-            address(multisigBase),
-            abi.encodeCall(
-                EmergencyMultisig.initialize,
-                (IDAO(_dao), members, multisigSettings)
-            )
+            address(multisigBase), abi.encodeCall(EmergencyMultisig.initialize, (IDAO(_dao), multisigSettings))
         );
 
         // Prepare permissions
-        PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](3);
+        PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](3);
 
         // Set permissions to be granted.
         // Grant the list of permissions of the plugin to the DAO.
@@ -69,25 +58,15 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     }
 
     /// @inheritdoc IPluginSetup
-    function prepareUpdate(
-        address _dao,
-        uint16 _currentBuild,
-        SetupPayload calldata _payload
-    )
+    function prepareUpdate(address _dao, uint16 _currentBuild, SetupPayload calldata _payload)
         external
         pure
         override
-        returns (
-            bytes memory initData,
-            PreparedSetupData memory preparedSetupData
-        )
+        returns (bytes memory initData, PreparedSetupData memory preparedSetupData)
     {}
 
     /// @inheritdoc IPluginSetup
-    function prepareUninstallation(
-        address _dao,
-        SetupPayload calldata _payload
-    )
+    function prepareUninstallation(address _dao, SetupPayload calldata _payload)
         external
         view
         returns (PermissionLib.MultiTargetPermission[] memory permissions)
@@ -127,19 +106,11 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
-    function decodeInstallationParams(
-        bytes memory _data
-    )
+    function decodeInstallationParams(bytes memory _data)
         public
         pure
-        returns (
-            address[] memory _members,
-            EmergencyMultisig.MultisigSettings memory _multisigSettings
-        )
+        returns (EmergencyMultisig.MultisigSettings memory _multisigSettings)
     {
-        (_members, _multisigSettings) = abi.decode(
-            _data,
-            (address[], EmergencyMultisig.MultisigSettings)
-        );
+        (_multisigSettings) = abi.decode(_data, (EmergencyMultisig.MultisigSettings));
     }
 }

@@ -33,44 +33,32 @@ contract StandardProposalCondition is ERC165, IPermissionCondition {
     /// @notice Checks if an interface is supported by this or its parent contract.
     /// @param _interfaceId The ID of the interface.
     /// @return Returns `true` if the interface is supported.
-    function supportsInterface(
-        bytes4 _interfaceId
-    ) public view virtual override returns (bool) {
-        return
-            _interfaceId == type(IPermissionCondition).interfaceId ||
-            super.supportsInterface(_interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return _interfaceId == type(IPermissionCondition).interfaceId || super.supportsInterface(_interfaceId);
     }
 
-    function isGranted(
-        address _where,
-        address _who,
-        bytes32 _permissionId,
-        bytes calldata _data
-    ) external view returns (bool isPermitted) {
+    function isGranted(address _where, address _who, bytes32 _permissionId, bytes calldata _data)
+        external
+        view
+        returns (bool isPermitted)
+    {
         (_where, _who, _permissionId);
 
         // Is it createProposal()?
-        if (
-            _getSelector(_data) !=
-            OptimisticTokenVotingPlugin.createProposal.selector
-        ) {
+        if (_getSelector(_data) != OptimisticTokenVotingPlugin.createProposal.selector) {
             return false;
         }
 
         // Decode proposal params
-        (, , , uint64 _startDate, uint64 _endDate) = abi.decode(
-            _data[4:],
-            (bytes, IDAO.Action[], uint256, uint64, uint64)
-        );
+        (,,, uint64 _startDate, uint64 _endDate) =
+            abi.decode(_data[4:], (bytes, IDAO.Action[], uint256, uint64, uint64));
         if (_endDate <= _startDate) return false;
         else if (_endDate - _startDate < minDelay) return false;
 
         return true;
     }
 
-    function _getSelector(
-        bytes memory _data
-    ) internal pure returns (bytes4 selector) {
+    function _getSelector(bytes memory _data) internal pure returns (bytes4 selector) {
         // Slices are only supported for bytes calldata, not bytes memory
         // Bytes memory requires an assembly block
         assembly {
