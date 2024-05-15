@@ -75,10 +75,6 @@ contract OptimisticTokenVotingPlugin is
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
-    /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 public constant OPTIMISTIC_GOVERNANCE_INTERFACE_ID =
-        this.initialize.selector ^ this.getProposal.selector ^ this.updateOptimisticGovernanceSettings.selector;
-
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 

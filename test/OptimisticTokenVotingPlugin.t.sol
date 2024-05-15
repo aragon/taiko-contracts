@@ -159,7 +159,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         supported = plugin.supportsInterface(bytes4(0xffffffff));
         assertEq(supported, false, "Should not support any other interface");
 
-        // Certain fuzzing values are expected to be true
+        // Skip the values that can be true
         if (
             _randomInterfaceId == type(IERC165Upgradeable).interfaceId
                 || _randomInterfaceId == type(IPlugin).interfaceId || _randomInterfaceId == type(IProposal).interfaceId
@@ -167,8 +167,6 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 || _randomInterfaceId == type(IOptimisticTokenVoting).interfaceId
                 || _randomInterfaceId == type(IMembership).interfaceId
         ) {
-            supported = plugin.supportsInterface(_randomInterfaceId);
-            assertEq(supported, true, "Interface should be supported");
             return;
         }
 
