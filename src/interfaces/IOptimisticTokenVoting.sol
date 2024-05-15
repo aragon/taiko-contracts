@@ -12,12 +12,28 @@ interface IOptimisticTokenVoting {
     /// @notice getter function for the voting token.
     /// @dev public function also useful for registering interfaceId and for distinguishing from majority voting interface.
     /// @return The token used for voting.
-    function getVotingToken() external view returns (IVotesUpgradeable);
+    function votingToken() external view returns (IVotesUpgradeable);
 
     /// @notice Returns the total voting power checkpointed for a specific block number.
-    /// @param _blockNumber The block number.
+    /// @param _timestamp The target timestamp.
     /// @return The total voting power.
-    function totalVotingPower(uint256 _blockNumber) external view returns (uint256);
+    function totalVotingPower(uint256 _timestamp) external view returns (uint256);
+
+    /// @notice Returns the total voting power bridged to the L2 at the given timestamp.
+    /// @dev This assumes that the Taiko Bridge is delegating to itself.
+    /// @param _timestamp The target timestamp.
+    /// @return The total bridged voting power.
+    function bridgedVotingPower(uint256 _timestamp) external view returns (uint256);
+
+    /// @notice Returns the effective voting power that can vote at the given timestamp.
+    /// @dev This assumes that the Taiko Bridge is delegating to itself.
+    /// @param _timestamp The target timestamp.
+    /// @param _isL2Available Whether the L2 can be part of the voting power or not.
+    /// @return The total bridged voting power.
+    function effectiveVotingPower(uint256 _timestamp, bool _isL2Available) external view returns (uint256);
+
+    /// @notice Returns true is the L2 is currently available.
+    function isL2Available() external view returns (bool);
 
     /// @notice Returns the veto ratio parameter stored in the optimistic governance settings.
     /// @return The veto ratio parameter.

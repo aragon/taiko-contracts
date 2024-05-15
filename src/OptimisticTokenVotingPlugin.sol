@@ -14,10 +14,11 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {ITaikoEssentialContract} from "./interfaces/ITaikoEssentialContract.sol";
+import {TaikoL1, TaikoData} from "./adapted-dependencies/TaikoL1.sol";
 // import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 uint64 constant L2_AGGREGATION_PERIOD = 3 days;
+uint64 constant L2_INACTIVITY_PERIOD = 10 minutes;
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -63,15 +64,15 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A container for the proposal parameters at the time of proposal creation.
     /// @param startDate The start date of the proposal vote.
     /// @param endDate The end date of the proposal vote.
-    /// @param snapshotTimestamp The number of the block prior to the proposal creation.
+    /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
-    /// @param taikoL1PausedOnCreation Whether the Taiko L1 was paused when the proposal was created.
+    /// @param unavailableL2WhenCreated Whether the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
         uint64 startDate;
         uint64 endDate;
         uint64 snapshotTimestamp;
         uint32 minVetoRatio;
-        bool taikoL1PausedOnCreation;
+        bool unavailableL2WhenCreated;
     }
 
     /// @notice The ID of the permission required to create a proposal.
@@ -90,8 +91,8 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The struct storing the governance settings.
     OptimisticGovernanceSettings public governanceSettings;
 
-    /// @notice Taiko L1 contract to check for paused() status when a proposal is created.
-    ITaikoEssentialContract public taikoL1;
+    /// @notice Taiko L1 contract to check the status from.
+    TaikoL1 public taikoL1;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -146,7 +147,7 @@ contract OptimisticTokenVotingPlugin is
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
-        ITaikoEssentialContract _taikoL1,
+        TaikoL1 _taikoL1,
         address _taikoBridge
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
@@ -173,13 +174,37 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function getVotingToken() public view returns (IVotesUpgradeable) {
-        return votingToken;
+    function totalVotingPower(uint256 _timestamp) public view returns (uint256) {
+        return votingToken.getPastTotalSupply(_timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function totalVotingPower(uint256 _blockNumber) public view returns (uint256) {
-        return votingToken.getPastTotalSupply(_blockNumber);
+    function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
+        return votingToken.getPastVotes(taikoBridge, _timestamp);
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function effectiveVotingPower(uint256 _timestamp, bool _isL2Available) public view returns (uint256) {
+        uint256 _totalVotingPower = totalVotingPower(_timestamp);
+        if (!_isL2Available) {
+            return _totalVotingPower - bridgedVotingPower(_timestamp);
+        }
+        return _totalVotingPower;
+    }
+
+    /// @notice Determines whether the L2 is currently available
+    function isL2Available() public view returns (bool) {
+        if (taikoL1.paused()) return false;
+
+        uint64 _id = taikoL1.slotB().numBlocks;
+        // No L2 blocks yet
+        if (_id == 0) return false;
+
+        // The last L2 block is too old
+        TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
+        if (_block.proposedAt < (block.timestamp - L2_INACTIVITY_PERIOD)) return false;
+
+        return true;
     }
 
     /// @inheritdoc IMembership
@@ -228,7 +253,7 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
         // Check if L2 bridged vetoes are still possible
-        else if (_canReceiveL2Vetoes(proposal_)) {
+        else if (_proposalL2VetoingOpen(proposal_)) {
             return false;
         }
         // Check that not enough voters have vetoed the proposal
@@ -242,12 +267,9 @@ contract OptimisticTokenVotingPlugin is
     /// @inheritdoc IOptimisticTokenVoting
     function isMinVetoRatioReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
-        uint256 totalVotingPower_ = totalVotingPower(proposal_.parameters.snapshotTimestamp);
-        if (_isOnlyL1(proposal_)) {
-            // L2 tokens won't be fully accountable. Subtracting the bridged supply to compute relative to L1 only.
-            totalVotingPower_ -= IERC20Upgradeable(address(votingToken)).balanceOf(taikoBridge);
-        }
 
+        uint256 totalVotingPower_ =
+            effectiveVotingPower(proposal_.parameters.snapshotTimestamp, _proposalCanUseL2VotingPower(proposal_));
         uint256 _minVetoPower = _applyRatioCeiled(totalVotingPower_, proposal_.parameters.minVetoRatio);
         return proposal_.vetoTally >= _minVetoPower;
     }
@@ -306,14 +328,8 @@ contract OptimisticTokenVotingPlugin is
             snapshotTimestamp = block.timestamp - 1; // The snapshot timestamp must in the past to protect the transaction against backrunning transactions causing census changes.
         }
 
-        uint256 totalVotingPower_ = totalVotingPower(snapshotTimestamp);
-        bool isTaikoL1Paused = taikoL1.paused();
-
-        if (isTaikoL1Paused) {
-            totalVotingPower_ -= IERC20Upgradeable(address(votingToken)).balanceOf(taikoBridge);
-        }
-
-        if (totalVotingPower_ == 0) {
+        bool _isL2Available = isL2Available();
+        if (effectiveVotingPower(snapshotTimestamp, _isL2Available) == 0) {
             revert NoVotingPower();
         }
 
@@ -335,7 +351,7 @@ contract OptimisticTokenVotingPlugin is
         proposal_.parameters.endDate = _endDate;
         proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoRatio = minVetoRatio();
-        proposal_.parameters.taikoL1PausedOnCreation = isTaikoL1Paused;
+        proposal_.parameters.unavailableL2WhenCreated = !_isL2Available;
 
         // Save gas
         if (_allowFailureMap != 0) {
@@ -491,23 +507,27 @@ contract OptimisticTokenVotingPlugin is
         return currentTime >= proposal_.parameters.endDate;
     }
 
-    /// @notice Determines whether the proposal is considered L1 only or not
+    /// @notice Determines whether the proposal has L2 voting enabled or not.
     /// @param proposal_ The proposal
-    function _isOnlyL1(Proposal storage proposal_) internal view returns (bool) {
-        if (proposal_.parameters.taikoL1PausedOnCreation) {
+    function _proposalCanUseL2VotingPower(Proposal storage proposal_) internal view returns (bool) {
+        if (_proposalL2VetoingOpen(proposal_)) {
             return true;
-        } else if (!_canReceiveL2Vetoes(proposal_)) {
-            return proposal_.aggregatedL2Balance == 0;
         }
-        return false;
+
+        // No more L2 vetoes can be registered
+        // return false if no L2 votes have been aggregated until now
+        return proposal_.aggregatedL2Balance > 0;
     }
 
     /// @notice Internal function to check if a proposal may still receive L2 vetoes.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal may still receive L2 bridged votes, false otherwise.
-    function _canReceiveL2Vetoes(Proposal storage proposal_) internal view virtual returns (bool) {
-        uint64 currentTime = block.timestamp.toUint64();
+    function _proposalL2VetoingOpen(Proposal storage proposal_) internal view virtual returns (bool) {
+        if (proposal_.parameters.unavailableL2WhenCreated) {
+            return false;
+        }
 
+        uint64 currentTime = block.timestamp.toUint64();
         return currentTime >= proposal_.parameters.startDate
             && currentTime < proposal_.parameters.endDate + L2_AGGREGATION_PERIOD;
     }
