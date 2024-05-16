@@ -63,7 +63,12 @@ contract AragonTest is Test {
         TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         OptimisticTokenVotingPlugin optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -117,7 +122,9 @@ contract AragonTest is Test {
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: uint32(RATIO_BASE / 10),
-                minDuration: 4 days
+                minDuration: 4 days,
+                l2InactivityPeriod: 10 minutes,
+                l2AggregationGracePeriod: 2 days
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
@@ -134,7 +141,7 @@ contract AragonTest is Test {
         {
             // Deploy a new multisig instance
             Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
@@ -187,7 +194,9 @@ contract AragonTest is Test {
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: uint32(RATIO_BASE / 10),
-                minDuration: 0
+                minDuration: 0,
+                l2InactivityPeriod: 10 minutes,
+                l2AggregationGracePeriod: 2 days
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
@@ -204,7 +213,7 @@ contract AragonTest is Test {
         {
             // Deploy a new multisig instance
             Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;

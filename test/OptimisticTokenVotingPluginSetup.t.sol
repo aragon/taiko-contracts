@@ -57,7 +57,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         // Default params
         votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 5 days
+            minDuration: 5 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceERC20Base),
@@ -96,7 +98,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         // Custom 1
         votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 5),
-            minDuration: 60 * 60 * 24 * 5
+            minDuration: 60 * 60 * 24 * 5,
+            l2InactivityPeriod: 20 minutes,
+            l2AggregationGracePeriod: 20 days
         });
         bytes memory output = pluginSetup.encodeInstallationParams(
             OptimisticTokenVotingPluginSetup.InstallationParameters(
@@ -192,7 +196,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_ShouldDecodeInstallationParams_1() public {
         votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 4),
-            minDuration: 10 days
+            minDuration: 10 days,
+            l2InactivityPeriod: 22 minutes,
+            l2AggregationGracePeriod: 22 days
         });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
@@ -260,7 +266,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_ShouldDecodeInstallationParams_2() public {
         votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 5),
-            minDuration: 12 days
+            minDuration: 12 days,
+            l2InactivityPeriod: 44 minutes,
+            l2AggregationGracePeriod: 44 days
         });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
@@ -416,7 +424,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_PrepareInstallationReturnsTheProperPermissions_UseToken() public {
         votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 4),
-            minDuration: 10 days
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(governanceWrappedERC20Base),
@@ -510,7 +520,9 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_PrepareInstallationReturnsTheProperPermissions_MintToken() public {
         votingSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 4),
-            minDuration: 10 days
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
             addr: address(0x0),

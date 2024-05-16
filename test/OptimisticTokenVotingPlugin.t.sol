@@ -49,7 +49,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     // Initialize
     function test_InitializeRevertsIfInitialized() public {
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         vm.expectRevert(bytes("Initializable: contract is already initialized"));
         plugin.initialize(dao, settings, votingToken, taikoL1, taikoBridge);
@@ -58,7 +63,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_InitializeSetsTheProperValues() public {
         // Initial settings
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
@@ -115,7 +125,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_InitializeEmitsEvent() public {
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         vm.expectEmit();
         emit Initialized(uint8(1));
@@ -175,7 +190,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Deploy a new plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -207,7 +227,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Deploy a new plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -231,7 +256,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // New plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -250,7 +280,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // New plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 25 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 25 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -279,7 +314,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Deploy a new plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -305,12 +345,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 DaoUnauthorized.selector, address(dao), address(plugin), bob, plugin.PROPOSER_PERMISSION_ID()
             )
         );
-        plugin.createProposal("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0);
 
         vm.stopPrank();
         vm.startPrank(alice);
 
-        plugin.createProposal("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0);
     }
 
     function test_CreateProposalSucceedsWhenMinimumVotingPowerIsZero() public {
@@ -321,8 +361,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.startPrank(bob);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId1 = plugin.createProposal("", actions, 0, 0, 0);
-        uint256 proposalId2 = plugin.createProposal("", actions, 0, 0, 0);
+        uint256 proposalId1 = plugin.createProposal("", actions, 0, 0);
+        uint256 proposalId2 = plugin.createProposal("", actions, 0, 0);
         assertEq(proposalId1 + 1, proposalId2, "Should be +1");
     }
 
@@ -338,7 +378,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // Deploy a new plugin instance
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
@@ -351,76 +396,55 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Try to create
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
-        plugin.createProposal("", actions, 0, 0, 0);
-    }
-
-    function test_CreateProposalRevertsIfTheStartDateIsAfterTheEndDate() public {
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint32 startDate = 200000;
-        uint32 endDate = 10;
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPlugin.DateOutOfBounds.selector, startDate + 10 days, endDate)
-        );
-        plugin.createProposal("", actions, 0, startDate, endDate);
-    }
-
-    function test_CreateProposalRevertsIfStartDateIsInThePast() public {
-        setTime(10); // timestamp = 10
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPlugin.DateOutOfBounds.selector, block.timestamp, 1)
-        );
-        uint32 startDate = 1;
-        plugin.createProposal("", actions, 0, startDate, startDate + 10 days);
+        plugin.createProposal("", actions, 0, 0);
     }
 
     function test_CreateProposalRevertsIfEndDateIsEarlierThanMinDuration() public {
         setTime(500); // timestamp = 500
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint32 startDate = 1000;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                OptimisticTokenVotingPlugin.DateOutOfBounds.selector, startDate + 10 days, startDate + 10 minutes
-            )
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.DateOutOfBounds.selector, 10 days, 10 minutes)
         );
-        plugin.createProposal("", actions, 0, startDate, startDate + 10 minutes);
+        plugin.createProposal("", actions, 0, 10 minutes);
     }
 
-    function test_CreateProposalStartsNowWhenStartDateIsZero() public {
+    function test_CreateProposalStartsNow() public {
         setTime(500);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint32 startDate = 0;
-        uint256 proposalId = plugin.createProposal("", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0);
 
-        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) = plugin.getProposal(proposalId);
-        assertEq(500, parameters.startDate, "Incorrect startDate");
+        (bool _open,,,,,) = plugin.getProposal(proposalId);
+        assertEq(_open, true, "Incorrect open status");
     }
 
-    function test_CreateProposalEndsAfterMinDurationWhenEndDateIsZero() public {
+    function test_CreateProposalEndsAfterMinDuration() public {
         setTime(500);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint32 startDate = 0;
-        uint32 endDate = 0;
-        uint256 proposalId = plugin.createProposal("", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0);
 
+        timeForward(10 days);
         (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) = plugin.getProposal(proposalId);
-        assertEq(500 + 10 days, parameters.endDate, "Incorrect endDate");
+        assertEq(500 + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
     }
 
     function test_CreateProposalUsesTheCurrentMinVetoRatio() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0);
 
         (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) = plugin.getProposal(proposalId);
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
 
         // Now with a different value
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
@@ -431,7 +455,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
 
         dao.grant(address(plugin), alice, plugin.PROPOSER_PERMISSION_ID());
-        proposalId = plugin.createProposal("", actions, 0, 0, 0);
+        proposalId = plugin.createProposal("", actions, 0, 0);
         (,, parameters,,,) = plugin.getProposal(proposalId);
         assertEq(parameters.minVetoRatio, 200_000, "Incorrect minVetoRatio");
     }
@@ -439,11 +463,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_CreateProposalReturnsTheProposalId() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
 
-        uint256 proposalId = plugin.createProposal("", actions, 0, 0, 0);
+        uint256 proposalId = plugin.createProposal("", actions, 0, 0);
         uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
         assertEq(proposalId, expectedPid, "Should have created proposal 0");
 
-        proposalId = plugin.createProposal("", actions, 0, 0, 0);
+        proposalId = plugin.createProposal("", actions, 0, 0);
         expectedPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64) + 1;
         assertEq(proposalId, expectedPid, "Should have created proposal 1");
     }
@@ -456,15 +480,15 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         emit ProposalCreated(
             expectedPid, alice, uint64(block.timestamp), uint64(block.timestamp + 10 days), "", actions, 0
         );
-        plugin.createProposal("", actions, 0, 0, 0);
+        plugin.createProposal("", actions, 0, 0);
     }
 
     function test_ParseProposalIdReturnsTheRightValues() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId1 = plugin.createProposal("", actions, 0, 0, 0);
+        uint256 proposalId1 = plugin.createProposal("", actions, 0, 0);
 
         timeForward(23456);
-        uint256 proposalId2 = plugin.createProposal("", actions, 0, 0, 0);
+        uint256 proposalId2 = plugin.createProposal("", actions, 0, 0);
 
         (uint256 counter1, uint64 startDate1, uint64 endDate1) = plugin.parseProposalId(proposalId1);
         (uint256 counter2, uint64 startDate2, uint64 endDate2) = plugin.parseProposalId(proposalId2);
@@ -477,8 +501,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_GetProposalReturnsTheRightValues() public {
         setTime(500);
-        uint32 startDate = 600;
-        uint32 endDate = startDate + 15 days;
+        uint32 vetoPeriod = 15 days;
 
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].to = address(plugin);
@@ -486,13 +509,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         actions[0].data = abi.encodeCall(OptimisticTokenVotingPlugin.totalVotingPower, (0));
         uint256 failSafeBitmap = 1;
 
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, failSafeBitmap, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, failSafeBitmap, vetoPeriod);
 
         (bool open0,,,,,) = plugin.getProposal(proposalId);
         assertEq(open0, false, "The proposal should not be open");
 
         // Move on
-        setTime(startDate);
+        setTime(block.timestamp + vetoPeriod);
 
         (
             bool open,
@@ -505,8 +528,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, true, "The proposal should be open");
         assertEq(executed, false, "The proposal should not be executed");
-        assertEq(parameters.startDate, startDate, "Incorrect startDate");
-        assertEq(parameters.endDate, endDate, "Incorrect endDate");
+        assertEq(parameters.vetoEndDate, 500 + 15 days, "Incorrect startDate");
         assertEq(parameters.snapshotTimestamp, 499, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, plugin.totalVotingPower(block.timestamp - 1) / 10, "Incorrect minVetoRatio");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -514,7 +536,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
 
         // Move on
-        setTime(endDate);
+        timeForward(15 days);
 
         (bool open1,,,,,) = plugin.getProposal(proposalId);
         assertEq(open1, false, "The proposal should not be open anymore");
@@ -525,7 +547,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.roll(10);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 0, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 0);
         vm.roll(20);
 
         assertEq(plugin.canVeto(proposalId, alice), true, "Alice should be able to veto");
@@ -536,28 +558,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
     }
 
-    function test_CanVetoReturnsFalseWhenAProposalHasNotStarted() public {
-        uint64 startDate = 50;
-        setTime(startDate - 1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
-
-        // Unstarted
-        assertEq(plugin.canVeto(proposalId, alice), false, "Alice should not be able to veto");
-
-        // Started
-        setTime(startDate + 1);
-        assertEq(plugin.canVeto(proposalId, alice), true, "Alice should be able to veto");
+    function testFuzz_CanVetoReturnsFalseForNonExistingProposals(uint256 _randomProposalId) public view {
+        // Non existing
+        assertEq(plugin.canVeto(_randomProposalId, alice), false, "Alice should not be able to veto");
+        assertEq(plugin.canVeto(_randomProposalId, bob), false, "Bob should not be able to veto");
+        assertEq(plugin.canVeto(_randomProposalId, carol), false, "Carol should not be able to veto");
+        assertEq(plugin.canVeto(_randomProposalId, david), false, "David should not be able to veto");
+        assertEq(plugin.canVeto(_randomProposalId, randomWallet), false, "RandomWallet should not be able to veto");
     }
 
     function test_CanVetoReturnsFalseWhenAVoterAlreadyVetoed() public {
-        uint64 startDate = 50;
-        setTime(startDate - 1);
-
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
-        setTime(startDate + 1);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 10 minutes);
+        timeForward(1);
 
         plugin.veto(proposalId);
 
@@ -570,7 +583,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(endDate + 1);
 
         assertEq(plugin.canVeto(proposalId, alice), false, "Alice should not be able to veto");
@@ -581,7 +594,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(startDate + 1);
 
@@ -597,7 +610,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(startDate + 1);
 
         assertEq(plugin.canVeto(proposalId, alice), true, "Alice should be able to veto");
@@ -610,7 +623,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         vm.roll(20);
 
         // non existing
@@ -627,7 +640,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         // Unstarted
         vm.expectRevert(
@@ -647,7 +660,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(startDate + 1);
 
         assertEq(plugin.hasVetoed(proposalId, alice), false, "Alice should not have vetoed");
@@ -667,7 +680,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(endDate + 1);
 
         vm.expectRevert(
@@ -682,7 +695,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(startDate + 1);
 
@@ -709,7 +722,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(startDate + 1);
 
         (,,, uint256 tally1,,) = plugin.getProposal(proposalId);
@@ -727,7 +740,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(startDate + 1);
 
         vm.expectEmit();
@@ -741,7 +754,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, 0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
         setTime(startDate + 1);
 
         assertEq(plugin.hasVetoed(proposalId, alice), false, "Alice should not have vetoed");
@@ -752,11 +765,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     // Can execute
     function test_CanExecuteReturnsFalseWhenNotEnded() public {
         uint64 startDate = 50;
-        uint64 endDate = startDate + 10 days;
+        // uint64 endDate = startDate + 10 days;
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         assertEq(plugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
 
@@ -774,7 +787,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         assertEq(plugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
 
@@ -794,7 +807,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(endDate + 1);
         assertEq(plugin.canExecute(proposalId), true, "The proposal should be executable");
@@ -810,7 +823,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         assertEq(plugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
 
@@ -847,7 +860,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Deploy a new plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32((RATIO_BASE * 25) / 100), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32((RATIO_BASE * 25) / 100),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -866,11 +884,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         dao.grant(address(plugin), alice, plugin.PROPOSER_PERMISSION_ID());
 
         uint64 startDate = 50;
-        uint64 endDate = startDate + 10 days;
+        // uint64 endDate = startDate + 10 days;
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(startDate + 1);
 
@@ -904,7 +922,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
@@ -931,7 +949,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(startDate + 1);
 
@@ -959,7 +977,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(endDate + 1);
 
@@ -983,7 +1001,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(endDate + 1);
 
@@ -996,7 +1014,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(endDate + 1);
 
@@ -1012,7 +1030,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         setTime(startDate - 1);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate, endDate);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, startDate);
 
         setTime(endDate + 1);
 
@@ -1024,7 +1042,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     // Update settings
     function test_UpdateOptimisticGovernanceSettingsRevertsWhenNoPermission() public {
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 15 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 15 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         vm.expectRevert(
             abi.encodeWithSelector(
                 DaoUnauthorized.selector,
@@ -1044,8 +1067,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_UpdateOptimisticGovernanceSettingsRevertsWhenTheMinVetoRatioIsZero() public {
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings =
-            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({minVetoRatio: 0, minDuration: 10 days});
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+            minVetoRatio: 0,
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, 1, 0));
         plugin.updateOptimisticGovernanceSettings(newSettings);
     }
@@ -1054,7 +1082,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE + 1), minDuration: 10 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE + 1),
+            minDuration: 10 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, RATIO_BASE, uint32(RATIO_BASE + 1)));
         plugin.updateOptimisticGovernanceSettings(newSettings);
     }
@@ -1066,7 +1099,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 4 days - 1});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 4 days - 1,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 4 days - 1)
         );
@@ -1075,7 +1113,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2
         newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 10 hours
+            minDuration: 10 hours,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 10 hours)
@@ -1085,7 +1125,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3
         newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 0 ether
+            minDuration: 0 ether,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 0));
         plugin.updateOptimisticGovernanceSettings(newSettings);
@@ -1095,7 +1137,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 10), minDuration: 365 days + 1 ether});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 365 days + 1 ether,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 365 days, 365 days + 1)
         );
@@ -1104,7 +1151,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2
         newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 500 days
+            minDuration: 500 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 365 days, 500 days)
@@ -1114,7 +1163,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3
         newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 1000 days
+            minDuration: 1000 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 365 days, 1000 days)
@@ -1126,7 +1177,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 15 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 15 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         vm.expectEmit();
         emit OptimisticGovernanceSettingsUpdated({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 15 days});
@@ -1135,14 +1191,22 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_GovernanceSettingsReturnsTheRightValues() public {
-        (uint32 minVetoRatio, uint64 minDuration) = plugin.governanceSettings();
+        (uint32 minVetoRatio, uint64 minDuration, uint64 l2InactivityPeriod, uint64 l2AggregationGracePeriod) =
+            plugin.governanceSettings();
 
         assertEq(minVetoRatio, uint32(RATIO_BASE / 10));
         assertEq(minDuration, 10 days);
+        assertEq(l2InactivityPeriod, 10 minutes);
+        assertEq(l2AggregationGracePeriod, 2 days);
 
         // Deploy a new plugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 2), minDuration: 0});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 2),
+            minDuration: 0,
+            l2InactivityPeriod: 15 minutes,
+            l2AggregationGracePeriod: 73 days
+        });
 
         plugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -1153,23 +1217,29 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration) = plugin.governanceSettings();
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) = plugin.governanceSettings();
         assertEq(minVetoRatio, uint32(RATIO_BASE / 2));
         assertEq(minDuration, 0);
+        assertEq(l2InactivityPeriod, 15 minutes);
+        assertEq(l2AggregationGracePeriod, 73 days);
 
         // updated settings
         dao.grant(address(plugin), alice, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID());
 
         newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 5),
-            minDuration: 15 days
+            minDuration: 15 days,
+            l2InactivityPeriod: 0,
+            l2AggregationGracePeriod: 1234 minutes
         });
 
         plugin.updateOptimisticGovernanceSettings(newSettings);
 
-        (minVetoRatio, minDuration) = plugin.governanceSettings();
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) = plugin.governanceSettings();
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5));
         assertEq(minDuration, 15 days);
+        assertEq(l2InactivityPeriod, 0);
+        assertEq(l2AggregationGracePeriod, 1234 minutes);
     }
 
     // Upgrade plugin
@@ -1193,7 +1263,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         address _newImplementation = address(new OptimisticTokenVotingPlugin());
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 15 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 15 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1232,7 +1307,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         emit Upgraded(_newImplementation);
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({minVetoRatio: uint32(RATIO_BASE / 5), minDuration: 15 days});
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 5),
+            minDuration: 15 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
+        });
         plugin.upgradeToAndCall(
             _newImplementation,
             abi.encodeCall(OptimisticTokenVotingPlugin.updateOptimisticGovernanceSettings, (settings))

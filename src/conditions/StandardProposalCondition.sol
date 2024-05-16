@@ -12,7 +12,7 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 /// @notice An abstract contract for non-upgradeable contracts instantiated via the `new` keyword  to inherit from to support customary permissions depending on arbitrary on-chain state.
 contract StandardProposalCondition is ERC165, IPermissionCondition {
     address dao;
-    uint64 minDelay;
+    uint64 minDuration;
 
     error EmptyDao();
     error EmptyDelay();
@@ -20,14 +20,14 @@ contract StandardProposalCondition is ERC165, IPermissionCondition {
     /**
      *
      * @param _dao The address of the DAO on which permissions are defined
-     * @param _minDelay The minimum amount of seconds to enforce for proposals created
+     * @param _minDuration The minimum amount of seconds to enforce for proposals created
      */
-    constructor(address _dao, uint64 _minDelay) {
+    constructor(address _dao, uint64 _minDuration) {
         if (_dao == address(0)) revert EmptyDao();
-        else if (_minDelay == 0) revert EmptyDelay();
+        else if (_minDuration == 0) revert EmptyDelay();
 
         dao = _dao;
-        minDelay = _minDelay;
+        minDuration = _minDuration;
     }
 
     /// @notice Checks if an interface is supported by this or its parent contract.
@@ -50,10 +50,8 @@ contract StandardProposalCondition is ERC165, IPermissionCondition {
         }
 
         // Decode proposal params
-        (,,, uint64 _startDate, uint64 _endDate) =
-            abi.decode(_data[4:], (bytes, IDAO.Action[], uint256, uint64, uint64));
-        if (_endDate <= _startDate) return false;
-        else if (_endDate - _startDate < minDelay) return false;
+        (,,, uint64 _duration) = abi.decode(_data[4:], (bytes, IDAO.Action[], uint256, uint64));
+        if (_duration < minDuration) return false;
 
         return true;
     }
