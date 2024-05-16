@@ -15,10 +15,7 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {TaikoL1, TaikoData} from "./adapted-dependencies/TaikoL1.sol";
-// import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
-
-uint64 constant L2_AGGREGATION_PERIOD = 3 days;
-uint64 constant L2_INACTIVITY_PERIOD = 10 minutes;
+// import {EssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -38,9 +35,13 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A container for the optimistic majority settings that will be applied as parameters on proposal creation.
     /// @param minVetoRatio The support threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
+    /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
+    /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
         uint64 minDuration;
+        uint64 l2InactivityPeriod;
+        uint64 l2AggregationGracePeriod;
     }
 
     /// @notice A container for proposal-related information.
@@ -96,9 +97,13 @@ contract OptimisticTokenVotingPlugin is
     mapping(uint256 => Proposal) internal proposals;
 
     /// @notice Emitted when the vetoing settings are updated.
-    /// @param minVetoRatio The support threshold value.
+    /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
-    event OptimisticGovernanceSettingsUpdated(uint32 minVetoRatio, uint64 minDuration);
+    /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
+    /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
+    event OptimisticGovernanceSettingsUpdated(
+        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod
+    );
 
     /// @notice Emitted when a veto is cast by a voter.
     /// @param proposalId The ID of the proposal.
@@ -200,9 +205,19 @@ contract OptimisticTokenVotingPlugin is
 
         // The last L2 block is too old
         TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
-        if (_block.proposedAt < (block.timestamp - L2_INACTIVITY_PERIOD)) return false;
+        if (_block.proposedAt < (block.timestamp - governanceSettings.l2InactivityPeriod)) return false;
 
         return true;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minVetoRatio() public view virtual returns (uint32) {
+        return governanceSettings.minVetoRatio;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minDuration() public view virtual returns (uint64) {
+        return governanceSettings.minDuration;
     }
 
     /// @inheritdoc IMembership
@@ -251,6 +266,7 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
         // Check if L2 bridged vetoes are still possible
+        // For emergency multisig proposals with _duration == 0, this will return false because the L2 aggregation is skipped
         else if (_proposalL2VetoingOpen(proposal_)) {
             return false;
         }
@@ -270,16 +286,6 @@ contract OptimisticTokenVotingPlugin is
         uint256 _totalVotingPower = effectiveVotingPower(proposal_.parameters.snapshotTimestamp, _usingL2VotingPower);
         uint256 _minVetoPower = _applyRatioCeiled(_totalVotingPower, proposal_.parameters.minVetoRatio);
         return proposal_.vetoTally >= _minVetoPower;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minVetoRatio() public view virtual returns (uint32) {
-        return governanceSettings.minVetoRatio;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minDuration() public view virtual returns (uint64) {
-        return governanceSettings.minDuration;
     }
 
     /// @notice Returns all information for a proposal vote by its ID.
@@ -488,7 +494,9 @@ contract OptimisticTokenVotingPlugin is
 
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: _governanceSettings.minVetoRatio,
-            minDuration: _governanceSettings.minDuration
+            minDuration: _governanceSettings.minDuration,
+            l2AggregationGracePeriod: _governanceSettings.l2AggregationGracePeriod,
+            l2InactivityPeriod: _governanceSettings.l2InactivityPeriod
         });
     }
 
@@ -528,7 +536,8 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        return block.timestamp.toUint64() < proposal_.parameters.vetoEndDate + L2_AGGREGATION_PERIOD;
+        return
+            block.timestamp.toUint64() < proposal_.parameters.vetoEndDate + governanceSettings.l2AggregationGracePeriod;
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
