@@ -17,7 +17,7 @@ import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/Governa
 import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGovernanceWrappedERC20.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
-import {ITaikoEssentialContract} from "../interfaces/ITaikoEssentialContract.sol";
+import {TaikoL1} from "../adapted-dependencies/TaikoL1.sol";
 // import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 /// @title OptimisticTokenVotingPluginSetup
@@ -53,7 +53,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         TokenSettings tokenSettings;
         // only used for GovernanceERC20 (when token is not passed)
         GovernanceERC20.MintSettings mintSettings;
-        ITaikoEssentialContract taikoL1;
+        TaikoL1 taikoL1;
         address taikoBridge;
         uint64 stdProposalMinDelay;
         address stdProposer;

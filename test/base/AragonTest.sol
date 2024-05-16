@@ -11,7 +11,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {createProxyAndCall} from "../helpers.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1UnpausedMock} from "../mocks/TaikoL1Mock.sol";
-import {ITaikoEssentialContract} from "../../src/interfaces/ITaikoEssentialContract.sol";
+import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
 
 import {Test} from "forge-std/Test.sol";
 
@@ -42,7 +42,7 @@ contract AragonTest is Test {
 
     function makeDaoWithOptimisticTokenVoting(address owner)
         internal
-        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock, ITaikoEssentialContract)
+        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock, TaikoL1)
     {
         // Deploy a DAO with owner as root
         DAO dao = DAO(
@@ -83,7 +83,7 @@ contract AragonTest is Test {
         vm.label(address(dao), "dao");
         vm.label(address(optimisticPlugin), "optimisticPlugin");
 
-        return (dao, optimisticPlugin, votingToken, ITaikoEssentialContract(taikoL1));
+        return (dao, optimisticPlugin, votingToken, TaikoL1(taikoL1));
     }
 
     /// @notice Creates a mock DAO with a multisig and an optimistic token voting plugin.

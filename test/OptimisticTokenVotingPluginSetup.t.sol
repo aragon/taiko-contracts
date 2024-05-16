@@ -14,7 +14,7 @@ import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
-import {ITaikoEssentialContract} from "../src/interfaces/ITaikoEssentialContract.sol";
+import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 
 contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPluginSetup public pluginSetup;
@@ -27,7 +27,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPlugin.OptimisticGovernanceSettings votingSettings;
     OptimisticTokenVotingPluginSetup.TokenSettings tokenSettings;
     GovernanceERC20.MintSettings mintSettings;
-    ITaikoEssentialContract taikoL1;
+    TaikoL1 taikoL1;
     address taikoBridge;
     uint64 stdProposalMinDuration;
     address stdProposer;
@@ -65,7 +65,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             symbol: "wTK"
         });
         mintSettings = GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
-        taikoL1 = ITaikoEssentialContract(address(0x66666666));
+        taikoL1 = TaikoL1(address(0x66666666));
         taikoBridge = address(0x55555555);
         stdProposalMinDuration = 10 days;
         stdProposer = address(0x1234567890);
@@ -154,7 +154,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 votingSettings,
                 tokenSettings,
                 mintSettings,
-                ITaikoEssentialContract(address(0x1234)),
+                TaikoL1(address(0x1234)),
                 address(0x5678), // taikoBridge
                 5 days, // stdProposalMinDuration
                 stdProposer,
@@ -176,7 +176,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 votingSettings,
                 tokenSettings,
                 mintSettings,
-                ITaikoEssentialContract(address(0x1111)),
+                TaikoL1(address(0x1111)),
                 address(0x2222), // taikoBridge
                 15 days, // stdProposalMinDuration
                 stdProposer,
@@ -216,7 +216,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
-                ITaikoEssentialContract(address(0x9999)),
+                TaikoL1(address(0x9999)),
                 address(0xaaaa),
                 stdProposalMinDuration,
                 stdProposer,
@@ -288,7 +288,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
-                ITaikoEssentialContract(address(0xbbbb)),
+                TaikoL1(address(0xbbbb)),
                 address(0xcccc),
                 stdProposalMinDuration,
                 stdProposer,

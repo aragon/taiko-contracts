@@ -21,7 +21,7 @@ import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSet
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
-import {ITaikoEssentialContract} from "../src/interfaces/ITaikoEssentialContract.sol";
+import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 
 contract Deploy is Script {
     DAO immutable daoImplementation;
@@ -243,7 +243,7 @@ contract Deploy is Script {
                     votingSettings,
                     tokenSettings,
                     mintSettings,
-                    ITaikoEssentialContract(taikoL1),
+                    TaikoL1(taikoL1),
                     taikoBridge,
                     minStdProposalDelay,
                     stdProposer,

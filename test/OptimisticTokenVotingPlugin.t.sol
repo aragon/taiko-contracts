@@ -12,7 +12,7 @@ import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {ERC20VotesMock} from "./mocks/ERC20VotesMock.sol";
-import {ITaikoEssentialContract} from "../src/interfaces/ITaikoEssentialContract.sol";
+import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IERC1822ProxiableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
@@ -22,7 +22,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     DAO public dao;
     OptimisticTokenVotingPlugin public plugin;
     ERC20VotesMock votingToken;
-    ITaikoEssentialContract taikoL1;
+    TaikoL1 taikoL1;
 
     // Events from external contracts
     event Initialized(uint8 version);
@@ -164,9 +164,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_GetVotingTokenReturnsTheRightAddress() public {
-        assertEq(address(plugin.getVotingToken()), address(votingToken), "Incorrect voting token");
+        assertEq(address(plugin.votingToken()), address(votingToken), "Incorrect voting token");
 
-        address oldToken = address(plugin.getVotingToken());
+        address oldToken = address(plugin.votingToken());
 
         // New token
         votingToken = ERC20VotesMock(
@@ -186,7 +186,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        assertEq(address(plugin.getVotingToken()), address(votingToken), "Incorrect voting token");
+        assertEq(address(plugin.votingToken()), address(votingToken), "Incorrect voting token");
         assertEq(address(votingToken) != oldToken, true, "The token address sould have changed");
     }
 

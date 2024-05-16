@@ -1,36 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.17 <0.9.0;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {TaikoL1, TaikoData} from "../../src/adapted-dependencies/TaikoL1.sol";
 
-import {ITaikoEssentialContract} from "../../src/interfaces/ITaikoEssentialContract.sol";
-
-contract TaikoL1UnpausedMock is ITaikoEssentialContract {
-    function pause() external {}
-    function unpause() external {}
-
-    function impl() external view returns (address) {
-        return address(this);
-    }
-
-    function paused() external pure returns (bool) {
+contract TaikoL1UnpausedMock is TaikoL1 {
+    function paused() external pure override returns (bool) {
         return false;
     }
 
-    function inNonReentrant() external view returns (bool) {}
+    function slotB() public view override returns (TaikoData.SlotB memory) {}
+
+    function getBlock(uint64 _blockId) public view override returns (TaikoData.Block memory) {}
 }
 
-contract TaikoL1PausedMock is ITaikoEssentialContract {
-    function pause() external {}
-    function unpause() external {}
-
-    function impl() external view returns (address) {
-        return address(this);
-    }
-
-    function paused() external pure returns (bool) {
+contract TaikoL1PausedMock is TaikoL1 {
+    function paused() external pure override returns (bool) {
         return true;
     }
 
-    function inNonReentrant() external view returns (bool) {}
+    function slotB() public view override returns (TaikoData.SlotB memory) {}
+
+    function getBlock(uint64 _blockId) public view override returns (TaikoData.Block memory) {}
 }

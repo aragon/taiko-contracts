@@ -47,15 +47,13 @@ interface IOptimisticTokenVoting {
     /// @param _metadata The metadata of the proposal.
     /// @param _actions The actions that will be executed after the proposal passes.
     /// @param _allowFailureMap Allows proposal to succeed even if an action reverts. Uses bitmap representation. If the bit at index `x` is 1, the tx succeeds even if the action at `x` failed. Passing 0 will be treated as atomic execution.
-    /// @param _startDate The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
-    /// @param _endDate The end date of the proposal vote. If 0, `_startDate + minDuration` is used.
+    /// @param _duration The amount of seconds to allow token holders to veto.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
-        uint64 _startDate,
-        uint64 _endDate
+        uint64 _duration
     ) external returns (uint256 proposalId);
 
     /// @notice Checks if an account can participate on an optimistic proposal. This can be because the proposal
