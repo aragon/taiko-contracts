@@ -198,7 +198,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         proposal_.destinationPlugin = _destinationPlugin;
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
-        proposal_.parameters.expirationDate = uint64(block.timestamp) + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
+        proposal_.parameters.expirationDate = block.timestamp.toUint64() + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
         proposal_.destinationActionsHash = _destinationActionsHash;
@@ -321,9 +321,8 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         proposal_.destinationPlugin.createProposal(
             proposal_.encryptedPayloadURI,
             _actions,
-            0, // allowFailureMap
-            0, // startDate (now)
-            0 // endDate (auto: will be now + 0)
+            0, // allowFailureMap, no single action may fail
+            0 // no duration, immediate executioon
         );
     }
 

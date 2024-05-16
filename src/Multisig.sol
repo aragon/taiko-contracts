@@ -43,24 +43,20 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param minApprovals The number of approvals required.
     /// @param snapshotBlock The number of the block prior to the proposal creation.
     /// @param expirationDate The timestamp after which non-executed proposals expire.
-    /// @param destinationStartDate The timestamp after which people can vote on the destination plugin. 0 means now.
-    /// @param destinationEndDate The timestamp after which people can no longer vote on the destination plugin.
     struct ProposalParameters {
         uint16 minApprovals;
         uint64 snapshotBlock;
         uint64 expirationDate;
-        uint64 destinationStartDate;
-        uint64 destinationEndDate;
     }
 
     /// @notice A container for the plugin settings.
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
-    /// @param destinationMinDuration The minimum duration that the destination plugin will enforce.
+    /// @param destinationProposalDuration The minimum duration that the destination plugin will enforce.
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
-        uint64 destinationMinDuration;
+        uint64 destinationProposalDuration;
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -119,8 +115,8 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @notice Emitted when the plugin settings are set.
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
-    /// @param destinationMinDuration The minimum duration (in seconds) that will be required on the destination plugin
-    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, uint64 destinationMinDuration);
+    /// @param destinationProposalDuration The minimum duration (in seconds) that will be required on the destination plugin
+    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, uint64 destinationProposalDuration);
 
     /// @notice Initializes Release 1, Build 2.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
@@ -199,19 +195,15 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param _destinationActions The actions that will be executed after the proposal passes.
     /// @param _destinationPlugin The address of the plugin to forward the proposal to when it passes.
     /// @param _approveProposal If `true`, the sender will approve the proposal.
-    /// @param _destinationStartDate The start date of the proposal.
-    /// @param _destinationEndDate The expiration date for proposals that have not been executed.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _metadataURI,
         IDAO.Action[] calldata _destinationActions,
         OptimisticTokenVotingPlugin _destinationPlugin,
-        bool _approveProposal,
-        uint64 _destinationStartDate,
-        uint64 _destinationEndDate
+        bool _approveProposal
     ) external returns (uint256 proposalId) {
-        if (multisigSettings.onlyListed && !isListed(_msgSender())) {
-            revert ProposalCreationForbidden(_msgSender());
+        if (multisigSettings.onlyListed && !isListed(msg.sender)) {
+            revert ProposalCreationForbidden(msg.sender);
         }
 
         uint64 snapshotBlock;
@@ -222,17 +214,15 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         // Revert if the settings have been changed in the same block as this proposal should be created in.
         // This prevents a malicious party from voting with previous addresses and the new settings.
         if (lastMultisigSettingsChange > snapshotBlock) {
-            revert ProposalCreationForbidden(_msgSender());
+            revert ProposalCreationForbidden(msg.sender);
         }
 
-        // Revert if the given timestamps would revert, even if it was executed in this very block
-        _validateProposalDates(_destinationStartDate, _destinationEndDate);
-
+        uint64 _expirationDate = block.timestamp.toUint64() + MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
         proposalId = _createProposal({
-            _creator: _msgSender(),
+            _creator: msg.sender,
             _metadata: _metadataURI,
-            _startDate: _destinationStartDate,
-            _endDate: _destinationEndDate,
+            _startDate: block.timestamp.toUint64(),
+            _endDate: _expirationDate,
             _actions: _destinationActions,
             _allowFailureMap: 0
         });
@@ -243,9 +233,7 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         proposal_.destinationPlugin = _destinationPlugin;
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
-        proposal_.parameters.expirationDate = uint64(block.timestamp) + MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
-        proposal_.parameters.destinationStartDate = _destinationStartDate;
-        proposal_.parameters.destinationEndDate = _destinationEndDate;
+        proposal_.parameters.expirationDate = _expirationDate;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
         for (uint256 i; i < _destinationActions.length;) {
@@ -262,7 +250,7 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
 
     /// @inheritdoc IMultisig
     function approve(uint256 _proposalId, bool _tryExecution) public {
-        address approver = _msgSender();
+        address approver = msg.sender;
         if (!_canApprove(_proposalId, approver)) {
             revert ApprovalCastForbidden(_proposalId, approver);
         }
@@ -354,9 +342,8 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         proposal_.destinationPlugin.createProposal(
             proposal_.metadataURI,
             proposal_.destinationActions,
-            0, // allowFailureMap
-            proposal_.parameters.destinationStartDate,
-            proposal_.parameters.destinationEndDate
+            0, // allowFailureMap, no single action may fail
+            multisigSettings.destinationProposalDuration
         );
     }
 
@@ -426,31 +413,8 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         emit MultisigSettingsUpdated({
             onlyListed: _multisigSettings.onlyListed,
             minApprovals: _multisigSettings.minApprovals,
-            destinationMinDuration: _multisigSettings.destinationMinDuration
+            destinationProposalDuration: _multisigSettings.destinationProposalDuration
         });
-    }
-
-    /// @notice Attempts to detect eventual issues on the destination plugin ahead of time.
-    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
-    /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
-    function _validateProposalDates(uint64 _start, uint64 _end) internal view virtual {
-        uint64 currentTimestamp = block.timestamp.toUint64();
-        uint64 startDate;
-
-        if (_start == 0) {
-            startDate = currentTimestamp;
-        } else {
-            startDate = _start;
-
-            if (startDate < currentTimestamp) {
-                revert DateOutOfBounds({limit: currentTimestamp, actual: startDate});
-            }
-        }
-
-        // Compare against the earliest end date
-        if (_end != 0 && _end < startDate + multisigSettings.destinationMinDuration) {
-            revert DateOutOfBounds({limit: startDate + multisigSettings.destinationMinDuration, actual: _end});
-        }
     }
 
     /// @dev This empty reserved space is put in place to allow future versions to add new
