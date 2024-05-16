@@ -30,14 +30,19 @@ contract Deploy is Script {
     address immutable governanceWrappedERC20Base;
     PluginSetupProcessor immutable pluginSetupProcessor;
     address immutable pluginRepoFactory;
-    address immutable tokenAddress;
-    address[] multisigMembers;
 
+    uint32 immutable minVetoRatio;
+    uint64 immutable l2InactivityPeriod;
+    uint64 immutable l2AggregationGracePeriod;
+    address immutable tokenAddress;
     address immutable taikoL1;
     address immutable taikoBridge;
+
     uint64 immutable minStdProposalDelay; // Minimum delay of proposals on the optimistic voting plugin
     uint16 immutable minStdApprovals;
     uint16 immutable minEmergencyApprovals;
+
+    address[] multisigMembers;
 
     string stdMultisigEnsDomain;
     string emergencyMultisigEnsDomain;
@@ -51,6 +56,10 @@ contract Deploy is Script {
         governanceWrappedERC20Base = vm.envAddress("GOVERNANCE_WRAPPED_ERC20_BASE");
         pluginSetupProcessor = PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR"));
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
+
+        minVetoRatio = uint32(vm.envUint("MIN_VETO_RATIO"));
+        l2InactivityPeriod = uint64(vm.envUint("L2_INACTIVITY_PERIOD"));
+        l2AggregationGracePeriod = uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD"));
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
         taikoL1 = vm.envAddress("TAIKO_L1_ADDRESS");
         taikoBridge = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
@@ -59,15 +68,15 @@ contract Deploy is Script {
         minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
         minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));
 
-        stdMultisigEnsDomain = vm.envString("STD_MULTISIG_ENS_DOMAIN");
-        emergencyMultisigEnsDomain = vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN");
-        optimisticTokenVotingEnsDomain = vm.envString("OPTIMISTIC_TOKEN_VOTING_ENS_DOMAIN");
-
         // JSON list of members
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/utils/members.json");
         string memory json = vm.readFile(path);
         multisigMembers = vm.parseJsonAddressArray(json, "$.addresses");
+
+        stdMultisigEnsDomain = vm.envString("STD_MULTISIG_ENS_DOMAIN");
+        emergencyMultisigEnsDomain = vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN");
+        optimisticTokenVotingEnsDomain = vm.envString("OPTIMISTIC_TOKEN_VOTING_ENS_DOMAIN");
     }
 
     function run() public {
@@ -228,8 +237,10 @@ contract Deploy is Script {
         {
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory votingSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings(
-                200_000, // minVetoRatio - 20%
-                0 // minDuration (the condition will enforce it)
+                minVetoRatio,
+                0, // minDuration (the condition contract will enforce it)
+                l2InactivityPeriod,
+                l2AggregationGracePeriod
             );
 
             OptimisticTokenVotingPluginSetup.TokenSettings memory tokenSettings =
