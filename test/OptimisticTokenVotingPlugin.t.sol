@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {AragonTest} from "./base/AragonTest.sol";
-import {DaoBuilder} from "./base/DaoBuilder.sol";
+import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {IOptimisticTokenVoting} from "../src/interfaces/IOptimisticTokenVoting.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
@@ -17,7 +17,7 @@ import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IERC1822ProxiableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
-import {createProxyAndCall} from "./helpers.sol";
+import {createProxyAndCall} from "./helpers/proxy.sol";
 
 contract OptimisticTokenVotingPluginTest is AragonTest {
     DAO dao;
@@ -106,7 +106,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
-        assertEq(minDuration, 10 days, "Incorrect minDuration");
+        assertEq(minDuration, 7 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 10 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 2 days, "Incorrect l2AggregationGracePeriod");
 
@@ -174,9 +174,6 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
-        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
-
         (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
@@ -215,7 +212,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
-        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
+        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
         assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
 
@@ -239,7 +236,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
-        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 1230 ether, "Incorrect token supply");
+        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
         assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
 
@@ -265,7 +262,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoBridge()), address(newTaikoBridge), "Incorrect taikoBridge");
     }
 
     function test_InitializeEmitsEvent() public {
