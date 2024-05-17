@@ -25,179 +25,105 @@ contract StandardProposalConditionTest is Test {
     function test_ShouldRevertWithoutDao() public {
         HelperStandardProposalConditionDeploy helper = new HelperStandardProposalConditionDeploy();
 
-        vm.expectRevert(
-            abi.encodeWithSelector(StandardProposalCondition.EmptyDao.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(StandardProposalCondition.EmptyDao.selector));
         helper.deployConditionWithNoDao();
     }
 
     function test_ShouldRevertWithoutDelay() public {
         HelperStandardProposalConditionDeploy helper = new HelperStandardProposalConditionDeploy();
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StandardProposalCondition.EmptyDelay.selector
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(StandardProposalCondition.EmptyDelay.selector));
         helper.deployConditionWithNoDelay();
     }
 
     function test_ShouldAllowWhenEnoughDelay() public view {
         // Bare minimum
-        uint32 startDate = 500;
-        uint32 endDate = startDate + MIN_DELAY_1;
+        uint32 votingDuration = MIN_DELAY_1;
 
         // Create proposal with enough delay
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        bytes memory data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        bytes memory data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         bool granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should pass");
 
         // More delay
-        endDate = startDate + MIN_DELAY_1 * 10;
+        votingDuration = MIN_DELAY_1 * 10;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should still pass");
 
         // More delay
-        endDate = startDate + MIN_DELAY_1 * 1000;
+        votingDuration = MIN_DELAY_1 * 1000;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should still pass");
 
         // More delay
-        endDate = startDate + MIN_DELAY_1 * 100000;
+        votingDuration = MIN_DELAY_1 * 100000;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should still pass");
     }
 
     function test_ShouldRevertWhenNotEnoughDelay() public view {
         // Almost the minimum
-        uint32 startDate = 500;
-        uint32 endDate = startDate + MIN_DELAY_1 - 1;
+        uint32 votingDuration = MIN_DELAY_1 - 1;
 
         // Create proposal with enough delay
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        bytes memory data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        bytes memory data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         bool granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_1 - 2;
+        votingDuration = MIN_DELAY_1 - 2;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_1 - 20;
+        votingDuration = MIN_DELAY_1 - 20;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_1 / 2;
+        votingDuration = MIN_DELAY_1 / 2;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_1 / 5;
+        votingDuration = MIN_DELAY_1 / 5;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_1 / 50;
+        votingDuration = MIN_DELAY_1 / 50;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_1 / 500;
+        votingDuration = MIN_DELAY_1 / 500;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
-        // No delay
-        endDate = startDate;
+        // Zero votingDuration
+        votingDuration = 0;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
-        granted = condition.isGranted(address(0x0), address(0x0), 0, data);
-        assertEq(granted, false, "Condition should not pass");
-
-        // Negative delay
-        endDate = startDate - 1;
-
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
-        granted = condition.isGranted(address(0x0), address(0x0), 0, data);
-        assertEq(granted, false, "Condition should not pass");
-
-        // More negative delay
-        endDate = startDate - 100;
-
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
-        granted = condition.isGranted(address(0x0), address(0x0), 0, data);
-        assertEq(granted, false, "Condition should not pass");
-
-        // Zero endDate
-        endDate = 0;
-
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, votingDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
     }
@@ -209,45 +135,32 @@ contract StandardProposalConditionTest is Test {
         condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
 
         // Bare minimum
-        uint32 startDate = 500;
-        uint32 endDate = startDate + MIN_DELAY_2;
+        uint32 voteDuration = MIN_DELAY_2;
 
         // Create proposal with enough delay
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        bytes memory data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        bytes memory data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         bool granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should pass");
 
         // More delay
-        endDate = startDate + MIN_DELAY_2 * 10;
+        voteDuration = MIN_DELAY_2 * 10;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should still pass");
 
         // More delay
-        endDate = startDate + MIN_DELAY_2 * 1000;
+        voteDuration = MIN_DELAY_2 * 1000;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should still pass");
 
         // More delay
-        endDate = startDate + MIN_DELAY_2 * 100000;
+        voteDuration = MIN_DELAY_2 * 100000;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, true, "Condition should still pass");
     }
@@ -257,115 +170,60 @@ contract StandardProposalConditionTest is Test {
         condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
 
         // Almost the minimum
-        uint32 startDate = 500;
-        uint32 endDate = startDate + MIN_DELAY_2 - 1;
+        uint32 voteDuration = MIN_DELAY_2 - 1;
 
         // Create proposal with enough delay
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        bytes memory data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        bytes memory data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         bool granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_2 - 2;
+        voteDuration = MIN_DELAY_2 - 2;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_2 - 20;
+        voteDuration = MIN_DELAY_2 - 20;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_2 / 2;
+        voteDuration = MIN_DELAY_2 / 2;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_2 / 5;
+        voteDuration = MIN_DELAY_2 / 5;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_2 / 50;
+        voteDuration = MIN_DELAY_2 / 50;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
         // Less delay
-        endDate = startDate + MIN_DELAY_2 / 500;
+        voteDuration = MIN_DELAY_2 / 500;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
 
-        // No delay
-        endDate = startDate;
+        // Zero voteDuration
+        voteDuration = 0;
 
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
-        granted = condition.isGranted(address(0x0), address(0x0), 0, data);
-        assertEq(granted, false, "Condition should not pass");
-
-        // Negative delay
-        endDate = startDate - 1;
-
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
-        granted = condition.isGranted(address(0x0), address(0x0), 0, data);
-        assertEq(granted, false, "Condition should not pass");
-
-        // More negative delay
-        endDate = startDate - 100;
-
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
-        granted = condition.isGranted(address(0x0), address(0x0), 0, data);
-        assertEq(granted, false, "Condition should not pass");
-
-        // Zero endDate
-        endDate = 0;
-
-        data = abi.encodeCall(
-            OptimisticTokenVotingPlugin.createProposal,
-            ("", actions, 0, startDate, endDate)
-        );
+        data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
     }

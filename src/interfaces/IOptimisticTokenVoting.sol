@@ -12,14 +12,28 @@ interface IOptimisticTokenVoting {
     /// @notice getter function for the voting token.
     /// @dev public function also useful for registering interfaceId and for distinguishing from majority voting interface.
     /// @return The token used for voting.
-    function getVotingToken() external view returns (IVotesUpgradeable);
+    function votingToken() external view returns (IVotesUpgradeable);
 
     /// @notice Returns the total voting power checkpointed for a specific block number.
-    /// @param _blockNumber The block number.
+    /// @param _timestamp The target timestamp.
     /// @return The total voting power.
-    function totalVotingPower(
-        uint256 _blockNumber
-    ) external view returns (uint256);
+    function totalVotingPower(uint256 _timestamp) external view returns (uint256);
+
+    /// @notice Returns the total voting power bridged to the L2 at the given timestamp.
+    /// @dev This assumes that the Taiko Bridge is delegating to itself.
+    /// @param _timestamp The target timestamp.
+    /// @return The total bridged voting power.
+    function bridgedVotingPower(uint256 _timestamp) external view returns (uint256);
+
+    /// @notice Returns the effective voting power that can vote at the given timestamp.
+    /// @dev This assumes that the Taiko Bridge is delegating to itself.
+    /// @param _timestamp The target timestamp.
+    /// @param _isL2Available Whether the L2 can be part of the voting power or not.
+    /// @return The total bridged voting power.
+    function effectiveVotingPower(uint256 _timestamp, bool _isL2Available) external view returns (uint256);
+
+    /// @notice Returns true is the L2 is currently available.
+    function isL2Available() external view returns (bool);
 
     /// @notice Returns the veto ratio parameter stored in the optimistic governance settings.
     /// @return The veto ratio parameter.
@@ -29,23 +43,17 @@ interface IOptimisticTokenVoting {
     /// @return The minimum duration parameter.
     function minDuration() external view returns (uint64);
 
-    /// @notice Returns the minimum vetoing power required to create a proposal stored in the vetoing settings.
-    /// @return The minimum vetoing power required to create a proposal.
-    function minProposerVotingPower() external view returns (uint256);
-
     /// @notice Creates a new optimistic proposal.
     /// @param _metadata The metadata of the proposal.
     /// @param _actions The actions that will be executed after the proposal passes.
     /// @param _allowFailureMap Allows proposal to succeed even if an action reverts. Uses bitmap representation. If the bit at index `x` is 1, the tx succeeds even if the action at `x` failed. Passing 0 will be treated as atomic execution.
-    /// @param _startDate The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
-    /// @param _endDate The end date of the proposal vote. If 0, `_startDate + minDuration` is used.
+    /// @param _duration The amount of seconds to allow token holders to veto.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
-        uint64 _startDate,
-        uint64 _endDate
+        uint64 _duration
     ) external returns (uint256 proposalId);
 
     /// @notice Checks if an account can participate on an optimistic proposal. This can be because the proposal
@@ -57,10 +65,7 @@ interface IOptimisticTokenVoting {
     /// @param _account The account address to be checked.
     /// @return Returns true if the account is allowed to veto.
     /// @dev The function assumes that the queried proposal exists.
-    function canVeto(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool);
+    function canVeto(uint256 _proposalId, address _account) external view returns (bool);
 
     /// @notice Registers the veto for the given proposal.
     /// @param _proposalId The ID of the proposal.
@@ -70,17 +75,12 @@ interface IOptimisticTokenVoting {
     /// @param _proposalId The ID of the proposal.
     /// @param _account The account address to be checked.
     /// @return The whether the given account has vetoed the given proposal.
-    function hasVetoed(
-        uint256 _proposalId,
-        address _account
-    ) external view returns (bool);
+    function hasVetoed(uint256 _proposalId, address _account) external view returns (bool);
 
     /// @notice Checks if the total votes against a proposal is greater than the veto threshold.
     /// @param _proposalId The ID of the proposal.
     /// @return Returns `true` if the total veto power against the proposal is greater or equal than the threshold and `false` otherwise.
-    function isMinVetoRatioReached(
-        uint256 _proposalId
-    ) external view returns (bool);
+    function isMinVetoRatioReached(uint256 _proposalId) external view returns (bool);
 
     /// @notice Checks if a proposal can be executed.
     /// @param _proposalId The ID of the proposal to be checked.

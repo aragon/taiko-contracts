@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity ^0.8.17;
 
 import {IPluginSetup, PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
@@ -10,6 +10,8 @@ import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {createProxyAndCall} from "../helpers.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
+import {TaikoL1Mock} from "../mocks/TaikoL1Mock.sol";
+import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
 
 import {Test} from "forge-std/Test.sol";
 
@@ -18,6 +20,7 @@ contract AragonTest is Test {
     address immutable bob = address(0xB0B);
     address immutable carol = address(0xc4601);
     address immutable david = address(0xd471d);
+    address immutable taikoBridge = address(0xb61d6e);
     address immutable randomWallet = vm.addr(1234567890);
 
     address immutable DAO_BASE = address(new DAO());
@@ -33,12 +36,13 @@ contract AragonTest is Test {
         vm.label(bob, "Bob");
         vm.label(carol, "Carol");
         vm.label(david, "David");
+        vm.label(taikoBridge, "Bridge");
         vm.label(randomWallet, "Random wallet");
     }
 
     function makeDaoWithOptimisticTokenVoting(address owner)
         internal
-        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock)
+        returns (DAO, OptimisticTokenVotingPlugin, ERC20VotesMock, TaikoL1)
     {
         // Deploy a DAO with owner as root
         DAO dao = DAO(
@@ -53,27 +57,38 @@ contract AragonTest is Test {
         );
         votingToken.mint(alice, 10 ether);
         votingToken.delegate(alice);
-        vm.roll(block.number + 1);
+        blockForward(1);
 
         // Deploy a new plugin instance
+        TaikoL1Mock taikoL1 = new TaikoL1Mock();
+
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
             .OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 days,
-            minProposerVotingPower: 0
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days
         });
 
         OptimisticTokenVotingPlugin optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
-                abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken))
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, taikoL1, taikoBridge)
+                )
             )
         );
+
+        // The plugin can execute on the DAO
+        dao.grant(address(dao), address(optimisticPlugin), dao.EXECUTE_PERMISSION_ID());
+
+        // Alice can create proposals on the plugin
+        dao.grant(address(optimisticPlugin), alice, optimisticPlugin.PROPOSER_PERMISSION_ID());
 
         vm.label(address(dao), "dao");
         vm.label(address(optimisticPlugin), "optimisticPlugin");
 
-        return (dao, optimisticPlugin, votingToken);
+        return (dao, optimisticPlugin, votingToken, TaikoL1(taikoL1));
     }
 
     /// @notice Creates a mock DAO with a multisig and an optimistic token voting plugin.
@@ -102,17 +117,23 @@ contract AragonTest is Test {
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
+            TaikoL1Mock taikoL1 = new TaikoL1Mock();
+
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: uint32(RATIO_BASE / 10),
                 minDuration: 4 days,
-                minProposerVotingPower: 0
+                l2InactivityPeriod: 10 minutes,
+                l2AggregationGracePeriod: 2 days
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
                 createProxyAndCall(
                     address(OPTIMISTIC_BASE),
-                    abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, targetContractSettings, votingToken))
+                    abi.encodeCall(
+                        OptimisticTokenVotingPlugin.initialize,
+                        (dao, targetContractSettings, votingToken, taikoL1, taikoBridge)
+                    )
                 )
             );
         }
@@ -120,7 +141,7 @@ contract AragonTest is Test {
         {
             // Deploy a new multisig instance
             Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;
@@ -168,17 +189,23 @@ contract AragonTest is Test {
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
+            TaikoL1Mock taikoL1 = new TaikoL1Mock();
+
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: uint32(RATIO_BASE / 10),
                 minDuration: 0,
-                minProposerVotingPower: 0
+                l2InactivityPeriod: 10 minutes,
+                l2AggregationGracePeriod: 2 days
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
                 createProxyAndCall(
                     address(OPTIMISTIC_BASE),
-                    abi.encodeCall(OptimisticTokenVotingPlugin.initialize, (dao, targetContractSettings, votingToken))
+                    abi.encodeCall(
+                        OptimisticTokenVotingPlugin.initialize,
+                        (dao, targetContractSettings, votingToken, taikoL1, taikoBridge)
+                    )
                 )
             );
         }
@@ -186,7 +213,7 @@ contract AragonTest is Test {
         {
             // Deploy a new multisig instance
             Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationMinDuration: 4 days});
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](4);
             signers[0] = alice;
             signers[1] = bob;

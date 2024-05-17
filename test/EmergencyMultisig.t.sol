@@ -40,8 +40,7 @@ contract EmergencyMultisigTest is AragonTest {
     event ProposalCreated(
         uint256 indexed proposalId,
         address indexed creator,
-        uint64 startDate,
-        uint64 endDate,
+        uint64 excludeArtifactndDate,
         bytes metadata,
         IDAO.Action[] actions,
         uint256 allowFailureMap
@@ -438,7 +437,7 @@ contract EmergencyMultisigTest is AragonTest {
     function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public {
         // Deploy a new multisig instance
         Multisig.MultisigSettings memory mSettings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
         address[] memory signers = new address[](1);
         signers[0] = address(0x0); // 0x0... would be a member but the chance is negligible
 
@@ -791,7 +790,7 @@ contract EmergencyMultisigTest is AragonTest {
         {
             // Deploy a new multisig instance
             Multisig.MultisigSettings memory mSettings =
-                Multisig.MultisigSettings({onlyListed: false, minApprovals: 1, destinationMinDuration: 4 days});
+                Multisig.MultisigSettings({onlyListed: false, minApprovals: 1, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](1);
             signers[0] = address(0x0);
 
@@ -953,7 +952,7 @@ contract EmergencyMultisigTest is AragonTest {
         {
             // Deploy a new multisig instance
             Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationMinDuration: 4 days});
+                Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](1);
             signers[0] = randomWallet;
 
@@ -1542,7 +1541,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        emit ProposalCreated(0, address(plugin), 10, 10, "", actions, 0);
+        uint256 targetPid = 10 << 128 | 10 << 64;
+        emit ProposalCreated(targetPid, address(plugin), 10, "", actions, 0);
         plugin.execute(pid, actions);
 
         // 2
@@ -1573,7 +1573,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        emit ProposalCreated(1, address(plugin), 20, 20, "ipfs://", actions, 0);
+        targetPid = (20 << 128 | 20 << 64) + 1;
+        emit ProposalCreated(targetPid, address(plugin), 20, "ipfs://", actions, 0);
         plugin.execute(pid, actions);
     }
 
@@ -1938,14 +1939,15 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.execute(pid, submittedActions);
 
         // Check round
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) = optimisticPlugin.getProposal(pid);
+        uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64);
+        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
-        assertEq(parameters.startDate, block.timestamp, "Incorrect startDate");
-        assertEq(parameters.endDate, block.timestamp, "Incorrect endDate");
+        assertEq(parameters.vetoEndDate, block.timestamp, "Incorrect vetoEndDate");
 
         assertEq(retrievedActions.length, 3, "Should be 3");
 
@@ -1987,14 +1989,15 @@ contract EmergencyMultisigTest is AragonTest {
         plugin.execute(pid, submittedActions);
 
         // Check round
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) = optimisticPlugin.getProposal(pid);
+        targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1;
+        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
-        assertEq(parameters.startDate, 10, "Incorrect startDate");
-        assertEq(parameters.endDate, 10, "Incorrect endDate");
+        assertEq(parameters.vetoEndDate, 10, "Incorrect vetoEndDate");
 
         assertEq(retrievedActions.length, 2, "Should be 2");
 

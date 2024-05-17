@@ -14,6 +14,8 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {TaikoL1, TaikoData} from "./adapted-dependencies/TaikoL1.sol";
+// import {EssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -33,11 +35,13 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A container for the optimistic majority settings that will be applied as parameters on proposal creation.
     /// @param minVetoRatio The support threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
-    /// @param minProposerVotingPower The minimum vetoing power required to create a proposal.
+    /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
+    /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
         uint64 minDuration;
-        uint256 minProposerVotingPower;
+        uint64 l2InactivityPeriod;
+        uint64 l2AggregationGracePeriod;
     }
 
     /// @notice A container for proposal-related information.
@@ -47,6 +51,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param vetoVoters The voters who have vetoed.
     /// @param actions The actions to be executed when the proposal passes.
     /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param aggregatedL2Balance The amount of balance that has been registered from the L2.
     struct Proposal {
         bool executed;
         ProposalParameters parameters;
@@ -54,18 +59,19 @@ contract OptimisticTokenVotingPlugin is
         mapping(address => bool) vetoVoters;
         IDAO.Action[] actions;
         uint256 allowFailureMap;
+        uint256 aggregatedL2Balance;
     }
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param startDate The start date of the proposal vote.
-    /// @param endDate The end date of the proposal vote.
-    /// @param snapshotBlock The number of the block prior to the proposal creation.
-    /// @param minVetoVotingPower The minimum voting power needed to defeat the proposal.
+    /// @param vetoEndDate The end date of the proposal vote.
+    /// @param snapshotTimestamp The timestamp prior to the proposal creation.
+    /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
+    /// @param skipL2 True if the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
-        uint64 startDate;
-        uint64 endDate;
-        uint64 snapshotBlock;
-        uint256 minVetoVotingPower;
+        uint64 vetoEndDate;
+        uint64 snapshotTimestamp;
+        uint32 minVetoRatio;
+        bool skipL2;
     }
 
     /// @notice The ID of the permission required to create a proposal.
@@ -75,24 +81,29 @@ contract OptimisticTokenVotingPlugin is
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
-    /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 public constant OPTIMISTIC_GOVERNANCE_INTERFACE_ID =
-        this.initialize.selector ^ this.getProposal.selector ^ this.updateOptimisticGovernanceSettings.selector;
-
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
+    /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
+    address public taikoBridge;
+
     /// @notice The struct storing the governance settings.
     OptimisticGovernanceSettings public governanceSettings;
+
+    /// @notice Taiko L1 contract to check the status from.
+    TaikoL1 public taikoL1;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
 
     /// @notice Emitted when the vetoing settings are updated.
-    /// @param minVetoRatio The support threshold value.
+    /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
-    /// @param minProposerVotingPower The minimum vetoing power required to create a proposal.
-    event OptimisticGovernanceSettingsUpdated(uint32 minVetoRatio, uint64 minDuration, uint256 minProposerVotingPower);
+    /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
+    /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
+    event OptimisticGovernanceSettingsUpdated(
+        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod
+    );
 
     /// @notice Emitted when a veto is cast by a voter.
     /// @param proposalId The ID of the proposal.
@@ -109,11 +120,6 @@ contract OptimisticTokenVotingPlugin is
     /// @param limit The limit value.
     /// @param actual The actual value.
     error MinDurationOutOfBounds(uint64 limit, uint64 actual);
-
-    /// @notice Thrown if the minimum voting power for creating a proposal is out of bounds (more than the token supply).
-    /// @param limit The limit value.
-    /// @param actual The actual value.
-    error MinProposerVotingPowerOutOfBounds(uint256 limit, uint256 actual);
 
     /// @notice Thrown when a sender is not allowed to create a proposal.
     /// @param sender The sender address.
@@ -140,13 +146,18 @@ contract OptimisticTokenVotingPlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
-    function initialize(IDAO _dao, OptimisticGovernanceSettings calldata _governanceSettings, IVotesUpgradeable _token)
-        external
-        initializer
-    {
+    function initialize(
+        IDAO _dao,
+        OptimisticGovernanceSettings calldata _governanceSettings,
+        IVotesUpgradeable _token,
+        TaikoL1 _taikoL1,
+        address _taikoBridge
+    ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         votingToken = _token;
+        taikoL1 = _taikoL1;
+        taikoBridge = _taikoBridge;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
@@ -166,13 +177,47 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function getVotingToken() public view returns (IVotesUpgradeable) {
-        return votingToken;
+    function totalVotingPower(uint256 _timestamp) public view returns (uint256) {
+        return votingToken.getPastTotalSupply(_timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function totalVotingPower(uint256 _blockNumber) public view returns (uint256) {
-        return votingToken.getPastTotalSupply(_blockNumber);
+    function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
+        return votingToken.getPastVotes(taikoBridge, _timestamp);
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function effectiveVotingPower(uint256 _timestamp, bool _includeL2VotingPower) public view returns (uint256) {
+        uint256 _totalVotingPower = totalVotingPower(_timestamp);
+        if (!_includeL2VotingPower) {
+            return _totalVotingPower - bridgedVotingPower(_timestamp);
+        }
+        return _totalVotingPower;
+    }
+
+    /// @notice Determines whether the L2 is currently available
+    function isL2Available() public view returns (bool) {
+        if (taikoL1.paused()) return false;
+
+        uint64 _id = taikoL1.slotB().numBlocks;
+        // No L2 blocks yet
+        if (_id == 0) return false;
+
+        // The last L2 block is too old
+        TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
+        if (_block.proposedAt < (block.timestamp - governanceSettings.l2InactivityPeriod)) return false;
+
+        return true;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minVetoRatio() public view virtual returns (uint32) {
+        return governanceSettings.minVetoRatio;
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
+    function minDuration() public view virtual returns (uint64) {
+        return governanceSettings.minDuration;
     }
 
     /// @inheritdoc IMembership
@@ -201,7 +246,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // The voter has no voting power.
-        if (votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock) == 0) {
+        if (votingToken.getPastVotes(_voter, proposal_.parameters.snapshotTimestamp) == 0) {
             return false;
         }
 
@@ -220,6 +265,11 @@ contract OptimisticTokenVotingPlugin is
         else if (!_isProposalEnded(proposal_)) {
             return false;
         }
+        // Check if L2 bridged vetoes are still possible
+        // For emergency multisig proposals with _duration == 0, this will return false because the L2 aggregation is skipped
+        else if (_proposalL2VetoingOpen(proposal_)) {
+            return false;
+        }
         // Check that not enough voters have vetoed the proposal
         else if (isMinVetoRatioReached(_proposalId)) {
             return false;
@@ -232,22 +282,10 @@ contract OptimisticTokenVotingPlugin is
     function isMinVetoRatioReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        return proposal_.vetoTally >= proposal_.parameters.minVetoVotingPower;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minVetoRatio() public view virtual returns (uint32) {
-        return governanceSettings.minVetoRatio;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minDuration() public view virtual returns (uint64) {
-        return governanceSettings.minDuration;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minProposerVotingPower() public view virtual returns (uint256) {
-        return governanceSettings.minProposerVotingPower;
+        bool _usingL2VotingPower = _proposalCanUseL2VotingPower(proposal_);
+        uint256 _totalVotingPower = effectiveVotingPower(proposal_.parameters.snapshotTimestamp, _usingL2VotingPower);
+        uint256 _minVetoPower = _applyRatioCeiled(_totalVotingPower, proposal_.parameters.minVetoRatio);
+        return proposal_.vetoTally >= _minVetoPower;
     }
 
     /// @notice Returns all information for a proposal vote by its ID.
@@ -286,42 +324,30 @@ contract OptimisticTokenVotingPlugin is
         bytes calldata _metadata,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
-        uint64 _startDate,
-        uint64 _endDate
+        uint64 _duration
     ) external auth(PROPOSER_PERMISSION_ID) returns (uint256 proposalId) {
-        // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
-        {
-            uint256 minProposerVotingPower_ = minProposerVotingPower();
-
-            if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `OptimisticTokenVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
-                if (
-                    votingToken.getVotes(_msgSender()) < minProposerVotingPower_
-                        && IERC20Upgradeable(address(votingToken)).balanceOf(_msgSender()) < minProposerVotingPower_
-                ) {
-                    revert ProposalCreationForbidden(_msgSender());
-                }
-            }
-        }
-
-        uint256 snapshotBlock;
+        uint256 snapshotTimestamp;
         unchecked {
-            snapshotBlock = block.number - 1; // The snapshot block must be mined already to protect the transaction against backrunning transactions causing census changes.
+            snapshotTimestamp = block.timestamp - 1; // The snapshot timestamp must in the past to protect the transaction against backrunning transactions causing census changes.
         }
 
-        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
-
-        if (totalVotingPower_ == 0) {
+        // Checks
+        bool _enableL2 = isL2Available();
+        if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
 
-        (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
+        if (_duration < governanceSettings.minDuration) {
+            revert DateOutOfBounds({limit: governanceSettings.minDuration, actual: _duration});
+        }
+        uint64 _now = block.timestamp.toUint64();
+        uint64 _vetoEndDate = _now + _duration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
 
         proposalId = _createProposal({
             _creator: _msgSender(),
             _metadata: _metadata,
-            _startDate: _startDate,
-            _endDate: _endDate,
+            _startDate: _now,
+            _endDate: _vetoEndDate,
             _actions: _actions,
             _allowFailureMap: _allowFailureMap
         });
@@ -329,12 +355,15 @@ contract OptimisticTokenVotingPlugin is
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
-        proposal_.parameters.startDate = _startDate;
-        proposal_.parameters.endDate = _endDate;
-        proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
-        proposal_.parameters.minVetoVotingPower = _applyRatioCeiled(totalVotingPower_, minVetoRatio());
+        proposal_.parameters.vetoEndDate = _vetoEndDate;
+        proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
+        proposal_.parameters.minVetoRatio = minVetoRatio();
 
-        // Save gas
+        // We skip the L2 bridging grace period if the L2 was down on creation or if
+        // an emergency multisig proposal is passed (_duration == 0)
+        if (!_enableL2 || _duration == 0) {
+            proposal_.parameters.skipL2 = true;
+        }
         if (_allowFailureMap != 0) {
             proposal_.allowFailureMap = _allowFailureMap;
         }
@@ -363,7 +392,7 @@ contract OptimisticTokenVotingPlugin is
         Proposal storage proposal_ = proposals[_proposalId];
 
         // This could re-enter, though we can assume the governance token is not malicious
-        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotBlock);
+        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotTimestamp);
 
         // Not checking if the voter already voted, since canVeto() did it above
 
@@ -395,6 +424,53 @@ contract OptimisticTokenVotingPlugin is
         _updateOptimisticGovernanceSettings(_governanceSettings);
     }
 
+    /// @notice Splits the components behind the given proposal ID
+    /// @param _proposalId The ID to split
+    function parseProposalId(uint256 _proposalId)
+        public
+        pure
+        returns (uint256 counter, uint64 startDate, uint64 endDate)
+    {
+        counter = _proposalId & type(uint64).max;
+        startDate = uint64((_proposalId & (uint256(type(uint64).max) << 128)) >> 128);
+        endDate = uint64((_proposalId & (uint256(type(uint64).max) << 64)) >> 64);
+    }
+
+    /// @dev Creates a new proposal ID, containing the start and end timestamps
+    function _makeProposalId(uint64 _startDate, uint64 _endDate) internal returns (uint256 proposalId) {
+        proposalId = uint256(_startDate) << 128 | uint256(_endDate) << 64;
+        proposalId |= _createProposalId();
+    }
+
+    /// @notice Internal function to create a proposal.
+    /// @param _metadata The proposal metadata.
+    /// @param _startDate The start date of the proposal in seconds.
+    /// @param _endDate The end date of the proposal in seconds.
+    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param _actions The actions that will be executed after the proposal passes.
+    /// @return proposalId The ID of the proposal.
+    function _createProposal(
+        address _creator,
+        bytes calldata _metadata,
+        uint64 _startDate,
+        uint64 _endDate,
+        IDAO.Action[] calldata _actions,
+        uint256 _allowFailureMap
+    ) internal override returns (uint256 proposalId) {
+        // Returns an autoincremental number with the start and end dates
+        proposalId = _makeProposalId(_startDate, _endDate);
+
+        emit ProposalCreated({
+            proposalId: proposalId,
+            creator: _creator,
+            metadata: _metadata,
+            startDate: _startDate,
+            endDate: _endDate,
+            actions: _actions,
+            allowFailureMap: _allowFailureMap
+        });
+    }
+
     /// @notice Internal implementation
     function _updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings) internal {
         // Require the minimum veto ratio value to be in the interval [0, 10^6], because `>=` comparision is used.
@@ -419,7 +495,8 @@ contract OptimisticTokenVotingPlugin is
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: _governanceSettings.minVetoRatio,
             minDuration: _governanceSettings.minDuration,
-            minProposerVotingPower: _governanceSettings.minProposerVotingPower
+            l2AggregationGracePeriod: _governanceSettings.l2AggregationGracePeriod,
+            l2InactivityPeriod: _governanceSettings.l2InactivityPeriod
         });
     }
 
@@ -427,10 +504,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal vote is open, false otherwise.
     function _isProposalOpen(Proposal storage proposal_) internal view virtual returns (bool) {
-        uint64 currentTime = block.timestamp.toUint64();
-
-        return proposal_.parameters.startDate <= currentTime && currentTime < proposal_.parameters.endDate
-            && !proposal_.executed;
+        return block.timestamp.toUint64() < proposal_.parameters.vetoEndDate && !proposal_.executed;
     }
 
     /// @notice Internal function to check if a proposal already ended.
@@ -439,45 +513,33 @@ contract OptimisticTokenVotingPlugin is
     function _isProposalEnded(Proposal storage proposal_) internal view virtual returns (bool) {
         uint64 currentTime = block.timestamp.toUint64();
 
-        return currentTime >= proposal_.parameters.endDate;
+        return currentTime >= proposal_.parameters.vetoEndDate;
     }
 
-    /// @notice Validates and returns the proposal vote dates.
-    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
-    /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
-    /// @return startDate The validated start date of the proposal vote.
-    /// @return endDate The validated end date of the proposal vote.
-    function _validateProposalDates(uint64 _start, uint64 _end)
-        internal
-        view
-        virtual
-        returns (uint64 startDate, uint64 endDate)
-    {
-        uint64 currentTimestamp = block.timestamp.toUint64();
-
-        if (_start == 0) {
-            startDate = currentTimestamp;
-        } else {
-            startDate = _start;
-
-            if (startDate < currentTimestamp) {
-                revert DateOutOfBounds({limit: currentTimestamp, actual: startDate});
-            }
+    /// @notice Determines whether the proposal has L2 voting enabled or not.
+    /// @param proposal_ The proposal
+    function _proposalCanUseL2VotingPower(Proposal storage proposal_) internal view returns (bool) {
+        if (_proposalL2VetoingOpen(proposal_)) {
+            return true;
         }
 
-        uint64 earliestEndDate = startDate + governanceSettings.minDuration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
+        // No more L2 vetoes can be registered
+        // return false if no L2 votes have been aggregated until now
+        return proposal_.aggregatedL2Balance > 0;
+    }
 
-        if (_end == 0) {
-            endDate = earliestEndDate;
-        } else {
-            endDate = _end;
-
-            if (endDate < earliestEndDate) {
-                revert DateOutOfBounds({limit: earliestEndDate, actual: endDate});
-            }
+    /// @notice Internal function to check if a proposal may still receive L2 vetoes.
+    /// @param proposal_ The proposal struct.
+    /// @return True if the proposal may still receive L2 bridged votes, false otherwise.
+    function _proposalL2VetoingOpen(Proposal storage proposal_) internal view virtual returns (bool) {
+        if (proposal_.parameters.skipL2) {
+            return false;
         }
+
+        return
+            block.timestamp.toUint64() < proposal_.parameters.vetoEndDate + governanceSettings.l2AggregationGracePeriod;
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
-    uint256[50] private __gap;
+    uint256[45] private __gap;
 }

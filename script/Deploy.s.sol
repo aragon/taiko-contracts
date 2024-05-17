@@ -21,6 +21,7 @@ import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSet
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
+import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 
 contract Deploy is Script {
     DAO immutable daoImplementation;
@@ -29,15 +30,23 @@ contract Deploy is Script {
     address immutable governanceWrappedERC20Base;
     PluginSetupProcessor immutable pluginSetupProcessor;
     address immutable pluginRepoFactory;
+
+    uint32 immutable minVetoRatio;
+    uint64 immutable l2InactivityPeriod;
+    uint64 immutable l2AggregationGracePeriod;
     address immutable tokenAddress;
-    address[] multisigMembers;
+    address immutable taikoL1;
+    address immutable taikoBridge;
 
     uint64 immutable minStdProposalDelay; // Minimum delay of proposals on the optimistic voting plugin
     uint16 immutable minStdApprovals;
     uint16 immutable minEmergencyApprovals;
 
+    address[] multisigMembers;
+
     string stdMultisigEnsDomain;
     string emergencyMultisigEnsDomain;
+    string optimisticTokenVotingEnsDomain;
 
     constructor() {
         // Implementations
@@ -47,20 +56,27 @@ contract Deploy is Script {
         governanceWrappedERC20Base = vm.envAddress("GOVERNANCE_WRAPPED_ERC20_BASE");
         pluginSetupProcessor = PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR"));
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
+
+        minVetoRatio = uint32(vm.envUint("MIN_VETO_RATIO"));
+        l2InactivityPeriod = uint64(vm.envUint("L2_INACTIVITY_PERIOD"));
+        l2AggregationGracePeriod = uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD"));
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
+        taikoL1 = vm.envAddress("TAIKO_L1_ADDRESS");
+        taikoBridge = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
 
         minStdProposalDelay = uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY"));
         minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
         minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));
-
-        stdMultisigEnsDomain = vm.envString("STD_MULTISIG_ENS_DOMAIN");
-        emergencyMultisigEnsDomain = vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN");
 
         // JSON list of members
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/utils/members.json");
         string memory json = vm.readFile(path);
         multisigMembers = vm.parseJsonAddressArray(json, "$.addresses");
+
+        stdMultisigEnsDomain = vm.envString("STD_MULTISIG_ENS_DOMAIN");
+        emergencyMultisigEnsDomain = vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN");
+        optimisticTokenVotingEnsDomain = vm.envString("OPTIMISTIC_TOKEN_VOTING_ENS_DOMAIN");
     }
 
     function run() public {
@@ -147,7 +163,7 @@ contract Deploy is Script {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory).createPluginRepoWithFirstVersion(
-            stdMultisigEnsDomain, address(pluginSetup), msg.sender, "0x", "0x"
+            stdMultisigEnsDomain, address(pluginSetup), msg.sender, "", ""
         );
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
@@ -179,7 +195,7 @@ contract Deploy is Script {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(pluginRepoFactory).createPluginRepoWithFirstVersion(
-            emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, "0x", "0x"
+            emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, "", ""
         );
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
@@ -213,7 +229,7 @@ contract Deploy is Script {
 
         // Publish repo
         pluginRepo = PluginRepoFactory(pluginRepoFactory).createPluginRepoWithFirstVersion(
-            "ens-of-the-optimistic-token-voting", address(pluginSetup), msg.sender, "0x", "0x"
+            optimisticTokenVotingEnsDomain, address(pluginSetup), msg.sender, "", ""
         );
 
         // Plugin settings
@@ -221,9 +237,10 @@ contract Deploy is Script {
         {
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory votingSettings = OptimisticTokenVotingPlugin
                 .OptimisticGovernanceSettings(
-                200000, // minVetoRatio - 20%
-                0, // minDuration (the condition will enforce it)
-                0 // minProposerVotingPower
+                minVetoRatio,
+                0, // minDuration (the condition contract will enforce it)
+                l2InactivityPeriod,
+                l2AggregationGracePeriod
             );
 
             OptimisticTokenVotingPluginSetup.TokenSettings memory tokenSettings =
@@ -233,7 +250,16 @@ contract Deploy is Script {
                 GovernanceERC20.MintSettings(new address[](0), new uint256[](0));
 
             settingsData = pluginSetup.encodeInstallationParams(
-                votingSettings, tokenSettings, mintSettings, minStdProposalDelay, stdProposer, emergencyProposer
+                OptimisticTokenVotingPluginSetup.InstallationParameters(
+                    votingSettings,
+                    tokenSettings,
+                    mintSettings,
+                    TaikoL1(taikoL1),
+                    taikoBridge,
+                    minStdProposalDelay,
+                    stdProposer,
+                    emergencyProposer
+                )
             );
         }
 
