@@ -10,7 +10,7 @@ import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {createProxyAndCall} from "../helpers.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
-import {TaikoL1UnpausedMock} from "../mocks/TaikoL1Mock.sol";
+import {TaikoL1Mock} from "../mocks/TaikoL1Mock.sol";
 import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
 
 import {Test} from "forge-std/Test.sol";
@@ -60,7 +60,7 @@ contract AragonTest is Test {
         blockForward(1);
 
         // Deploy a new plugin instance
-        TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
+        TaikoL1Mock taikoL1 = new TaikoL1Mock();
 
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
             .OptimisticGovernanceSettings({
@@ -117,7 +117,7 @@ contract AragonTest is Test {
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
-            TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
+            TaikoL1Mock taikoL1 = new TaikoL1Mock();
 
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
@@ -189,7 +189,7 @@ contract AragonTest is Test {
             votingToken.mint();
 
             // Deploy a target contract for passed proposals to be created in
-            TaikoL1UnpausedMock taikoL1 = new TaikoL1UnpausedMock();
+            TaikoL1Mock taikoL1 = new TaikoL1Mock();
 
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory targetContractSettings =
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
