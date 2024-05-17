@@ -101,11 +101,6 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @notice Thrown if the address list source is empty
     error InvalidAddressListSource();
 
-    /// @notice Thrown if a date is out of bounds.
-    /// @param limit The limit value.
-    /// @param actual The actual value.
-    error DateOutOfBounds(uint64 limit, uint64 actual);
-
     /// @notice Emitted when a proposal is created.
     /// @param proposalId The ID of the proposal.
     /// @param creator  The creator of the proposal.

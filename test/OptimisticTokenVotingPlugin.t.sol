@@ -20,6 +20,8 @@ import {IERC1822ProxiableUpgradeable} from
 import {createProxyAndCall} from "./helpers/proxy.sol";
 
 contract OptimisticTokenVotingPluginTest is AragonTest {
+    DaoBuilder builder;
+
     DAO dao;
     OptimisticTokenVotingPlugin optimisticPlugin;
     ERC20VotesMock votingToken;
@@ -42,9 +44,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     event Upgraded(address indexed implementation);
 
     function setUp() public {
-        vm.startPrank(alice);
+        switchTo(alice);
 
-        DaoBuilder builder = new DaoBuilder();
+        builder = new DaoBuilder();
         (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.build();
     }
 
@@ -320,7 +322,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(supported, false, "Should not support any other interface");
     }
 
-    function test_GetVotingTokenReturnsTheRightAddress() public {
+    function test_VotingTokenReturnsTheRightAddress() public {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect voting token");
 
         address oldToken = address(optimisticPlugin.votingToken());
@@ -352,69 +354,47 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(votingToken) != oldToken, true, "The token address sould have changed");
     }
 
-    function test_TotalVotingPowerReturnsTheRightSupply() public {
-        assertEq(
-            optimisticPlugin.totalVotingPower(block.timestamp - 1),
-            votingToken.getPastTotalSupply(block.number - 1),
-            "Incorrect total voting power"
-        );
+    function test_TotalVotingPowerReturnsTheRightValue() public {
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect total voting power");
+        assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 10 ether, "Incorrect past supply");
 
-        // New token
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
-        );
-        votingToken.mint(alice, 15 ether);
-        blockForward(1);
+        // 2
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(bob, 200 ether)
+            .withTokenHolder(carol, 2.5 ether).build();
 
-        // Deploy a new optimisticPlugin instance
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 10 days,
-            l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
-        });
+        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 207.5 ether, "Incorrect total voting power");
+        assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 207.5 ether, "Incorrect past supply");
 
-        optimisticPlugin = OptimisticTokenVotingPlugin(
-            createProxyAndCall(
-                address(OPTIMISTIC_BASE),
-                abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, taikoL1, taikoBridge)
-                )
-            )
-        );
+        // 2
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 50 ether).withTokenHolder(bob, 30 ether)
+            .withTokenHolder(carol, 0.1234 ether).withTokenHolder(david, 100 ether).build();
 
-        assertEq(
-            optimisticPlugin.totalVotingPower(block.timestamp - 1),
-            votingToken.getPastTotalSupply(block.number - 1),
-            "Incorrect total voting power"
-        );
-        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 15 ether, "Incorrect total voting power");
+        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 180.1234 ether, "Incorrect total voting power");
+        assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 180.1234 ether, "Incorrect past supply");
     }
 
     function test_MinVetoRatioReturnsTheRightValue() public {
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 10), "Incorrect minVetoRatio");
 
-        // New optimisticPlugin instance
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 5),
-            minDuration: 10 days,
-            l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
-        });
+        // 2
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withMinVetoRatio(1_000).build();
 
-        optimisticPlugin = OptimisticTokenVotingPlugin(
-            createProxyAndCall(
-                address(OPTIMISTIC_BASE),
-                abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, taikoL1, taikoBridge)
-                )
-            )
-        );
+        assertEq(optimisticPlugin.minVetoRatio(), 1_000, "Incorrect minVetoRatio");
 
-        assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
+        // 3
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withMinVetoRatio(500_000).build();
+
+        assertEq(optimisticPlugin.minVetoRatio(), 500_000, "Incorrect minVetoRatio");
+
+        // 4
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withMinVetoRatio(300_000).build();
+
+        assertEq(optimisticPlugin.minVetoRatio(), 300_000, "Incorrect minVetoRatio");
     }
 
     function test_TokenHoldersAreMembers() public {
@@ -428,7 +408,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         votingToken.mint(alice, 10 ether);
         votingToken.mint(bob, 5 ether);
-        blockForward(1);
+        timeForward(1);
 
         // Deploy a new optimisticPlugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
@@ -455,9 +435,26 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     // Create proposal
     function test_CreateProposalRevertsWhenCalledByANonProposer() public {
-        vm.stopPrank();
-        vm.startPrank(bob);
+        switchTo(alice);
+
         IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector,
+                address(dao),
+                address(optimisticPlugin),
+                alice,
+                optimisticPlugin.PROPOSER_PERMISSION_ID()
+            )
+        );
+        optimisticPlugin.createProposal("", actions, 0, 0);
+
+        dao.grant(address(optimisticPlugin), alice, optimisticPlugin.PROPOSER_PERMISSION_ID());
+        optimisticPlugin.createProposal("", actions, 0, 0);
+
+        undoSwitch();
+        switchTo(bob);
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 DaoUnauthorized.selector,
@@ -468,29 +465,10 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
         optimisticPlugin.createProposal("", actions, 0, 0);
-
-        vm.stopPrank();
-        vm.startPrank(alice);
-
-        optimisticPlugin.createProposal("", actions, 0, 0);
-    }
-
-    function test_CreateProposalSucceedsWhenMinimumVotingPowerIsZero() public {
-        // Bob can create proposals on the optimisticPlugin now
-        dao.grant(address(optimisticPlugin), bob, optimisticPlugin.PROPOSER_PERMISSION_ID());
-
-        vm.stopPrank();
-        vm.startPrank(bob);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId1 = optimisticPlugin.createProposal("", actions, 0, 0);
-        uint256 proposalId2 = optimisticPlugin.createProposal("", actions, 0, 0);
-        assertEq(proposalId1 + 1, proposalId2, "Should be +1");
     }
 
     function test_CreateProposalRevertsIfThereIsNoVotingPower() public {
-        vm.stopPrank();
-        vm.startPrank(alice);
+        switchTo(alice);
 
         // Deploy ERC20 token (0 supply)
         votingToken = ERC20VotesMock(

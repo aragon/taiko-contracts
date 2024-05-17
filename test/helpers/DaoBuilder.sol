@@ -36,10 +36,11 @@ contract DaoBuilder is Test {
 
     TaikoL1Status public taikoL1Status = TaikoL1Status.Standard;
     address[] public multisigMembers;
+    address[] public optimisticProposers;
     MintEntry[] public tokenHolders;
 
     uint32 public minVetoRatio = uint32(RATIO_BASE / 10); // 10%
-    uint64 public minDuration = 4 days;
+    uint64 public minDuration = 0;
     uint64 public l2InactivityPeriod = 10 minutes;
     uint64 public l2AggregationGracePeriod = 2 days;
 
@@ -100,6 +101,11 @@ contract DaoBuilder is Test {
 
     function withMultisigMember(address newMember) public returns (DaoBuilder) {
         multisigMembers.push(newMember);
+        return this;
+    }
+
+    function withProposerOnOptimistic(address newProposer) public returns (DaoBuilder) {
+        optimisticProposers.push(newProposer);
         return this;
     }
 
