@@ -87,11 +87,11 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
     address public taikoBridge;
 
-    /// @notice The struct storing the governance settings.
-    OptimisticGovernanceSettings public governanceSettings;
-
     /// @notice Taiko L1 contract to check the status from.
     TaikoL1 public taikoL1;
+
+    /// @notice The struct storing the governance settings.
+    OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -213,11 +213,6 @@ contract OptimisticTokenVotingPlugin is
     /// @inheritdoc IOptimisticTokenVoting
     function minVetoRatio() public view virtual returns (uint32) {
         return governanceSettings.minVetoRatio;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minDuration() public view virtual returns (uint64) {
-        return governanceSettings.minDuration;
     }
 
     /// @inheritdoc IMembership

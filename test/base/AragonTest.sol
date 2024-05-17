@@ -8,11 +8,11 @@ import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
 import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {createProxyAndCall} from "../helpers.sol";
+import {createProxyAndCall} from "../helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
 import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
-import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "./constants.sol";
+import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract AragonTest is Test {
@@ -22,6 +22,12 @@ contract AragonTest is Test {
     address immutable david = DAVID_ADDRESS;
     address immutable taikoBridge = TAIKO_BRIDGE_ADDRESS;
     address immutable randomWallet = vm.addr(1234567890);
+
+    address immutable DAO_BASE = address(new DAO());
+    address immutable MULTISIG_BASE = address(new Multisig());
+    address immutable EMERGENCY_MULTISIG_BASE = address(new EmergencyMultisig());
+    address immutable OPTIMISTIC_BASE = address(new OptimisticTokenVotingPlugin());
+    address immutable VOTING_TOKEN_BASE = address(new ERC20VotesMock());
 
     bytes internal constant EMPTY_BYTES = "";
 

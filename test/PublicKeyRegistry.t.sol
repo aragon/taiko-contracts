@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {AragonTest} from "./base/AragonTest.sol";
 import {PublicKeyRegistry} from "../src/PublicKeyRegistry.sol";
-import {createProxyAndCall} from "./helpers.sol";
+import {createProxyAndCall} from "./helpers/proxy.sol";
 
 contract EmergencyMultisigTest is AragonTest {
     PublicKeyRegistry registry;

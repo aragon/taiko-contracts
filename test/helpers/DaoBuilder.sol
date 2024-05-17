@@ -7,11 +7,11 @@ import {Multisig} from "../../src/Multisig.sol";
 import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
 import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
-import {createProxyAndCall} from "../helpers.sol";
+import {createProxyAndCall} from "./proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
 import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
-import {ALICE_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "./constants.sol";
+import {ALICE_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
 
 contract DaoBuilder is Test {
     address immutable DAO_BASE = address(new DAO());
@@ -115,10 +115,10 @@ contract DaoBuilder is Test {
         public
         returns (
             DAO dao,
-            ERC20VotesMock votingToken,
             OptimisticTokenVotingPlugin optimisticPlugin,
             Multisig multisig,
             EmergencyMultisig emergencyMultisig,
+            ERC20VotesMock votingToken,
             TaikoL1 taikoL1
         )
     {
