@@ -63,11 +63,13 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
+    /// @param metadataUri The IPFS URI where the proposal metadata is pinned.
     /// @param vetoEndDate The end date of the proposal vote.
     /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param skipL2 True if the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
+        bytes metadataUri;
         uint64 vetoEndDate;
         uint64 snapshotTimestamp;
         uint32 minVetoRatio;
@@ -350,6 +352,7 @@ contract OptimisticTokenVotingPlugin is
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
+        proposal_.parameters.metadataUri = _metadata;
         proposal_.parameters.vetoEndDate = _vetoEndDate;
         proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoRatio = minVetoRatio();

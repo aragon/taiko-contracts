@@ -40,12 +40,19 @@ contract AragonTest is Test {
         vm.label(randomWallet, "Random wallet");
     }
 
-    /// @notice Tells Foundry to continue executing from the given wallet.
+    /// @notice Continue executing as the given wallet. Override any prior setting.
     function switchTo(address target) internal {
-        vm.startPrank(target);
+        (, address currentAddress,) = vm.readCallers();
+        if (currentAddress == target) return;
+
+        try vm.startPrank(target) {}
+        catch {
+            vm.stopPrank();
+            vm.startPrank(target);
+        }
     }
 
-    /// @notice Tells Foundry to stop using the last labeled wallet.
+    /// @notice Stop using the last given wallet.
     function undoSwitch() internal {
         vm.stopPrank();
     }

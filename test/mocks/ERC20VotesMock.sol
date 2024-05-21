@@ -43,6 +43,10 @@ contract ERC20VotesMock is ERC20Upgradeable, ERC20PermitUpgradeable, ERC20VotesU
         super._mint(to, amount);
     }
 
+    function _delegate(address delegator, address delegatee) internal override(ERC20VotesUpgradeable) {
+        super._delegate(delegator, delegatee);
+    }
+
     function _burn(address account, uint256 amount) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._burn(account, amount);
     }
@@ -53,5 +57,10 @@ contract ERC20VotesMock is ERC20Upgradeable, ERC20PermitUpgradeable, ERC20VotesU
 
     function mint(address receiver, uint256 amount) external {
         _mint(receiver, amount);
+    }
+
+    function mintAndDelegate(address receiver, uint256 amount) external {
+        _mint(receiver, amount);
+        _delegate(receiver, receiver);
     }
 }

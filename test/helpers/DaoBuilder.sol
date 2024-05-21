@@ -40,7 +40,7 @@ contract DaoBuilder is Test {
     MintEntry[] public tokenHolders;
 
     uint32 public minVetoRatio = uint32(RATIO_BASE / 10); // 10%
-    uint64 public minDuration = 0;
+    uint64 public minDuration = 4 days;
     uint64 public l2InactivityPeriod = 10 minutes;
     uint64 public l2AggregationGracePeriod = 2 days;
 
@@ -130,12 +130,13 @@ contract DaoBuilder is Test {
     {
         setBlock(0);
         setTime(0);
-        switchTo(owner);
 
-        // Deploy the DAO with the owner as root
+        // Deploy the DAO with `this` as root
         dao = DAO(
             payable(
-                createProxyAndCall(address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", owner, address(0x0), "")))
+                createProxyAndCall(
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", address(this), address(0x0), ""))
+                )
             )
         );
 
@@ -146,16 +147,10 @@ contract DaoBuilder is Test {
 
         if (tokenHolders.length > 0) {
             for (uint256 i = 0; i < tokenHolders.length; i++) {
-                undoSwitch();
-                switchTo(tokenHolders[i].tokenHolder);
-                votingToken.mint(tokenHolders[i].tokenHolder, tokenHolders[i].amount);
-                votingToken.delegate(tokenHolders[i].tokenHolder);
+                votingToken.mintAndDelegate(tokenHolders[i].tokenHolder, tokenHolders[i].amount);
             }
-            undoSwitch();
-            switchTo(owner);
         } else {
-            votingToken.mint(owner, 10 ether);
-            votingToken.delegate(owner);
+            votingToken.mintAndDelegate(owner, 10 ether);
         }
 
         // Optimistic token voting plugin
@@ -234,23 +229,31 @@ contract DaoBuilder is Test {
         // Emergency Multisig can create proposals on the optimistic plugin
         dao.grant(address(optimisticPlugin), address(emergencyMultisig), optimisticPlugin.PROPOSER_PERMISSION_ID());
 
+        if (optimisticProposers.length > 0) {
+            for (uint256 i = 0; i < optimisticProposers.length; i++) {
+                dao.grant(address(optimisticPlugin), optimisticProposers[i], optimisticPlugin.PROPOSER_PERMISSION_ID());
+            }
+        } else {
+            // Ensure that at least the owner can propose
+            dao.grant(address(optimisticPlugin), owner, optimisticPlugin.PROPOSER_PERMISSION_ID());
+        }
+
+        // Revoke transfer ownership to the owner
+        dao.grant(address(dao), owner, dao.ROOT_PERMISSION_ID());
+        dao.revoke(address(dao), address(this), dao.ROOT_PERMISSION_ID());
+
+        // Labels
+        vm.label(address(dao), "DAO");
+        vm.label(address(optimisticPlugin), "OptimisticPlugin");
+        vm.label(address(votingToken), "VotingToken");
+        vm.label(address(multisig), "Multisig");
+        vm.label(address(emergencyMultisig), "EmergencyMultisig");
+        vm.label(address(taikoL1), "TaikoL1");
+        vm.label(address(taikoBridge), "TaikoBridge");
+
         // Moving forward to avoid proposal creations failing or getVotes() giving inconsistent values
         blockForward(1);
         timeForward(1);
-
-        undoSwitch();
-    }
-
-    // Helpers
-
-    /// @notice Tells Foundry to continue executing from the given wallet.
-    function switchTo(address target) internal {
-        vm.startPrank(target);
-    }
-
-    /// @notice Tells Foundry to stop using the last labeled wallet.
-    function undoSwitch() internal {
-        vm.stopPrank();
     }
 
     /// @notice Moves the EVM time forward by a given amount.
