@@ -74,6 +74,11 @@ contract DaoBuilder is Test {
         return this;
     }
 
+    function withDuration(uint32 newDuration) public returns (DaoBuilder) {
+        stdProposalDuration = newDuration;
+        return this;
+    }
+
     function withL2InactivityPeriod(uint64 newL2InactivityPeriod) public returns (DaoBuilder) {
         l2InactivityPeriod = newL2InactivityPeriod;
         return this;

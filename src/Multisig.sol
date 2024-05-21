@@ -386,7 +386,7 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @return True if the proposal vote is open, false otherwise.
     function _isProposalOpen(Proposal storage proposal_) internal view returns (bool) {
         uint64 currentTimestamp64 = block.timestamp.toUint64();
-        return !proposal_.executed && proposal_.parameters.expirationDate >= currentTimestamp64;
+        return !proposal_.executed && proposal_.parameters.expirationDate > currentTimestamp64;
     }
 
     /// @notice Internal function to update the plugin settings.
