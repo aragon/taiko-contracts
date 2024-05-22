@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {AragonTest} from "./base/AragonTest.sol";
+import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {StandardProposalCondition} from "../src/conditions/StandardProposalCondition.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {Multisig} from "../src/Multisig.sol";
@@ -19,9 +20,11 @@ import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intr
 import {createProxyAndCall} from "./helpers/proxy.sol";
 
 contract EmergencyMultisigTest is AragonTest {
+    DaoBuilder builder;
+
     DAO dao;
-    EmergencyMultisig plugin;
-    Multisig multisig;
+    EmergencyMultisig eMultisig;
+    Multisig stdMultisig;
     OptimisticTokenVotingPlugin optimisticPlugin;
 
     // Events/errors to be tested here (duplicate)
@@ -32,15 +35,16 @@ contract EmergencyMultisigTest is AragonTest {
     error InvalidAddresslistUpdate(address member);
     error InvalidActions(uint256 proposalId);
 
-    /// @notice The emergency multisig event
+    // Multisig's event
     event ProposalCreated(
         uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI, bytes32 destinationActionsHash
     );
-    /// @notice The OptimisticTokenVotingPlugin event
+    // OptimisticTokenVotingPlugin's event
     event ProposalCreated(
         uint256 indexed proposalId,
         address indexed creator,
-        uint64 excludeArtifactndDate,
+        uint64 startDate,
+        uint64 endDate,
         bytes metadata,
         IDAO.Action[] actions,
         uint256 allowFailureMap
@@ -52,18 +56,17 @@ contract EmergencyMultisigTest is AragonTest {
     function setUp() public {
         switchTo(alice);
 
-        (dao, plugin, multisig, optimisticPlugin) = makeDaoWithEmergencyMultisigAndOptimistic(alice);
-
-        // Ensure that created proposals happen 1 block after the settings changed
-        blockForward(1);
+        builder = new DaoBuilder();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
+            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).withMinDuration(0).build();
     }
 
     function test_RevertsIfTryingToReinitialize() public {
-        // Deploy a new multisig instance
+        // Deploy a new stdMultisig instance
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
@@ -71,115 +74,116 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Reinitialize should fail
         vm.expectRevert("Initializable: contract is already initialized");
-        plugin.initialize(dao, settings);
+        eMultisig.initialize(dao, settings);
     }
 
-    function test_ShouldSetMinApprovals() public {
+    function test_InitializeSetsMinApprovals() public {
         // 2
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: stdMultisig});
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
-        (, uint16 minApprovals,) = plugin.multisigSettings();
+        (, uint16 minApprovals,) = eMultisig.multisigSettings();
         assertEq(minApprovals, uint16(2), "Incorrect minApprovals");
 
         // Redeploy with 1
         settings.minApprovals = 1;
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
-        (, minApprovals,) = plugin.multisigSettings();
+        (, minApprovals,) = eMultisig.multisigSettings();
         assertEq(minApprovals, uint16(1), "Incorrect minApprovals");
     }
 
-    function test_ShouldSetOnlyListed() public {
+    function test_InitializeSetsOnlyListed() public {
         // Deploy with true
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
-        (bool onlyListed,,) = plugin.multisigSettings();
+        (bool onlyListed,,) = eMultisig.multisigSettings();
         assertEq(onlyListed, true, "Incorrect onlyListed");
 
         // Redeploy with false
         settings.onlyListed = false;
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
-        (onlyListed,,) = plugin.multisigSettings();
+        (onlyListed,,) = eMultisig.multisigSettings();
         assertEq(onlyListed, false, "Incorrect onlyListed");
     }
 
-    function test_ShouldSetAddresslistSource() public {
-        // Deploy the default multisig as source
+    function test_InitializeSetsAddresslistSource() public {
+        // Deploy the default stdMultisig as source
         EmergencyMultisig.MultisigSettings memory emSettings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, emSettings))
             )
         );
 
-        (,, Addresslist givenAddressListSource) = plugin.multisigSettings();
-        assertEq(address(givenAddressListSource), address(multisig), "Incorrect addresslistSource");
+        (,, Addresslist givenAddressListSource) = eMultisig.multisigSettings();
+        assertEq(address(givenAddressListSource), address(stdMultisig), "Incorrect addresslistSource");
 
         // Redeploy with a new addresslist source
-        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+        (,, Multisig newMultisig,,,) = builder.build();
 
         emSettings.addresslistSource = newMultisig;
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, emSettings))
             )
         );
 
-        (,, givenAddressListSource) = plugin.multisigSettings();
+        (,, givenAddressListSource) = eMultisig.multisigSettings();
         assertEq(address(givenAddressListSource), address(emSettings.addresslistSource), "Incorrect addresslistSource");
     }
 
     function test_ShouldEmitMultisigSettingsUpdatedOnInstall() public {
         // Deploy with true/3/default
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, uint16(3), multisig);
+        emit MultisigSettingsUpdated(true, uint16(3), stdMultisig);
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
         // Deploy with false/2/new
-        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+
+        (,, Multisig newMultisig,,,) = builder.build();
 
         settings =
             EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 2, addresslistSource: newMultisig});
         vm.expectEmit();
         emit MultisigSettingsUpdated(false, uint16(2), newMultisig);
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
@@ -189,32 +193,32 @@ contract EmergencyMultisigTest is AragonTest {
     // INTERFACES
 
     function test_DoesntSupportTheEmptyInterface() public view {
-        bool supported = plugin.supportsInterface(0);
+        bool supported = eMultisig.supportsInterface(0);
         assertEq(supported, false, "Should not support the empty interface");
     }
 
     function test_SupportsIERC165Upgradeable() public view {
-        bool supported = plugin.supportsInterface(type(IERC165Upgradeable).interfaceId);
+        bool supported = eMultisig.supportsInterface(type(IERC165Upgradeable).interfaceId);
         assertEq(supported, true, "Should support IERC165Upgradeable");
     }
 
     function test_SupportsIPlugin() public view {
-        bool supported = plugin.supportsInterface(type(IPlugin).interfaceId);
+        bool supported = eMultisig.supportsInterface(type(IPlugin).interfaceId);
         assertEq(supported, true, "Should support IPlugin");
     }
 
     function test_SupportsIProposal() public view {
-        bool supported = plugin.supportsInterface(type(IProposal).interfaceId);
+        bool supported = eMultisig.supportsInterface(type(IProposal).interfaceId);
         assertEq(supported, true, "Should support IProposal");
     }
 
     function test_SupportsIMembership() public view {
-        bool supported = plugin.supportsInterface(type(IMembership).interfaceId);
+        bool supported = eMultisig.supportsInterface(type(IMembership).interfaceId);
         assertEq(supported, true, "Should support IMembership");
     }
 
     function test_SupportsIEmergencyMultisig() public view {
-        bool supported = plugin.supportsInterface(type(IEmergencyMultisig).interfaceId);
+        bool supported = eMultisig.supportsInterface(type(IEmergencyMultisig).interfaceId);
         assertEq(supported, true, "Should support IEmergencyMultisig");
     }
 
@@ -224,12 +228,12 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 5,
-            addresslistSource: multisig // Greater than 4 members
+            addresslistSource: stdMultisig // Greater than 4 members
         });
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 4, 5));
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
@@ -239,10 +243,10 @@ contract EmergencyMultisigTest is AragonTest {
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 6,
-            addresslistSource: multisig // Greater than 4 members
+            addresslistSource: stdMultisig // Greater than 4 members
         });
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 4, 6));
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
@@ -251,20 +255,21 @@ contract EmergencyMultisigTest is AragonTest {
 
     function test_ShouldNotAllowMinApprovalsZero() public {
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 0, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 0, addresslistSource: stdMultisig});
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 1, 0));
 
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
         // Retry with onlyListed false
-        settings = EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 0, addresslistSource: multisig});
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 0, addresslistSource: stdMultisig});
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 1, 0));
-        plugin = EmergencyMultisig(
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
@@ -272,46 +277,47 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_ShouldEmitMultisigSettingsUpdated() public {
-        dao.grant(address(plugin), address(alice), plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(eMultisig), address(alice), eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         // 1
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: stdMultisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 1, multisig);
-        plugin.updateMultisigSettings(settings);
+        emit MultisigSettingsUpdated(true, 1, stdMultisig);
+        eMultisig.updateMultisigSettings(settings);
 
         // 2
-        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+        (,, Multisig newMultisig,,,) = builder.build();
 
         settings =
             EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: newMultisig});
 
         vm.expectEmit();
         emit MultisigSettingsUpdated(true, 2, newMultisig);
-        plugin.updateMultisigSettings(settings);
+        eMultisig.updateMultisigSettings(settings);
 
         // 3
-        (, newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+        (,, newMultisig,,,) = builder.build();
 
         settings =
             EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 3, addresslistSource: newMultisig});
 
         vm.expectEmit();
         emit MultisigSettingsUpdated(false, 3, newMultisig);
-        plugin.updateMultisigSettings(settings);
+        eMultisig.updateMultisigSettings(settings);
 
         // 4
-        settings = EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 4, addresslistSource: multisig});
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 4, addresslistSource: stdMultisig});
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 4, multisig);
-        plugin.updateMultisigSettings(settings);
+        emit MultisigSettingsUpdated(false, 4, stdMultisig);
+        eMultisig.updateMultisigSettings(settings);
     }
 
     function test_onlyWalletWithPermissionsCanUpdateSettings() public {
-        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+        (,, Multisig newMultisig,,,) = builder.build();
 
         EmergencyMultisig.MultisigSettings memory settings =
             EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: newMultisig});
@@ -319,181 +325,180 @@ contract EmergencyMultisigTest is AragonTest {
             abi.encodeWithSelector(
                 DaoUnauthorized.selector,
                 address(dao),
-                address(plugin),
+                address(eMultisig),
                 alice,
-                plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+                eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
             )
         );
-        plugin.updateMultisigSettings(settings);
+        eMultisig.updateMultisigSettings(settings);
 
         // Nothing changed
-        (bool onlyListed, uint16 minApprovals, Addresslist currentSource) = plugin.multisigSettings();
+        (bool onlyListed, uint16 minApprovals, Addresslist currentSource) = eMultisig.multisigSettings();
         assertEq(onlyListed, true);
         assertEq(minApprovals, 3);
-        assertEq(address(currentSource), address(multisig));
+        assertEq(address(currentSource), address(stdMultisig));
 
         // Retry with the permission
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         vm.expectEmit();
         emit MultisigSettingsUpdated(false, 1, newMultisig);
-        plugin.updateMultisigSettings(settings);
+        eMultisig.updateMultisigSettings(settings);
     }
 
     function test_IsMemberShouldReturnWhenApropriate() public {
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
+        assertEq(eMultisig.isMember(alice), true, "Should be a member");
+        assertEq(eMultisig.isMember(bob), true, "Should be a member");
+        assertEq(eMultisig.isMember(carol), true, "Should be a member");
+        assertEq(eMultisig.isMember(david), true, "Should be a member");
 
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(stdMultisig), alice, stdMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         address[] memory signers = new address[](1);
         signers[0] = bob;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), false, "Should not be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
+        assertEq(eMultisig.isMember(alice), true, "Should be a member");
+        assertEq(eMultisig.isMember(bob), false, "Should not be a member");
+        assertEq(eMultisig.isMember(carol), true, "Should be a member");
+        assertEq(eMultisig.isMember(david), true, "Should be a member");
 
         // 2
-        multisig.addAddresses(signers); // Add Bob back
+        stdMultisig.addAddresses(signers); // Add Bob back
         signers[0] = alice;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(plugin.isMember(alice), false, "Should not be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
+        assertEq(eMultisig.isMember(alice), false, "Should not be a member");
+        assertEq(eMultisig.isMember(bob), true, "Should be a member");
+        assertEq(eMultisig.isMember(carol), true, "Should be a member");
+        assertEq(eMultisig.isMember(david), true, "Should be a member");
 
         // 3
-        multisig.addAddresses(signers); // Add Alice back
+        stdMultisig.addAddresses(signers); // Add Alice back
         signers[0] = carol;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), false, "Should not be a member");
-        assertEq(plugin.isMember(david), true, "Should be a member");
+        assertEq(eMultisig.isMember(alice), true, "Should be a member");
+        assertEq(eMultisig.isMember(bob), true, "Should be a member");
+        assertEq(eMultisig.isMember(carol), false, "Should not be a member");
+        assertEq(eMultisig.isMember(david), true, "Should be a member");
 
         // 4
-        multisig.addAddresses(signers); // Add Carol back
+        stdMultisig.addAddresses(signers); // Add Carol back
         signers[0] = david;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(plugin.isMember(alice), true, "Should be a member");
-        assertEq(plugin.isMember(bob), true, "Should be a member");
-        assertEq(plugin.isMember(carol), true, "Should be a member");
-        assertEq(plugin.isMember(david), false, "Should not be a member");
+        assertEq(eMultisig.isMember(alice), true, "Should be a member");
+        assertEq(eMultisig.isMember(bob), true, "Should be a member");
+        assertEq(eMultisig.isMember(carol), true, "Should be a member");
+        assertEq(eMultisig.isMember(david), false, "Should not be a member");
     }
 
     function test_IsMemberIsListedShouldReturnTheSameValue() public {
-        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
 
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(stdMultisig), alice, stdMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         address[] memory signers = new address[](1);
         signers[0] = alice;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
 
         // 2
-        multisig.addAddresses(signers); // Add Alice back
+        stdMultisig.addAddresses(signers); // Add Alice back
         signers[0] = bob;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
 
         // 3
-        multisig.addAddresses(signers); // Add Bob back
+        stdMultisig.addAddresses(signers); // Add Bob back
         signers[0] = carol;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
 
         // 4
-        multisig.addAddresses(signers); // Add Carol back
+        stdMultisig.addAddresses(signers); // Add Carol back
         signers[0] = david;
-        multisig.removeAddresses(signers);
+        stdMultisig.removeAddresses(signers);
 
-        assertEq(multisig.isListed(alice), plugin.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), plugin.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), plugin.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), plugin.isMember(david), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
+        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
     }
 
     function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public {
-        // Deploy a new multisig instance
+        // Deploy a new stdMultisig instance
         Multisig.MultisigSettings memory mSettings =
             Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
         address[] memory signers = new address[](1);
         signers[0] = address(0x0); // 0x0... would be a member but the chance is negligible
 
-        multisig = Multisig(
+        stdMultisig = Multisig(
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, mSettings)))
         );
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
-        plugin = EmergencyMultisig(
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: stdMultisig});
+        eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
 
         assertEq(
-            plugin.isMember(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
+            eMultisig.isMember(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
         );
     }
 
     function testFuzz_PermissionedUpdateSettings(address randomAccount) public {
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
-        (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource) = plugin.multisigSettings();
+        (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource) = eMultisig.multisigSettings();
         assertEq(minApprovals, 3, "Should be 3");
         assertEq(onlyListed, true, "Should be true");
-        assertEq(address(addresslistSource), address(multisig), "Incorrect addresslistSource");
+        assertEq(address(addresslistSource), address(stdMultisig), "Incorrect addresslistSource");
 
         // in
-        (, Multisig newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+        (,, Multisig newMultisig,,,) = builder.build();
         EmergencyMultisig.MultisigSettings memory newSettings =
             EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 2, addresslistSource: newMultisig});
-        plugin.updateMultisigSettings(newSettings);
+        eMultisig.updateMultisigSettings(newSettings);
 
         Addresslist givenAddresslistSource;
-        (onlyListed, minApprovals, givenAddresslistSource) = plugin.multisigSettings();
+        (onlyListed, minApprovals, givenAddresslistSource) = eMultisig.multisigSettings();
         assertEq(minApprovals, 2, "Should be 2");
         assertEq(onlyListed, false, "Should be false");
         assertEq(address(givenAddresslistSource), address(newMultisig), "Incorrect addresslistSource");
 
         // out
         newSettings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
-        plugin.updateMultisigSettings(newSettings);
-        (onlyListed, minApprovals, givenAddresslistSource) = plugin.multisigSettings();
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: stdMultisig});
+        eMultisig.updateMultisigSettings(newSettings);
+        (onlyListed, minApprovals, givenAddresslistSource) = eMultisig.multisigSettings();
         assertEq(minApprovals, 1, "Should be 1");
         assertEq(onlyListed, true, "Should be true");
-        assertEq(address(givenAddresslistSource), address(multisig), "Incorrect addresslistSource");
+        assertEq(address(givenAddresslistSource), address(stdMultisig), "Incorrect addresslistSource");
 
         blockForward(1);
 
         // someone else
         if (randomAccount != alice && randomAccount != address(0)) {
-            undoSwitch();
             switchTo(randomAccount);
 
-            (, newMultisig,) = makeDaoWithMultisigAndOptimistic(alice);
+            (,, newMultisig,,,) = builder.build();
             newSettings =
                 EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 4, addresslistSource: newMultisig});
 
@@ -501,62 +506,59 @@ contract EmergencyMultisigTest is AragonTest {
                 abi.encodeWithSelector(
                     DaoUnauthorized.selector,
                     address(dao),
-                    address(plugin),
+                    address(eMultisig),
                     randomAccount,
-                    plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
+                    eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
                 )
             );
-            plugin.updateMultisigSettings(newSettings);
+            eMultisig.updateMultisigSettings(newSettings);
 
-            (onlyListed, minApprovals, givenAddresslistSource) = plugin.multisigSettings();
+            (onlyListed, minApprovals, givenAddresslistSource) = eMultisig.multisigSettings();
             assertEq(minApprovals, 1, "Should still be 1");
             assertEq(onlyListed, true, "Should still be true");
-            assertEq(address(givenAddresslistSource), address(multisig), "Should still be multisig");
+            assertEq(address(givenAddresslistSource), address(stdMultisig), "Should still be stdMultisig");
         }
-
-        undoSwitch();
-        switchTo(alice);
     }
 
     // PROPOSAL CREATION
 
     function test_IncrementsTheProposalCounter() public {
         // increments the proposal counter
-        assertEq(plugin.proposalCount(), 0, "Should have no proposals");
+        assertEq(eMultisig.proposalCount(), 0, "Should have no proposals");
 
         // 1
-        plugin.createProposal(
+        eMultisig.createProposal(
             "ipfs://",
             bytes32(0x1234000000000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
             false
         );
 
-        assertEq(plugin.proposalCount(), 1, "Should have 1 proposal");
+        assertEq(eMultisig.proposalCount(), 1, "Should have 1 proposal");
 
         // 2
-        plugin.createProposal(
+        eMultisig.createProposal(
             "ipfs://more",
             bytes32(0x1234000000000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
             true
         );
 
-        assertEq(plugin.proposalCount(), 2, "Should have 2 proposals");
+        assertEq(eMultisig.proposalCount(), 2, "Should have 2 proposals");
     }
 
     function test_CreatesAndReturnsUniqueProposalIds() public {
         // creates unique proposal IDs for each proposal
 
         // 1
-        uint256 pid = plugin.createProposal(
+        uint256 pid = eMultisig.createProposal(
             "", bytes32(0x1234000000000000000000000000000000000000000000000000000000000000), optimisticPlugin, true
         );
 
         assertEq(pid, 0, "Should be 0");
 
         // 2
-        pid = plugin.createProposal(
+        pid = eMultisig.createProposal(
             "ipfs://",
             bytes32(0x0000567800000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
@@ -566,7 +568,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(pid, 1, "Should be 1");
 
         // 3
-        pid = plugin.createProposal(
+        pid = eMultisig.createProposal(
             "ipfs://more",
             bytes32(0x1234000000000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
@@ -586,14 +588,12 @@ contract EmergencyMultisigTest is AragonTest {
             encryptedPayloadURI: "",
             destinationActionsHash: bytes32(0x1234000000000000000000000000000000000000000000000000000000000000)
         });
-        plugin.createProposal(
+        eMultisig.createProposal(
             "", bytes32(0x1234000000000000000000000000000000000000000000000000000000000000), optimisticPlugin, true
         );
 
         // 2
-        undoSwitch();
         switchTo(bob);
-        blockForward(1);
 
         vm.expectEmit();
         emit ProposalCreated({
@@ -602,127 +602,120 @@ contract EmergencyMultisigTest is AragonTest {
             encryptedPayloadURI: "ipfs://",
             destinationActionsHash: bytes32(0x0000567800000000000000000000000000000000000000000000000000000000)
         });
-        plugin.createProposal(
+        eMultisig.createProposal(
             "ipfs://",
             bytes32(0x0000567800000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
             false
         );
-
-        // undo
-        undoSwitch();
-        switchTo(alice);
     }
 
     function test_RevertsIfSettingsChangedInSameBlock() public {
-        // reverts if the multisig settings have changed in the same block
+        // reverts if the stdMultisig settings have changed in the same block
 
-        (dao, plugin, multisig, optimisticPlugin) = makeDaoWithEmergencyMultisigAndOptimistic(alice);
+        {
+            EmergencyMultisig.MultisigSettings memory settings =
+                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
 
-        // 1
+            eMultisig = EmergencyMultisig(
+                createProxyAndCall(
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+                )
+            );
+        }
+
+        // Same block
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, alice));
-        plugin.createProposal("", bytes32(0), optimisticPlugin, false);
+        eMultisig.createProposal("", bytes32(0), optimisticPlugin, false);
 
         // Next block
         blockForward(1);
-        plugin.createProposal("", bytes32(0), optimisticPlugin, false);
+        eMultisig.createProposal("", bytes32(0), optimisticPlugin, false);
     }
 
     function test_CreatesWhenUnlistedAccountsAllowed() public {
         // creates a proposal when unlisted accounts are allowed
 
         // Deploy a new instance with custom settings
-        EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 3, addresslistSource: multisig});
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withoutOnlyListed().build();
 
-        plugin = EmergencyMultisig(
-            createProxyAndCall(
-                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-            )
-        );
-
-        undoSwitch();
         switchTo(randomWallet);
-        blockForward(1);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        plugin.createProposal("", 0, optimisticPlugin, false);
+        switchTo(carol);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        undoSwitch();
-        switchTo(alice);
+        switchTo(david);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
     }
 
     function test_RevertsWhenOnlyListedAndAnotherWalletCreates() public {
         // reverts if the user is not on the list and only listed accounts can create proposals
 
-        undoSwitch();
         switchTo(randomWallet);
-        blockForward(1);
-
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, randomWallet));
-        plugin.createProposal("", 0, optimisticPlugin, false);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        undoSwitch();
-        switchTo(alice);
+        switchTo(taikoBridge);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoBridge));
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
     }
 
     function test_RevertsWhenCreatorWasListedBeforeButNotNow() public {
         // reverts if `msg.sender` is not listed although she was listed in the last block
 
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(stdMultisig), alice, stdMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         // Remove
         address[] memory addrs = new address[](1);
         addrs[0] = alice;
-        multisig.removeAddresses(addrs);
+        stdMultisig.removeAddresses(addrs);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, alice));
-        plugin.createProposal("", 0, optimisticPlugin, false);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        multisig.addAddresses(addrs); // Add Alice back
+        stdMultisig.addAddresses(addrs); // Add Alice back
         blockForward(1);
-        plugin.createProposal("", 0, optimisticPlugin, false);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Add+remove
         addrs[0] = bob;
-        multisig.removeAddresses(addrs);
+        stdMultisig.removeAddresses(addrs);
 
-        undoSwitch();
         switchTo(bob);
 
         // Bob cannot create now
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, bob));
-        plugin.createProposal("", 0, optimisticPlugin, false);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        undoSwitch();
         switchTo(alice);
 
         // Bob can create now
-        multisig.addAddresses(addrs); // Add Bob back
+        stdMultisig.addAddresses(addrs); // Add Bob back
 
-        undoSwitch();
         switchTo(alice);
 
-        plugin.createProposal("", 0, optimisticPlugin, false);
+        eMultisig.createProposal("", 0, optimisticPlugin, false);
     }
 
     function test_CreatesProposalWithoutApprovingIfUnspecified() public {
         // creates a proposal successfully and does not approve if not specified
 
-        uint256 pid = plugin.createProposal(
+        uint256 pid = eMultisig.createProposal(
             "",
             0,
             optimisticPlugin,
             false // approveProposal
         );
 
-        assertEq(plugin.hasApproved(pid, alice), false, "Should not have approved");
-        (, uint16 approvals,,,,) = plugin.getProposal(pid);
+        assertEq(eMultisig.hasApproved(pid, alice), false, "Should not have approved");
+        (, uint16 approvals,,,,) = eMultisig.getProposal(pid);
         assertEq(approvals, 0, "Should be 0");
 
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        assertEq(plugin.hasApproved(pid, alice), true, "Should have approved");
-        (, approvals,,,,) = plugin.getProposal(pid);
+        assertEq(eMultisig.hasApproved(pid, alice), true, "Should have approved");
+        (, approvals,,,,) = eMultisig.getProposal(pid);
         assertEq(approvals, 1, "Should be 1");
     }
 
@@ -731,21 +724,21 @@ contract EmergencyMultisigTest is AragonTest {
 
         vm.expectEmit();
         emit Approved({proposalId: 0, approver: alice});
-        plugin.createProposal(
+        eMultisig.createProposal(
             "ipfs://",
             bytes32(0x1234000000000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
             true
         );
 
-        uint256 pid = plugin.createProposal(
+        uint256 pid = eMultisig.createProposal(
             "ipfs://",
             bytes32(0x1234000000000000000000000000000000000000000000000000000000000000),
             optimisticPlugin,
             true // approveProposal
         );
-        assertEq(plugin.hasApproved(pid, alice), true, "Should have approved");
-        (, uint16 approvals,,,,) = plugin.getProposal(pid);
+        assertEq(eMultisig.hasApproved(pid, alice), true, "Should have approved");
+        (, uint16 approvals,,,,) = eMultisig.getProposal(pid);
         assertEq(approvals, 1, "Should be 1");
     }
 
@@ -755,30 +748,30 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].value = 1 ether;
         actions[0].data = hex"00112233";
 
-        bytes32 h1 = plugin.hashActions(actions);
+        bytes32 h1 = eMultisig.hashActions(actions);
 
         // 2
         actions[0].to = bob;
-        bytes32 h2 = plugin.hashActions(actions);
+        bytes32 h2 = eMultisig.hashActions(actions);
         assertNotEq(h1, h2, "Hashes should differ");
 
         // 3
         actions[0].value = 2 ether;
-        bytes32 h3 = plugin.hashActions(actions);
+        bytes32 h3 = eMultisig.hashActions(actions);
         assertNotEq(h2, h3, "Hashes should differ");
 
         // 4
         actions[0].data = hex"00112235";
-        bytes32 h4 = plugin.hashActions(actions);
+        bytes32 h4 = eMultisig.hashActions(actions);
         assertNotEq(h3, h4, "Hashes should differ");
 
         // 5
         actions = new IDAO.Action[](0);
-        bytes32 h5 = plugin.hashActions(actions);
+        bytes32 h5 = eMultisig.hashActions(actions);
         assertNotEq(h4, h5, "Hashes should differ");
 
         // 5'
-        bytes32 h5b = plugin.hashActions(actions);
+        bytes32 h5b = eMultisig.hashActions(actions);
         assertEq(h5, h5b, "Hashes should match");
     }
 
@@ -788,21 +781,23 @@ contract EmergencyMultisigTest is AragonTest {
         // returns `false` if the approver is not listed
 
         {
-            // Deploy a new multisig instance
+            // Leaving the deployment for fuzz efficiency
+
+            // Deploy a new stdMultisig instance
             Multisig.MultisigSettings memory mSettings =
                 Multisig.MultisigSettings({onlyListed: false, minApprovals: 1, destinationProposalDuration: 4 days});
             address[] memory signers = new address[](1);
             signers[0] = address(0x0);
 
-            multisig = Multisig(
+            stdMultisig = Multisig(
                 createProxyAndCall(
                     address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, mSettings))
                 )
             );
-            // New emergency multisig using the above
+            // New emergency stdMultisig using the above
             EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: multisig});
-            plugin = EmergencyMultisig(
+                EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: stdMultisig});
+            eMultisig = EmergencyMultisig(
                 createProxyAndCall(
                     address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
                 )
@@ -811,88 +806,73 @@ contract EmergencyMultisigTest is AragonTest {
             blockForward(1);
         }
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // ko
         if (_randomWallet != address(0x0)) {
-            assertEq(plugin.canApprove(pid, _randomWallet), false, "Should be false");
+            assertEq(eMultisig.canApprove(pid, _randomWallet), false, "Should be false");
         }
 
         // static ok
-        assertEq(plugin.canApprove(pid, address(0)), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, address(0)), true, "Should be true");
     }
 
     function test_CanApproveReturnsFalseIfApproved() public {
         // returns `false` if the approver has already approved
-        {
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            blockForward(1);
-        }
+        builder = new DaoBuilder();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
+            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(4).build();
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
-        plugin.approve(pid);
-        assertEq(plugin.canApprove(pid, alice), false, "Should be false");
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
 
         // Bob
-        assertEq(plugin.canApprove(pid, bob), true, "Should be true");
-        undoSwitch();
+        assertEq(eMultisig.canApprove(pid, bob), true, "Should be true");
         switchTo(bob);
-        plugin.approve(pid);
-        assertEq(plugin.canApprove(pid, bob), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canApprove(pid, bob), false, "Should be false");
 
         // Carol
-        assertEq(plugin.canApprove(pid, carol), true, "Should be true");
-        undoSwitch();
+        assertEq(eMultisig.canApprove(pid, carol), true, "Should be true");
         switchTo(carol);
-        plugin.approve(pid);
-        assertEq(plugin.canApprove(pid, carol), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canApprove(pid, carol), false, "Should be false");
 
         // David
-        assertEq(plugin.canApprove(pid, david), true, "Should be true");
-        undoSwitch();
+        assertEq(eMultisig.canApprove(pid, david), true, "Should be true");
         switchTo(david);
-        plugin.approve(pid);
-        assertEq(plugin.canApprove(pid, david), false, "Should be false");
-
-        undoSwitch();
-        switchTo(alice);
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canApprove(pid, david), false, "Should be false");
     }
 
     function test_CanApproveReturnsFalseIfExpired() public {
         // returns `false` if the proposal has ended
 
-        setTime(0);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
+        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // multisig expiration time - 1
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
-
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1); // multisig expiration time
-        assertEq(plugin.canApprove(pid, alice), false, "Should be false");
+        timeForward(1); // expiration time
+        assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
 
         // Start later
-        setTime(1000);
-        pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        setTime(50 days);
+        pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1000); // expiration time - 1
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
+        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1001); // expiration time
-        assertEq(plugin.canApprove(pid, alice), false, "Should be false");
+        timeForward(1); // expiration time
+        assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
     }
 
     function test_CanApproveReturnsFalseIfExecuted() public {
@@ -900,92 +880,66 @@ contract EmergencyMultisigTest is AragonTest {
 
         bool executed;
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid); // passed
+        eMultisig.approve(pid); // passed
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
         // David cannot approve
-        assertEq(plugin.canApprove(pid, david), false, "Should be false");
-
-        undoSwitch();
-        switchTo(alice);
+        assertEq(eMultisig.canApprove(pid, david), false, "Should be false");
     }
 
     function test_CanApproveReturnsTrueIfListed() public {
         // returns `true` if the approver is listed
 
-        setTime(10); // timestamp = 10
+        setTime(10);
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
-        assertEq(plugin.canApprove(pid, bob), true, "Should be true");
-        assertEq(plugin.canApprove(pid, carol), true, "Should be true");
-        assertEq(plugin.canApprove(pid, david), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, bob), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, carol), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, david), true, "Should be true");
 
-        {
-            // Deploy a new multisig instance
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
-            address[] memory signers = new address[](1);
-            signers[0] = randomWallet;
-
-            multisig = Multisig(
-                createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
-                )
-            );
-        }
-        {
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: multisig});
-
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            blockForward(1);
-        }
+        // new setup
+        builder = new DaoBuilder();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) =
+            builder.withMultisigMember(randomWallet).withMinApprovals(1).withMinDuration(0).build();
 
         // now ko
-        undoSwitch();
         switchTo(randomWallet);
-        pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        assertEq(plugin.canApprove(pid, alice), false, "Should be false");
-        assertEq(plugin.canApprove(pid, bob), false, "Should be false");
-        assertEq(plugin.canApprove(pid, carol), false, "Should be false");
-        assertEq(plugin.canApprove(pid, david), false, "Should be false");
+        assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
+        assertEq(eMultisig.canApprove(pid, bob), false, "Should be false");
+        assertEq(eMultisig.canApprove(pid, carol), false, "Should be false");
+        assertEq(eMultisig.canApprove(pid, david), false, "Should be false");
 
         // ok
-        assertEq(plugin.canApprove(pid, randomWallet), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, randomWallet), true, "Should be true");
     }
 
     // HAS APPROVED
@@ -993,48 +947,42 @@ contract EmergencyMultisigTest is AragonTest {
     function test_HasApprovedReturnsFalseWhenNotApproved() public {
         // returns `false` if user hasn't approved yet
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        assertEq(plugin.hasApproved(pid, alice), false, "Should be false");
-        assertEq(plugin.hasApproved(pid, bob), false, "Should be false");
-        assertEq(plugin.hasApproved(pid, carol), false, "Should be false");
-        assertEq(plugin.hasApproved(pid, david), false, "Should be false");
+        assertEq(eMultisig.hasApproved(pid, alice), false, "Should be false");
+        assertEq(eMultisig.hasApproved(pid, bob), false, "Should be false");
+        assertEq(eMultisig.hasApproved(pid, carol), false, "Should be false");
+        assertEq(eMultisig.hasApproved(pid, david), false, "Should be false");
     }
 
     function test_HasApprovedReturnsTrueWhenUserApproved() public {
         // returns `true` if user has approved
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        assertEq(plugin.hasApproved(pid, alice), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, alice), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, alice), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, alice), true, "Should be true");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        assertEq(plugin.hasApproved(pid, bob), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, bob), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, bob), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, bob), true, "Should be true");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        assertEq(plugin.hasApproved(pid, carol), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, carol), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, carol), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, carol), true, "Should be true");
 
         // David
-        undoSwitch();
         switchTo(david);
-        assertEq(plugin.hasApproved(pid, david), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, david), true, "Should be true");
-
-        undoSwitch();
-        switchTo(alice);
+        assertEq(eMultisig.hasApproved(pid, david), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, david), true, "Should be true");
     }
 
     // APPROVE
@@ -1042,31 +990,28 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ApproveRevertsIfApprovingMultipleTimes() public {
         // reverts when approving multiple times
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, bob));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        undoSwitch();
         switchTo(alice);
     }
 
@@ -1074,102 +1019,90 @@ contract EmergencyMultisigTest is AragonTest {
         // approves with the msg.sender address
         // Same as test_HasApprovedReturnsTrueWhenUserApproved()
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        assertEq(plugin.hasApproved(pid, alice), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, alice), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, alice), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, alice), true, "Should be true");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        assertEq(plugin.hasApproved(pid, bob), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, bob), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, bob), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, bob), true, "Should be true");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        assertEq(plugin.hasApproved(pid, carol), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, carol), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, carol), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, carol), true, "Should be true");
 
         // David
-        undoSwitch();
         switchTo(david);
-        assertEq(plugin.hasApproved(pid, david), false, "Should be false");
-        plugin.approve(pid);
-        assertEq(plugin.hasApproved(pid, david), true, "Should be true");
+        assertEq(eMultisig.hasApproved(pid, david), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.hasApproved(pid, david), true, "Should be true");
 
-        undoSwitch();
         switchTo(alice);
     }
 
     function test_ApproveRevertsIfExpired() public {
         // reverts if the proposal has ended
 
-        setTime(0);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
-
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 15 days);
+        timeForward(15 days);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // 2
-        setTime(10); // timestamp = 10
-        pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        setTime(10 days);
+        pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        assertEq(plugin.canApprove(pid, alice), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        setTime(10 + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        setTime(10 + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 500);
+        timeForward(15 days);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
-        plugin.approve(pid);
+        eMultisig.approve(pid);
     }
 
     function test_ApprovingProposalsEmits() public {
         // Approving a proposal emits the Approved event
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         vm.expectEmit();
         emit Approved(pid, alice);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
         vm.expectEmit();
         emit Approved(pid, bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
         vm.expectEmit();
         emit Approved(pid, carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // David (even if it already passed)
-        undoSwitch();
         switchTo(david);
         vm.expectEmit();
         emit Approved(pid, david);
-        plugin.approve(pid);
-
-        undoSwitch();
-        switchTo(alice);
+        eMultisig.approve(pid);
     }
 
     // CAN EXECUTE
@@ -1177,178 +1110,130 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CanExecuteReturnsFalseIfBelowMinApprovals() public {
         // returns `false` if the proposal has not reached the minimum approvals yet
 
-        {
-            // Deploy a new multisig instance
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(2).build();
 
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            blockForward(1);
-        }
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        undoSwitch();
         switchTo(alice);
 
         // More approvals required (4)
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(4).build();
 
-        {
-            // Deploy a new multisig instance
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
-
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            blockForward(1);
-        }
-
-        pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // David
-        undoSwitch();
         switchTo(david);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
-
-        undoSwitch();
-        switchTo(alice);
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
     }
 
     function test_CanExecuteReturnsFalseIfExpired() public {
         // returns `false` if the proposal has expired
 
         // 1
-        setTime(0);
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
-
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        timeForward(1);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // 2
-        setTime(0);
+        setTime(50 days);
 
-        pid = plugin.createProposal("", 0, optimisticPlugin, false);
+        pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
-
-        undoSwitch();
-        switchTo(alice);
+        timeForward(1);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
     }
 
     function test_CanExecuteReturnsFalseIfExecuted() public {
         // returns `false` if the proposal is already executed
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        assertEq(plugin.canExecute(pid), true, "Should be true");
-        plugin.execute(pid, actions);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
+        eMultisig.execute(pid, actions);
 
-        assertEq(plugin.canExecute(pid), false, "Should be false");
-
-        undoSwitch();
-        switchTo(alice);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
     }
 
     function test_CanExecuteReturnsTrueWhenAllGood() public {
         // returns `true` if the proposal can be executed
 
-        uint256 pid = plugin.createProposal("", 0, optimisticPlugin, false);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Alice
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), false, "Should be false");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
     }
 
     // EXECUTE
@@ -1356,162 +1241,115 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ExecuteRevertsIfBelowMinApprovals() public {
         // reverts if minApprovals is not met yet
 
-        {
-            // Deploy a new multisig instance
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 2, addresslistSource: multisig});
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(2).build();
 
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-            blockForward(1);
-        }
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
+        eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        plugin.execute(pid, actions); // ok
+        eMultisig.approve(pid);
+        eMultisig.execute(pid, actions); // ok
+
+        switchTo(alice);
 
         // More approvals required (4)
-        undoSwitch();
-        switchTo(alice);
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(4).build();
 
-        {
-            // Deploy a new multisig instance
-            EmergencyMultisig.MultisigSettings memory settings =
-                EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 4, addresslistSource: multisig});
-
-            plugin = EmergencyMultisig(
-                createProxyAndCall(
-                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-                )
-            );
-            dao.grant(address(optimisticPlugin), address(plugin), optimisticPlugin.PROPOSER_PERMISSION_ID());
-            blockForward(1);
-        }
-
-        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
         // David
-        undoSwitch();
         switchTo(david);
-        plugin.approve(pid);
-        plugin.execute(pid, actions);
-
-        undoSwitch();
-        switchTo(alice);
+        eMultisig.approve(pid);
+        eMultisig.execute(pid, actions);
     }
 
     function test_ExecuteRevertsIfExpired() public {
         // reverts if the proposal has expired
 
-        setTime(0);
-
         // 1
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
         setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
         setTime(100 days);
 
         // 2
-        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
-        assertEq(plugin.canExecute(pid), true, "Should be true");
+        eMultisig.approve(pid);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
         setTime(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
-
-        undoSwitch();
-        switchTo(alice);
+        eMultisig.execute(pid, actions);
     }
 
     function test_ExecuteRevertsWhenAlreadyExecuted() public {
-        // executes if the minimum approval is met when multisig with the `tryExecution` option
+        // executes if the minimum approval is met when stdMultisig with the `tryExecution` option
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        assertEq(plugin.canExecute(pid), true, "Should be true");
-        plugin.execute(pid, actions);
+        assertEq(eMultisig.canExecute(pid), true, "Should be true");
+        eMultisig.execute(pid, actions);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
-        plugin.execute(pid, actions);
-
-        undoSwitch();
-        switchTo(alice);
+        eMultisig.execute(pid, actions);
     }
 
     function test_ExecuteEmitsEvents() public {
@@ -1521,61 +1359,56 @@ contract EmergencyMultisigTest is AragonTest {
         vm.deal(address(dao), 1 ether);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // event
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
         uint256 targetPid = 10 << 128 | 10 << 64;
-        emit ProposalCreated(targetPid, address(plugin), 10, "", actions, 0);
-        plugin.execute(pid, actions);
+        emit ProposalCreated(targetPid, address(eMultisig), 10, 10, "", actions, 0);
+        eMultisig.execute(pid, actions);
 
         // 2
-        setTime(20);
+        setTime(20 days);
         actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
-        actionsHash = plugin.hashActions(actions);
-        pid = plugin.createProposal("ipfs://", actionsHash, optimisticPlugin, false);
+        actionsHash = eMultisig.hashActions(actions);
+        pid = eMultisig.createProposal("ipfs://", actionsHash, optimisticPlugin, false);
 
         // Alice
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         // events
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        targetPid = (20 << 128 | 20 << 64) + 1;
-        emit ProposalCreated(targetPid, address(plugin), 20, "ipfs://", actions, 0);
-        plugin.execute(pid, actions);
+        targetPid = (20 days << 128 | 20 days << 64) + 1;
+        emit ProposalCreated(targetPid, address(eMultisig), 20 days, 20 days, "ipfs://", actions, 0);
+        eMultisig.execute(pid, actions);
     }
 
     function test_ExecutesWithEnoughApprovalsOnTime() public {
@@ -1584,30 +1417,28 @@ contract EmergencyMultisigTest is AragonTest {
         vm.deal(address(dao), 1 ether);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
-        (bool executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (bool executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        plugin.execute(pid, actions);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.execute(pid, actions);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
         // 2
@@ -1616,37 +1447,31 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
 
-        actionsHash = plugin.hashActions(actions);
-        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        actionsHash = eMultisig.hashActions(actions);
+        pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
-
-        undoSwitch();
-        switchTo(alice);
     }
 
     function test_ExecuteRevertsWhenTheGivenActionsDontMatchTheHash() public {
@@ -1654,30 +1479,28 @@ contract EmergencyMultisigTest is AragonTest {
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         bytes32 actionsHash = 0; // invalid hash
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
-        (bool executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (bool executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidActions.selector, pid));
-        plugin.execute(pid, actions);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.execute(pid, actions);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // 2
@@ -1686,28 +1509,25 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
 
-        actionsHash = plugin.hashActions(actions);
-        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        actionsHash = eMultisig.hashActions(actions);
+        pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        undoSwitch();
         switchTo(alice);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Fake actions
@@ -1716,18 +1536,15 @@ contract EmergencyMultisigTest is AragonTest {
         otherActions[0].to = address(carol);
         otherActions[0].data = hex"44556677";
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidActions.selector, pid));
-        plugin.execute(pid, otherActions);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.execute(pid, otherActions);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // With ok actions
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
-
-        undoSwitch();
-        switchTo(alice);
     }
 
     function test_ExecuteWhenPassedAndCalledByAnyoneWithTheActions() public {
@@ -1739,73 +1556,63 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
-        (bool executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (bool executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        undoSwitch();
         switchTo(randomWallet);
-        plugin.execute(pid, actions);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.execute(pid, actions);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
         // 2
-        undoSwitch();
         switchTo(alice);
 
         actions = new IDAO.Action[](1);
         actions[0].value = 3 ether;
         actions[0].to = address(carol);
         actions[0].data = hex"0011223344556677";
-        actionsHash = plugin.hashActions(actions);
-        pid = plugin.createProposal("", actionsHash, optimisticPlugin, false);
+        actionsHash = eMultisig.hashActions(actions);
+        pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        undoSwitch();
         switchTo(carol);
-        plugin.approve(pid);
-        (executed,,,,,) = plugin.getProposal(pid);
+        eMultisig.approve(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        undoSwitch();
         switchTo(randomWallet);
-        plugin.execute(pid, actions);
+        eMultisig.execute(pid, actions);
 
-        (executed,,,,,) = plugin.getProposal(pid);
+        (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
-
-        undoSwitch();
-        switchTo(alice);
     }
 
     function test_GetProposalReturnsTheRightValues() public {
@@ -1816,8 +1623,8 @@ contract EmergencyMultisigTest is AragonTest {
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
         actions[0].data = hex"00112233";
-        bytes32 actionsHash = plugin.hashActions(actions);
-        uint256 pid = plugin.createProposal("ipfs://", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("ipfs://", actionsHash, optimisticPlugin, false);
 
         (
             bool executed,
@@ -1826,7 +1633,7 @@ contract EmergencyMultisigTest is AragonTest {
             bytes memory encryptedPayloadURI,
             bytes32 destinationActionsHash,
             OptimisticTokenVotingPlugin destinationPlugin
-        ) = plugin.getProposal(pid);
+        ) = eMultisig.getProposal(pid);
 
         assertEq(executed, false);
         assertEq(approvals, 0);
@@ -1839,14 +1646,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 2 new
         OptimisticTokenVotingPlugin newOptimisticPlugin;
-        (dao, plugin,, newOptimisticPlugin) = makeDaoWithEmergencyMultisigAndOptimistic(alice);
-        blockForward(1);
+        (dao, newOptimisticPlugin, stdMultisig, eMultisig,,) = builder.build();
         vm.deal(address(dao), 1 ether);
 
-        pid = plugin.createProposal("ipfs://12340000", actionsHash, newOptimisticPlugin, true);
+        pid = eMultisig.createProposal("ipfs://12340000", actionsHash, newOptimisticPlugin, true);
 
         (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
-            plugin.getProposal(pid);
+            eMultisig.getProposal(pid);
 
         assertEq(executed, false);
         assertEq(approvals, 1);
@@ -1858,15 +1664,13 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(newOptimisticPlugin));
 
         // 3 approve
-        undoSwitch();
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
         (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
-            plugin.getProposal(pid);
+            eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
         assertEq(approvals, 3, "Should be 3");
 
@@ -1878,14 +1682,13 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(newOptimisticPlugin));
 
         // Execute
-        undoSwitch();
         switchTo(alice);
-        dao.grant(address(newOptimisticPlugin), address(plugin), newOptimisticPlugin.PROPOSER_PERMISSION_ID());
-        plugin.execute(pid, actions);
+        dao.grant(address(newOptimisticPlugin), address(eMultisig), newOptimisticPlugin.PROPOSER_PERMISSION_ID());
+        eMultisig.execute(pid, actions);
 
         // 4 execute
         (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
-            plugin.getProposal(pid);
+            eMultisig.getProposal(pid);
 
         assertEq(executed, true, "Should be executed");
         assertEq(approvals, 3, "Should be 3");
@@ -1922,21 +1725,18 @@ contract EmergencyMultisigTest is AragonTest {
         submittedActions[2].to = carol;
         submittedActions[2].value = 3 ether;
         submittedActions[2].data = hex"";
-        bytes32 actionsHash = plugin.hashActions(submittedActions);
-        uint256 pid = plugin.createProposal("ipfs://metadata", actionsHash, optimisticPlugin, false);
+        bytes32 actionsHash = eMultisig.hashActions(submittedActions);
+        uint256 pid = eMultisig.createProposal("ipfs://metadata", actionsHash, optimisticPlugin, false);
 
         // Approve
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        undoSwitch();
         switchTo(alice);
-        plugin.execute(pid, submittedActions);
+        eMultisig.execute(pid, submittedActions);
 
         // Check round
         uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64);
@@ -1948,6 +1748,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.vetoEndDate, block.timestamp, "Incorrect vetoEndDate");
+        assertEq(parameters.metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 3, "Should be 3");
 
@@ -1969,24 +1770,21 @@ contract EmergencyMultisigTest is AragonTest {
         submittedActions[1].to = address(dao);
         submittedActions[1].value = 0;
         submittedActions[1].data = abi.encodeWithSelector(DAO.daoURI.selector);
-        submittedActions[0].to = address(multisig);
+        submittedActions[0].to = address(stdMultisig);
         submittedActions[0].value = 0;
         submittedActions[0].data = abi.encodeWithSelector(Addresslist.addresslistLength.selector);
-        actionsHash = plugin.hashActions(submittedActions);
-        pid = plugin.createProposal("ipfs://more-metadata", actionsHash, optimisticPlugin, false);
+        actionsHash = eMultisig.hashActions(submittedActions);
+        pid = eMultisig.createProposal("ipfs://more-metadata", actionsHash, optimisticPlugin, false);
 
         // Approve
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(bob);
-        plugin.approve(pid);
-        undoSwitch();
+        eMultisig.approve(pid);
         switchTo(carol);
-        plugin.approve(pid);
+        eMultisig.approve(pid);
 
-        undoSwitch();
         switchTo(alice);
-        plugin.execute(pid, submittedActions);
+        eMultisig.execute(pid, submittedActions);
 
         // Check round
         targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1;
@@ -1998,13 +1796,14 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.vetoEndDate, 10, "Incorrect vetoEndDate");
+        assertEq(parameters.metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 2, "Should be 2");
 
         assertEq(retrievedActions[1].to, address(dao), "Incorrect to");
         assertEq(retrievedActions[1].value, 0, "Incorrect value");
         assertEq(retrievedActions[1].data, abi.encodeWithSelector(DAO.daoURI.selector), "Incorrect data");
-        assertEq(retrievedActions[0].to, address(multisig), "Incorrect to");
+        assertEq(retrievedActions[0].to, address(stdMultisig), "Incorrect to");
         assertEq(retrievedActions[0].value, 0, "Incorrect value");
         assertEq(
             retrievedActions[0].data, abi.encodeWithSelector(Addresslist.addresslistLength.selector), "Incorrect data"
@@ -2013,57 +1812,67 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(allowFailureMap, 0, "Should be 0");
     }
 
-    // Upgrade plugin
+    // Upgrade eMultisig
 
     function test_UpgradeToRevertsWhenCalledFromNonUpgrader() public {
+        address initialImplementation = eMultisig.implementation();
         address _newImplementation = address(new EmergencyMultisig());
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID()
+                DaoUnauthorized.selector,
+                address(dao),
+                address(eMultisig),
+                alice,
+                eMultisig.UPGRADE_PLUGIN_PERMISSION_ID()
             )
         );
 
-        plugin.upgradeTo(_newImplementation);
+        eMultisig.upgradeTo(_newImplementation);
 
-        assertEq(plugin.implementation(), address(EMERGENCY_MULTISIG_BASE));
+        assertEq(eMultisig.implementation(), initialImplementation);
     }
 
     function test_UpgradeToAndCallRevertsWhenCalledFromNonUpgrader() public {
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        address initialImplementation = eMultisig.implementation();
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         address _newImplementation = address(new EmergencyMultisig());
 
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID()
+                DaoUnauthorized.selector,
+                address(dao),
+                address(eMultisig),
+                alice,
+                eMultisig.UPGRADE_PLUGIN_PERMISSION_ID()
             )
         );
-        plugin.upgradeToAndCall(
+        eMultisig.upgradeToAndCall(
             _newImplementation, abi.encodeCall(EmergencyMultisig.updateMultisigSettings, (settings))
         );
 
-        assertEq(plugin.implementation(), address(EMERGENCY_MULTISIG_BASE));
+        assertEq(eMultisig.implementation(), initialImplementation);
     }
 
     function test_UpgradeToSucceedsWhenCalledFromUpgrader() public {
-        dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+        dao.grant(address(eMultisig), alice, eMultisig.UPGRADE_PLUGIN_PERMISSION_ID());
 
         address _newImplementation = address(new EmergencyMultisig());
 
         vm.expectEmit();
         emit Upgraded(_newImplementation);
 
-        plugin.upgradeTo(_newImplementation);
+        eMultisig.upgradeTo(_newImplementation);
 
-        assertEq(plugin.implementation(), address(_newImplementation));
+        assertEq(eMultisig.implementation(), address(_newImplementation));
     }
 
     function test_UpgradeToAndCallSucceedsWhenCalledFromUpgrader() public {
-        dao.grant(address(plugin), alice, plugin.UPGRADE_PLUGIN_PERMISSION_ID());
-        dao.grant(address(plugin), alice, plugin.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(eMultisig), alice, eMultisig.UPGRADE_PLUGIN_PERMISSION_ID());
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         address _newImplementation = address(new EmergencyMultisig());
 
@@ -2071,11 +1880,11 @@ contract EmergencyMultisigTest is AragonTest {
         emit Upgraded(_newImplementation);
 
         EmergencyMultisig.MultisigSettings memory settings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: multisig});
-        plugin.upgradeToAndCall(
+            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
+        eMultisig.upgradeToAndCall(
             _newImplementation, abi.encodeCall(EmergencyMultisig.updateMultisigSettings, (settings))
         );
 
-        assertEq(plugin.implementation(), address(_newImplementation));
+        assertEq(eMultisig.implementation(), address(_newImplementation));
     }
 }
