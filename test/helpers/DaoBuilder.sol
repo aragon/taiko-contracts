@@ -52,8 +52,18 @@ contract DaoBuilder is Test {
         return this;
     }
 
-    function withTaikoL1Status(TaikoL1Status newStatus) public returns (DaoBuilder) {
-        taikoL1Status = newStatus;
+    function withOkTaikoL1() public returns (DaoBuilder) {
+        taikoL1Status = TaikoL1Status.Standard;
+        return this;
+    }
+
+    function withPausedTaikoL1() public returns (DaoBuilder) {
+        taikoL1Status = TaikoL1Status.Paused;
+        return this;
+    }
+
+    function withOutOfSyncTaikoL1() public returns (DaoBuilder) {
+        taikoL1Status = TaikoL1Status.OutOfSync;
         return this;
     }
 
