@@ -49,6 +49,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param parameters The proposal parameters at the time of the proposal creation.
     /// @param vetoTally The amount of voting power used to veto the proposal.
     /// @param vetoVoters The voters who have vetoed.
+    /// @param metadataURI The IPFS URI where the proposal metadata is pinned.
     /// @param actions The actions to be executed when the proposal passes.
     /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     /// @param aggregatedL2Balance The amount of balance that has been registered from the L2.
@@ -57,19 +58,18 @@ contract OptimisticTokenVotingPlugin is
         ProposalParameters parameters;
         uint256 vetoTally;
         mapping(address => bool) vetoVoters;
+        bytes metadataURI;
         IDAO.Action[] actions;
         uint256 allowFailureMap;
         uint256 aggregatedL2Balance;
     }
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param metadataUri The IPFS URI where the proposal metadata is pinned.
     /// @param vetoEndDate The end date of the proposal vote.
     /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param skipL2 True if the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
-        bytes metadataUri;
         uint64 vetoEndDate;
         uint64 snapshotTimestamp;
         uint32 minVetoRatio;
@@ -93,6 +93,7 @@ contract OptimisticTokenVotingPlugin is
     TaikoL1 public taikoL1;
 
     /// @notice The struct storing the governance settings.
+    /// @dev Takes 1 storage slot (32+64+64+64)
     OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
@@ -294,6 +295,7 @@ contract OptimisticTokenVotingPlugin is
     /// @return executed Whether the proposal is executed or not.
     /// @return parameters The parameters of the proposal vote.
     /// @return vetoTally The current voting power used to veto the proposal.
+    /// @return metadataURI The IPFS URI at which the metadata is pinned.
     /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
     /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
     function getProposal(uint256 _proposalId)
@@ -305,6 +307,7 @@ contract OptimisticTokenVotingPlugin is
             bool executed,
             ProposalParameters memory parameters,
             uint256 vetoTally,
+            bytes memory metadataURI,
             IDAO.Action[] memory actions,
             uint256 allowFailureMap
         )
@@ -315,6 +318,7 @@ contract OptimisticTokenVotingPlugin is
         executed = proposal_.executed;
         parameters = proposal_.parameters;
         vetoTally = proposal_.vetoTally;
+        metadataURI = proposal_.metadataURI;
         actions = proposal_.actions;
         allowFailureMap = proposal_.allowFailureMap;
     }
@@ -355,7 +359,7 @@ contract OptimisticTokenVotingPlugin is
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
-        proposal_.parameters.metadataUri = _metadata;
+        proposal_.metadataURI = _metadata;
         proposal_.parameters.vetoEndDate = _vetoEndDate;
         proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoRatio = minVetoRatio();

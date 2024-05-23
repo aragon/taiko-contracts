@@ -2311,11 +2311,32 @@ contract MultisigTest is AragonTest {
         assertEq(address(destPlugin), address(optimisticPlugin), "Incorrect destPlugin");
     }
 
+    function testFuzz_GetProposalReturnsEmptyValuesForNonExistingOnes(uint256 randomProposalId) public view {
+        (
+            bool executed,
+            uint16 approvals,
+            Multisig.ProposalParameters memory parameters,
+            bytes memory metadataURI,
+            IDAO.Action[] memory destinationActions,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = multisig.getProposal(randomProposalId);
+
+        assertEq(executed, false, "The proposal should not be executed");
+        assertEq(approvals, 0, "The tally should be zero");
+        assertEq(metadataURI, "", "Incorrect metadataURI");
+        assertEq(parameters.expirationDate, 0, "Incorrect expirationDate");
+        assertEq(parameters.snapshotBlock, 0, "Incorrect snapshotBlock");
+        assertEq(parameters.minApprovals, 0, "Incorrect minApprovals");
+        assertEq(destinationActions.length, 0, "Actions has should have 0 items");
+        assertEq(address(destinationPlugin), address(0), "Incorrect destination plugin");
+    }
+
     function test_ProxiedProposalHasTheSameSettingsAsTheOriginal() public {
         // Recreated proposal has the same settings and actions as registered here
 
         bool open;
         bool executed;
+        bytes memory metadataUri;
         OptimisticTokenVotingPlugin.ProposalParameters memory parameters;
         uint256 vetoTally;
         IDAO.Action[] memory actions;
@@ -2347,14 +2368,14 @@ contract MultisigTest is AragonTest {
         multisig.execute(pid);
 
         // Check round
-        uint256 targetPid = uint256(2 days) << 128 | uint256(2 days + 10 days) << 64; // start=1d, end=10d, counter=0
-        (open, executed, parameters, vetoTally, actions, allowFailureMap) = optimisticPlugin.getProposal(targetPid);
+        (open, executed, parameters, vetoTally, metadataUri, actions, allowFailureMap) =
+            optimisticPlugin.getProposal(uint256(2 days) << 128 | uint256(2 days + 10 days) << 64); // PID: start=1d, end=10d, counter=0
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
-        assertEq(parameters.metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
+        assertEq(metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
         assertEq(parameters.vetoEndDate, 2 days + 10 days, "Incorrect target vetoEndDate");
 
         assertEq(actions.length, 3, "Should be 3");
@@ -2395,14 +2416,14 @@ contract MultisigTest is AragonTest {
         multisig.execute(pid);
 
         // Check round
-        targetPid = (uint256(3 days) << 128 | uint256(3 days + 10 days) << 64) + 1;
-        (open, executed, parameters, vetoTally, actions, allowFailureMap) = optimisticPlugin.getProposal(targetPid);
+        (open, executed, parameters, vetoTally, metadataUri, actions, allowFailureMap) =
+            optimisticPlugin.getProposal((uint256(3 days) << 128 | uint256(3 days + 10 days) << 64) + 1);
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
-        assertEq(parameters.metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
+        assertEq(metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 10 days, "Incorrect target vetoEndDate");
 
         assertEq(actions.length, 2, "Should be 2");

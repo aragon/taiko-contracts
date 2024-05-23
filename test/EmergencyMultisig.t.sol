@@ -1791,6 +1791,26 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(newOptimisticPlugin));
     }
 
+    function testFuzz_GetProposalReturnsEmptyValuesForNonExistingOnes(uint256 randomProposalId) public view {
+        (
+            bool executed,
+            uint16 approvals,
+            EmergencyMultisig.ProposalParameters memory parameters,
+            bytes memory encryptedPayloadURI,
+            bytes32 destinationActionsHash,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = eMultisig.getProposal(randomProposalId);
+
+        assertEq(executed, false, "The proposal should not be executed");
+        assertEq(approvals, 0, "The tally should be zero");
+        assertEq(encryptedPayloadURI, "", "Incorrect encryptedPayloadURI");
+        assertEq(parameters.expirationDate, 0, "Incorrect expirationDate");
+        assertEq(parameters.snapshotBlock, 0, "Incorrect snapshotBlock");
+        assertEq(parameters.minApprovals, 0, "Incorrect minApprovals");
+        assertEq(destinationActionsHash, 0, "Actions hash should have no items");
+        assertEq(address(destinationPlugin), address(0), "Incorrect destination plugin");
+    }
+
     function test_ProxiedProposalHasTheSameSettingsAsTheOriginal() public {
         // Recreated proposal has the same settings and actions as registered here
 
@@ -1798,6 +1818,7 @@ contract EmergencyMultisigTest is AragonTest {
         bool executed;
         OptimisticTokenVotingPlugin.ProposalParameters memory parameters;
         uint256 vetoTally;
+        bytes memory metadataUri;
         IDAO.Action[] memory retrievedActions;
         uint256 allowFailureMap;
 
@@ -1815,8 +1836,9 @@ contract EmergencyMultisigTest is AragonTest {
         submittedActions[2].to = carol;
         submittedActions[2].value = 3 ether;
         submittedActions[2].data = hex"";
-        bytes32 actionsHash = eMultisig.hashActions(submittedActions);
-        uint256 pid = eMultisig.createProposal("ipfs://metadata", actionsHash, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal(
+            "ipfs://metadata", eMultisig.hashActions(submittedActions), optimisticPlugin, false
+        );
 
         // Approve
         eMultisig.approve(pid);
@@ -1829,16 +1851,15 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.execute(pid, submittedActions);
 
         // Check round
-        uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64);
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
-            optimisticPlugin.getProposal(targetPid);
+        (open, executed, parameters, vetoTally, metadataUri, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal((uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64));
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.vetoEndDate, block.timestamp, "Incorrect vetoEndDate");
-        assertEq(parameters.metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
+        assertEq(metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 3, "Should be 3");
 
@@ -1864,8 +1885,9 @@ contract EmergencyMultisigTest is AragonTest {
         submittedActions[0].to = address(stdMultisig);
         submittedActions[0].value = 0;
         submittedActions[0].data = abi.encodeWithSelector(Addresslist.addresslistLength.selector);
-        actionsHash = eMultisig.hashActions(submittedActions);
-        pid = eMultisig.createProposal("ipfs://more-metadata", actionsHash, optimisticPlugin, false);
+        pid = eMultisig.createProposal(
+            "ipfs://more-metadata", eMultisig.hashActions(submittedActions), optimisticPlugin, false
+        );
 
         // Approve
         eMultisig.approve(pid);
@@ -1878,16 +1900,15 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.execute(pid, submittedActions);
 
         // Check round
-        targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1;
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
-            optimisticPlugin.getProposal(targetPid);
+        (open, executed, parameters, vetoTally, metadataUri, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal((uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.vetoEndDate, 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
+        assertEq(metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 2, "Should be 2");
 

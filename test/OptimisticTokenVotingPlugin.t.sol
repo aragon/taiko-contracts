@@ -526,7 +526,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        (bool _open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (bool _open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Incorrect open status");
     }
 
@@ -540,19 +540,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
 
-        (bool _open,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) =
+        (bool _open,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
             optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
         assertEq(50 days + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
 
         // before end
         vm.warp(50 days + 10 days - 1);
-        (_open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
 
         // end
         vm.warp(50 days + 10 days);
-        (_open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, false, "Should not be open");
 
         // L2 out of sync
@@ -564,18 +564,18 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         actions = new IDAO.Action[](0);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
 
-        (_open,, parameters,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
         assertEq(50 days + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
 
         // before end
         vm.warp(50 days + 10 days - 1);
-        (_open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
 
         // end
         vm.warp(50 days + 10 days);
-        (_open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, false, "Should not be open");
     }
 
@@ -585,19 +585,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
 
-        (bool _open,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) =
+        (bool _open,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
             optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
         assertEq(50 days + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
 
         // before end
         vm.warp(50 days + 10 days - 1);
-        (_open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
 
         // end
         vm.warp(50 days + 10 days);
-        (_open,,,,,) = optimisticPlugin.getProposal(proposalId);
+        (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, false, "Should not be open");
     }
 
@@ -605,7 +605,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) =
+        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
             optimisticPlugin.getProposal(proposalId);
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
 
@@ -628,7 +628,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         dao.grant(address(optimisticPlugin), alice, optimisticPlugin.PROPOSER_PERMISSION_ID());
         proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
-        (,, parameters,,,) = optimisticPlugin.getProposal(proposalId);
+        (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(parameters.minVetoRatio, 200_000, "Incorrect minVetoRatio");
     }
 
@@ -696,14 +696,15 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             bool executed,
             OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
             uint256 vetoTally,
+            bytes memory metadataUri,
             IDAO.Action[] memory actualActions,
             uint256 actualFailSafeBitmap
         ) = optimisticPlugin.getProposal(proposalId);
 
         assertEq(open, true, "The proposal should be open");
         assertEq(executed, false, "The proposal should not be executed");
-        assertEq(parameters.metadataUri, "ipfs://", "Incorrect metadataUri");
-        assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect startDate");
+        assertEq(metadataUri, "ipfs://", "Incorrect metadataUri");
+        assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 2 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -713,13 +714,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // Move on
         vm.warp(block.timestamp + vetoPeriod);
 
-        (open, executed, parameters, vetoTally, actualActions, actualFailSafeBitmap) =
+        (open, executed, parameters, vetoTally, metadataUri, actualActions, actualFailSafeBitmap) =
             optimisticPlugin.getProposal(proposalId);
 
         assertEq(open, false, "The proposal should not be open anymore");
         assertEq(executed, false, "The proposal should not be executed");
-        assertEq(parameters.metadataUri, "ipfs://", "Incorrect metadataUri");
-        assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect startDate");
+        assertEq(metadataUri, "ipfs://", "Incorrect metadataUri");
+        assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 2 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -740,13 +741,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         proposalId = optimisticPlugin.createProposal("ipfs://some-uri", actions, failSafeBitmap, vetoPeriod);
 
-        (open, executed, parameters, vetoTally, actualActions, actualFailSafeBitmap) =
+        (open, executed, parameters, vetoTally, metadataUri, actualActions, actualFailSafeBitmap) =
             optimisticPlugin.getProposal(proposalId);
 
         assertEq(open, true, "The proposal should be open");
         assertEq(executed, false, "The proposal should not be executed");
-        assertEq(parameters.metadataUri, "ipfs://some-uri", "Incorrect metadataUri");
-        assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect startDate");
+        assertEq(metadataUri, "ipfs://some-uri", "Incorrect metadataUri");
+        assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -756,13 +757,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // Move on
         vm.warp(block.timestamp + vetoPeriod);
 
-        (open, executed, parameters, vetoTally, actualActions, actualFailSafeBitmap) =
+        (open, executed, parameters, vetoTally, metadataUri, actualActions, actualFailSafeBitmap) =
             optimisticPlugin.getProposal(proposalId);
 
         assertEq(open, false, "The proposal should not be open anymore");
         assertEq(executed, false, "The proposal should not be executed");
-        assertEq(parameters.metadataUri, "ipfs://some-uri", "Incorrect metadataUri");
-        assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect startDate");
+        assertEq(metadataUri, "ipfs://some-uri", "Incorrect metadataUri");
+        assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -771,6 +772,28 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(actualActions[0].value, actions[0].value, "Incorrect value");
         assertEq(actualActions[0].data, actions[0].data, "Incorrect data");
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
+    }
+
+    function testFuzz_GetProposalReturnsEmptyValuesForNonExistingOnes(uint256 randomProposalId) public view {
+        (
+            bool open,
+            bool executed,
+            OptimisticTokenVotingPlugin.ProposalParameters memory parameters,
+            uint256 vetoTally,
+            bytes memory metadataUri,
+            IDAO.Action[] memory actualActions,
+            uint256 actualFailSafeBitmap
+        ) = optimisticPlugin.getProposal(randomProposalId);
+
+        assertEq(open, false, "The proposal should not be open");
+        assertEq(executed, false, "The proposal should not be executed");
+        assertEq(metadataUri, "", "Incorrect metadataUri");
+        assertEq(parameters.vetoEndDate, 0, "Incorrect startDate");
+        assertEq(parameters.snapshotTimestamp, 0, "Incorrect snapshotTimestamp");
+        assertEq(parameters.minVetoRatio, 0, "Incorrect minVetoRatio");
+        assertEq(vetoTally, 0, "The tally should be zero");
+        assertEq(actualActions.length, 0, "Actions should have no items");
+        assertEq(actualFailSafeBitmap, 0, "Incorrect failsafe bitmap");
     }
 
     // Can Veto
@@ -931,13 +954,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
-        (,,, uint256 tally1,,) = optimisticPlugin.getProposal(proposalId);
+        (,,, uint256 tally1,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(tally1, 0, "Tally should be zero");
 
         optimisticPlugin.veto(proposalId);
         assertEq(optimisticPlugin.hasVetoed(proposalId, alice), true, "Alice should have vetoed");
 
-        (,,, uint256 tally2,,) = optimisticPlugin.getProposal(proposalId);
+        (,,, uint256 tally2,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(tally2, 10 ether, "Tally should be 10 eth");
     }
 
@@ -1105,7 +1128,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
-        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,) =
+        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
             optimisticPlugin.getProposal(proposalId);
         assertEq(parameters.skipL2, false, "L2 should not be active");
 
@@ -1126,7 +1149,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         (, optimisticPlugin,,,,) = builder.withTaikoL1Status(DaoBuilder.TaikoL1Status.Paused).build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
-        (,, parameters,,,) = optimisticPlugin.getProposal(proposalId);
+        (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(parameters.skipL2, true, "L2 should be skipped");
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
@@ -1146,7 +1169,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         (, optimisticPlugin,,,,) = builder.withTaikoL1Status(DaoBuilder.TaikoL1Status.OutOfSync).build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
-        (,, parameters,,,) = optimisticPlugin.getProposal(proposalId);
+        (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(parameters.skipL2, true, "L2 should be skipped");
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
@@ -1171,7 +1194,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.execute(randomProposalId);
 
-        (, bool executed,,,,) = optimisticPlugin.getProposal(randomProposalId);
+        (, bool executed,,,,,) = optimisticPlugin.getProposal(randomProposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
         // 2
@@ -1182,7 +1205,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.execute(randomProposalId);
 
-        (, executed,,,,) = optimisticPlugin.getProposal(randomProposalId);
+        (, executed,,,,,) = optimisticPlugin.getProposal(randomProposalId);
         assertEq(executed, false, "The proposal should not be executed");
     }
 
@@ -1195,13 +1218,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.execute(proposalId);
 
-        (, bool executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, bool executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
         vm.warp(block.timestamp + 4 days);
         optimisticPlugin.execute(proposalId);
 
-        (, executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, true, "The proposal should be executed");
     }
 
@@ -1216,7 +1239,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.execute(proposalId);
 
-        (, bool executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, bool executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
         vm.warp(block.timestamp + 4 days);
@@ -1226,7 +1249,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.execute(proposalId);
 
-        (, executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
     }
 
@@ -1238,7 +1261,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         optimisticPlugin.execute(proposalId);
 
-        (, bool executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, bool executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, true, "The proposal should be executed");
 
         vm.expectRevert(
@@ -1246,7 +1269,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.execute(proposalId);
 
-        (, executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, true, "The proposal should be executed");
     }
 
@@ -1263,17 +1286,17 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
-        (, bool executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, bool executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
         vm.warp(block.timestamp + 4 days);
 
-        (, executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
         optimisticPlugin.execute(proposalId);
 
-        (, executed,,,,) = optimisticPlugin.getProposal(proposalId);
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, true, "The proposal should be executed");
     }
 

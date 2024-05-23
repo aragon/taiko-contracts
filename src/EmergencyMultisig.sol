@@ -27,16 +27,16 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param approvals The number of approvals casted.
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
-    /// @param destinationActionsHash The hash of the serialized list of actions to be executed
     /// @param encryptedPayloadURI The IPFS URI where a JSON with the encrypted payload is pinned
+    /// @param destinationActionsHash The hash of the serialized list of actions to be executed
     /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
         uint16 approvals;
         ProposalParameters parameters;
         mapping(address => bool) approvers;
-        bytes32 destinationActionsHash;
         bytes encryptedPayloadURI;
+        bytes32 destinationActionsHash;
         OptimisticTokenVotingPlugin destinationPlugin;
     }
 
