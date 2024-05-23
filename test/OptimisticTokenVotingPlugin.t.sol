@@ -764,7 +764,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(50 days + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
 
         // before end
-        vm.warp(block.timestamp + 10 days - 1);
+        vm.warp(50 days + 10 days - 1);
         (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
 
