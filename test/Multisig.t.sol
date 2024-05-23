@@ -47,6 +47,8 @@ contract MultisigTest is AragonTest {
 
     function setUp() public {
         vm.startPrank(alice);
+        vm.warp(1 days);
+        vm.roll(100);
 
         builder = new DaoBuilder();
         (dao, optimisticPlugin, multisig,,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
@@ -933,7 +935,7 @@ contract MultisigTest is AragonTest {
             creator: alice,
             metadata: "",
             startDate: uint64(block.timestamp),
-            endDate: 10 days + 1,
+            endDate: uint64(block.timestamp) + 10 days,
             actions: actions,
             allowFailureMap: 0
         });
@@ -954,7 +956,7 @@ contract MultisigTest is AragonTest {
             creator: bob,
             metadata: "ipfs://",
             startDate: uint64(block.timestamp),
-            endDate: 10 days + 1,
+            endDate: uint64(block.timestamp) + 10 days,
             actions: actions,
             allowFailureMap: 0
         });
@@ -1307,22 +1309,22 @@ contract MultisigTest is AragonTest {
     function testFuzz_ApproveRevertsIfNotCreated(uint256 randomProposalId) public {
         // Reverts if the proposal doesn't exist
 
-        switchTo(alice);
+        vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, randomProposalId, alice));
         multisig.approve(randomProposalId, false);
 
         // 2
-        switchTo(bob);
+        vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, randomProposalId, bob));
         multisig.approve(randomProposalId, false);
 
         // 3
-        switchTo(carol);
+        vm.startPrank(carol);
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, randomProposalId, carol));
         multisig.approve(randomProposalId, true);
 
         // 4
-        switchTo(david);
+        vm.startPrank(david);
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, randomProposalId, david));
         multisig.approve(randomProposalId, true);
     }
@@ -1340,7 +1342,7 @@ contract MultisigTest is AragonTest {
             return;
         }
 
-        switchTo(randomSigner);
+        vm.startPrank(randomSigner);
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, pid, randomSigner));
         multisig.approve(pid, false);
 
@@ -1446,9 +1448,9 @@ contract MultisigTest is AragonTest {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 pid = multisig.createProposal("", actions, optimisticPlugin, false);
         multisig.approve(pid, false);
-        switchTo(bob);
+        vm.startPrank(bob);
         multisig.approve(pid, false);
-        switchTo(carol);
+        vm.startPrank(carol);
         multisig.approve(pid, false);
 
         multisig.execute(pid);
@@ -1780,7 +1782,7 @@ contract MultisigTest is AragonTest {
         // 2
         (dao, optimisticPlugin, multisig,,,) = builder.withDuration(50 days).build();
 
-        vm.warp(5000);
+        vm.warp(20 days);
         actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
@@ -1805,7 +1807,7 @@ contract MultisigTest is AragonTest {
         targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64);
         vm.expectEmit();
         emit ProposalCreated(
-            targetPid, address(multisig), uint64(block.timestamp), 5000 + 50 days, "ipfs://", actions, 0
+            targetPid, address(multisig), uint64(block.timestamp), 20 days + 50 days, "ipfs://", actions, 0
         );
         multisig.execute(pid);
     }
@@ -2060,7 +2062,7 @@ contract MultisigTest is AragonTest {
         IDAO.Action[] memory actions;
         OptimisticTokenVotingPlugin destPlugin;
 
-        vm.warp(10);
+        vm.warp(5 days);
 
         IDAO.Action[] memory createActions = new IDAO.Action[](3);
         createActions[0].to = alice;
@@ -2203,7 +2205,7 @@ contract MultisigTest is AragonTest {
         createActions[0].value = 3 ether;
         createActions[0].data = hex"223344556677";
 
-        vm.warp(50); // Timestamp = 50
+        vm.warp(15 days);
 
         pid = multisig.createProposal("ipfs://different-metadata", createActions, optimisticPlugin, true);
         assertEq(pid, 0, "PID should be 0");
@@ -2319,7 +2321,7 @@ contract MultisigTest is AragonTest {
         IDAO.Action[] memory actions;
         uint256 allowFailureMap;
 
-        vm.warp(1 days);
+        vm.warp(2 days);
 
         IDAO.Action[] memory createActions = new IDAO.Action[](3);
         createActions[0].to = alice;
@@ -2345,7 +2347,7 @@ contract MultisigTest is AragonTest {
         multisig.execute(pid);
 
         // Check round
-        uint256 targetPid = uint256(1 days) << 128 | uint256(1 days + 10 days) << 64; // start=1d, end=10d, counter=0
+        uint256 targetPid = uint256(2 days) << 128 | uint256(2 days + 10 days) << 64; // start=1d, end=10d, counter=0
         (open, executed, parameters, vetoTally, actions, allowFailureMap) = optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, true, "Should be open");
@@ -2353,7 +2355,7 @@ contract MultisigTest is AragonTest {
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
-        assertEq(parameters.vetoEndDate, 1 days + 10 days, "Incorrect target vetoEndDate");
+        assertEq(parameters.vetoEndDate, 2 days + 10 days, "Incorrect target vetoEndDate");
 
         assertEq(actions.length, 3, "Should be 3");
 
@@ -2370,7 +2372,7 @@ contract MultisigTest is AragonTest {
         assertEq(allowFailureMap, 0, "Should be 0");
 
         // New proposal
-        vm.warp(2 days);
+        vm.warp(3 days);
 
         createActions = new IDAO.Action[](2);
         createActions[1].to = alice;
@@ -2393,7 +2395,7 @@ contract MultisigTest is AragonTest {
         multisig.execute(pid);
 
         // Check round
-        targetPid = (uint256(2 days) << 128 | uint256(2 days + 10 days) << 64) + 1;
+        targetPid = (uint256(3 days) << 128 | uint256(3 days + 10 days) << 64) + 1;
         (open, executed, parameters, vetoTally, actions, allowFailureMap) = optimisticPlugin.getProposal(targetPid);
 
         assertEq(open, true, "Should be open");
@@ -2401,7 +2403,7 @@ contract MultisigTest is AragonTest {
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
-        assertEq(parameters.vetoEndDate, 2 days + 10 days, "Incorrect target vetoEndDate");
+        assertEq(parameters.vetoEndDate, 3 days + 10 days, "Incorrect target vetoEndDate");
 
         assertEq(actions.length, 2, "Should be 2");
 

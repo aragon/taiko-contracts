@@ -132,9 +132,6 @@ contract DaoBuilder is Test {
             TaikoL1 taikoL1
         )
     {
-        vm.roll(0);
-        vm.warp(0);
-
         // Deploy the DAO with `this` as root
         dao = DAO(
             payable(

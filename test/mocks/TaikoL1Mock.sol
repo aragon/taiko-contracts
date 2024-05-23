@@ -9,7 +9,9 @@ contract TaikoL1Mock is TaikoL1 {
         return false;
     }
 
-    function slotB() public view override returns (TaikoData.SlotB memory) {}
+    function slotB() public pure override returns (TaikoData.SlotB memory result) {
+        result.numBlocks = 90;
+    }
 
     function getBlock(uint64 _blockId) public view override returns (TaikoData.Block memory result) {
         _blockId;
@@ -23,7 +25,7 @@ contract TaikoL1PausedMock is TaikoL1 {
         return true;
     }
 
-    function slotB() public view override returns (TaikoData.SlotB memory) {}
+    function slotB() public view override returns (TaikoData.SlotB memory result) {}
     function getBlock(uint64 _blockId) public view override returns (TaikoData.Block memory) {}
 }
 
@@ -32,7 +34,9 @@ contract TaikoL1WithOldLastBlock is TaikoL1 {
         return false;
     }
 
-    function slotB() public view override returns (TaikoData.SlotB memory) {}
+    function slotB() public pure override returns (TaikoData.SlotB memory result) {
+        result.numBlocks = 0;
+    }
 
     function getBlock(uint64 _blockId) public pure override returns (TaikoData.Block memory result) {
         _blockId;

@@ -55,6 +55,8 @@ contract EmergencyMultisigTest is AragonTest {
 
     function setUp() public {
         vm.startPrank(alice);
+        vm.warp(1 days);
+        vm.roll(100);
 
         builder = new DaoBuilder();
         (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
@@ -999,26 +1001,26 @@ contract EmergencyMultisigTest is AragonTest {
     function testFuzz_ApproveRevertsIfNotCreated(uint256 randomProposalId) public {
         // Reverts if the proposal doesn't exist
 
-        switchTo(alice);
+        vm.startPrank(alice);
         vm.expectRevert(
             abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, alice)
         );
         eMultisig.approve(randomProposalId);
 
         // 2
-        switchTo(bob);
+        vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, bob));
         eMultisig.approve(randomProposalId);
 
         // 3
-        switchTo(carol);
+        vm.startPrank(carol);
         vm.expectRevert(
             abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, carol)
         );
         eMultisig.approve(randomProposalId);
 
         // 4
-        switchTo(david);
+        vm.startPrank(david);
         vm.expectRevert(
             abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, david)
         );
@@ -1036,7 +1038,7 @@ contract EmergencyMultisigTest is AragonTest {
             return;
         }
 
-        switchTo(randomSigner);
+        vm.startPrank(randomSigner);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, randomSigner));
         eMultisig.approve(pid);
     }
@@ -1138,9 +1140,9 @@ contract EmergencyMultisigTest is AragonTest {
         bytes32 actionsHash = eMultisig.hashActions(actions);
         uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         eMultisig.execute(pid, actions);
@@ -1391,7 +1393,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        vm.warp(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
@@ -1409,7 +1411,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        vm.warp(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        vm.warp(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
@@ -1443,7 +1445,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ExecuteEmitsEvents() public {
         // emits the `ProposalExecuted` and `ProposalCreated` events
 
-        vm.warp(10);
+        vm.warp(5 days);
         vm.deal(address(dao), 1 ether);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1465,8 +1467,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        uint256 targetPid = 10 << 128 | 10 << 64;
-        emit ProposalCreated(targetPid, address(eMultisig), 10, 10, "", actions, 0);
+        uint256 targetPid = 5 days << 128 | 5 days << 64;
+        emit ProposalCreated(targetPid, address(eMultisig), 5 days, 5 days, "", actions, 0);
         eMultisig.execute(pid, actions);
 
         // 2
@@ -1799,7 +1801,7 @@ contract EmergencyMultisigTest is AragonTest {
         IDAO.Action[] memory retrievedActions;
         uint256 allowFailureMap;
 
-        vm.warp(10);
+        vm.warp(10 days);
 
         vm.deal(address(dao), 100 ether);
 
@@ -1853,6 +1855,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(allowFailureMap, 0, "Should be 0");
 
         // New proposal
+        vm.warp(15 days);
 
         submittedActions = new IDAO.Action[](2);
         submittedActions[1].to = address(dao);
@@ -1883,7 +1886,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
-        assertEq(parameters.vetoEndDate, 10, "Incorrect vetoEndDate");
+        assertEq(parameters.vetoEndDate, 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 2, "Should be 2");
