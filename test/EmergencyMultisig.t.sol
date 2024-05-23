@@ -1441,7 +1441,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        vm.warp(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
@@ -1853,7 +1853,6 @@ contract EmergencyMultisigTest is AragonTest {
         uint256 allowFailureMap;
 
         vm.warp(10 days);
-
         vm.deal(address(dao), 100 ether);
 
         IDAO.Action[] memory submittedActions = new IDAO.Action[](3);

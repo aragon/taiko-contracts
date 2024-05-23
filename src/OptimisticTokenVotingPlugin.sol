@@ -137,6 +137,9 @@ contract OptimisticTokenVotingPlugin is
     /// @param account The address of the _account.
     error ProposalVetoingForbidden(uint256 proposalId, address account);
 
+    /// @notice Thrown if the Bridge attempts to cast a veto directly. A dedicated function for relayed votes must be used instead.
+    error BridgeDirectVetoForbidden();
+
     /// @notice Thrown if the proposal execution is forbidden.
     /// @param proposalId The ID of the proposal.
     error ProposalExecutionForbidden(uint256 proposalId);
@@ -395,6 +398,8 @@ contract OptimisticTokenVotingPlugin is
 
         if (!canVeto(_proposalId, _voter)) {
             revert ProposalVetoingForbidden({proposalId: _proposalId, account: _voter});
+        } else if (_voter == taikoBridge) {
+            revert BridgeDirectVetoForbidden();
         }
 
         Proposal storage proposal_ = proposals[_proposalId];

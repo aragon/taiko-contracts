@@ -2368,8 +2368,9 @@ contract MultisigTest is AragonTest {
         multisig.execute(pid);
 
         // Check round
+        // start=1d, end=10d, counter=0
         (open, executed, parameters, vetoTally, metadataUri, actions, allowFailureMap) =
-            optimisticPlugin.getProposal(uint256(2 days) << 128 | uint256(2 days + 10 days) << 64); // PID: start=1d, end=10d, counter=0
+            optimisticPlugin.getProposal(uint256(2 days) << 128 | uint256(2 days + 10 days) << 64);
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");

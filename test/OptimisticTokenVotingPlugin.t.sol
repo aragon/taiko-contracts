@@ -786,12 +786,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(50 days + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
 
         // before end
-        vm.warp(block.timestamp + 10 days - 1);
+        vm.warp(50 days + 10 days - 1);
         (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
 
         // end
-        vm.warp(block.timestamp + 1);
+        vm.warp(50 days + 10 days);
         (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, false, "Should not be open");
     }
@@ -931,7 +931,6 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(3 days - 1);
         (dao, optimisticPlugin,,, votingToken, taikoL1) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
-
         vetoPeriod = 30 days;
 
         actions[0].to = bob;
@@ -1580,6 +1579,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
         assertEq(parameters.skipL2, true, "L2 should be skipped");
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
