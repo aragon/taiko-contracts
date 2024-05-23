@@ -777,7 +777,16 @@ contract EmergencyMultisigTest is AragonTest {
 
     // CAN APPROVE
 
-    function testFuzz_CanApproveReturnsfFalseIfNotListed(address _randomWallet) public {
+    function testFuzz_CanApproveReturnsfFalseIfNotCreated(uint256 randomProposalId) public view {
+        // returns `false` if the proposal doesn't exist
+
+        assertEq(eMultisig.canApprove(randomProposalId, alice), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, bob), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, carol), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, david), false, "Should be false");
+    }
+
+    function testFuzz_CanApproveReturnsfFalseIfNotListed(address randomWallet) public {
         // returns `false` if the approver is not listed
 
         {
@@ -809,8 +818,8 @@ contract EmergencyMultisigTest is AragonTest {
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // ko
-        if (_randomWallet != address(0x0)) {
-            assertEq(eMultisig.canApprove(pid, _randomWallet), false, "Should be false");
+        if (randomWallet != address(0x0)) {
+            assertEq(eMultisig.canApprove(pid, randomWallet), false, "Should be false");
         }
 
         // static ok
@@ -987,7 +996,52 @@ contract EmergencyMultisigTest is AragonTest {
 
     // APPROVE
 
-    function test_ApproveRevertsIfApprovingMultipleTimes() public {
+    function testFuzz_ApproveRevertsIfNotCreated(uint256 randomProposalId) public {
+        // Reverts if the proposal doesn't exist
+
+        switchTo(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, alice)
+        );
+        eMultisig.approve(randomProposalId);
+
+        // 2
+        switchTo(bob);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, bob));
+        eMultisig.approve(randomProposalId);
+
+        // 3
+        switchTo(carol);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, carol)
+        );
+        eMultisig.approve(randomProposalId);
+
+        // 4
+        switchTo(david);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, david)
+        );
+        eMultisig.approve(randomProposalId);
+    }
+
+    function testFuzz_ApproveRevertsIfNotListed(address randomSigner) public {
+        // Reverts if the signer is not listed
+
+        builder = new DaoBuilder();
+        (,,, eMultisig,,) = builder.withMultisigMember(alice).withMinApprovals(1).build();
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
+
+        if (randomSigner == alice) {
+            return;
+        }
+
+        switchTo(randomSigner);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, randomSigner));
+        eMultisig.approve(pid);
+    }
+
+    function test_ApproveRevertsIfAlreadyApproved() public {
         // reverts when approving multiple times
 
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
@@ -1077,6 +1131,26 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
     }
 
+    function test_ApproveRevertsIfExecuted() public {
+        // reverts if the proposal has ended
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
+        eMultisig.approve(pid);
+        switchTo(bob);
+        eMultisig.approve(pid);
+        switchTo(carol);
+        eMultisig.approve(pid);
+
+        eMultisig.execute(pid, actions);
+        (bool executed,,,,,) = eMultisig.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
+        eMultisig.approve(pid);
+    }
+
     function test_ApprovingProposalsEmits() public {
         // Approving a proposal emits the Approved event
 
@@ -1106,6 +1180,12 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     // CAN EXECUTE
+
+    function testFuzz_CanExecuteReturnsFalseIfNotCreated(uint256 randomProposalId) public view {
+        // returns `false` if the proposal doesn't exist
+
+        assertEq(eMultisig.canExecute(randomProposalId), false, "Should be false");
+    }
 
     function test_CanExecuteReturnsFalseIfBelowMinApprovals() public {
         // returns `false` if the proposal has not reached the minimum approvals yet
@@ -1237,6 +1317,14 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     // EXECUTE
+
+    function testFuzz_ExecuteRevertsIfNotCreated(uint256 randomProposalId) public {
+        // reverts if the proposal doesn't exist
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, randomProposalId));
+        eMultisig.execute(randomProposalId, actions);
+    }
 
     function test_ExecuteRevertsIfBelowMinApprovals() public {
         // reverts if minApprovals is not met yet

@@ -725,21 +725,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     // Can Veto
-    function test_CanVetoReturnsFalseWhenAProposalDoesntExist() public {
+    function testFuzz_CanVetoReturnsFalseWhenNotCreated(uint256 _randomProposalId) public {
+        // Existing
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         assertEq(optimisticPlugin.canVeto(proposalId, alice), true, "Alice should be able to veto");
-
-        // non existing
+        assertEq(optimisticPlugin.canVeto(_randomProposalId, bob), false, "Bob should not be able to veto");
+        assertEq(optimisticPlugin.canVeto(_randomProposalId, carol), false, "Carol should not be able to veto");
+        assertEq(optimisticPlugin.canVeto(_randomProposalId, david), false, "David should not be able to veto");
         assertEq(
-            optimisticPlugin.canVeto(proposalId + 200, alice),
-            false,
-            "Alice should not be able to veto on non existing proposals"
+            optimisticPlugin.canVeto(_randomProposalId, randomWallet), false, "RandomWallet should not be able to veto"
         );
-    }
 
-    function testFuzz_CanVetoReturnsFalseForNonExistingProposals(uint256 _randomProposalId) public view {
         // Non existing
         assertEq(optimisticPlugin.canVeto(_randomProposalId, alice), false, "Alice should not be able to veto");
         assertEq(optimisticPlugin.canVeto(_randomProposalId, bob), false, "Bob should not be able to veto");
@@ -794,20 +792,20 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     // Veto
-    function test_VetoRevertsWhenAProposalDoesntExist() public {
+    function test_FuzzVetoRevertsWhenNotCreated(uint256 randomProposalId) public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+        uint256 realProposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         // ok
-        optimisticPlugin.veto(proposalId);
+        optimisticPlugin.veto(realProposalId);
 
         // non existing
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId + 200, alice
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, randomProposalId, alice
             )
         );
-        optimisticPlugin.veto(proposalId + 200);
+        optimisticPlugin.veto(randomProposalId);
     }
 
     function test_VetoRevertsWhenAProposalHasNotStarted() public {
@@ -959,6 +957,10 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     // Can execute
+    function testFuzz_CanExecuteReturnsFalseWhenNotCreated(uint256 randomProposalId) public view {
+        assertEq(optimisticPlugin.canExecute(randomProposalId), false, "The proposal shouldn't be executable");
+    }
+
     function test_CanExecuteReturnsFalseWhenNotEnded() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
@@ -1045,6 +1047,29 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     // Execute
+    function testFuzz_ExecuteRevertsWhenNotCreated(uint256 randomProposalId) public {
+        setTime(0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, randomProposalId)
+        );
+        optimisticPlugin.execute(randomProposalId);
+
+        (, bool executed,,,,) = optimisticPlugin.getProposal(randomProposalId);
+        assertEq(executed, false, "The proposal should not be executed");
+
+        // 2
+        setTime(10 days);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, randomProposalId)
+        );
+        optimisticPlugin.execute(randomProposalId);
+
+        (, executed,,,,) = optimisticPlugin.getProposal(randomProposalId);
+        assertEq(executed, false, "The proposal should not be executed");
+    }
+
     function test_ExecuteRevertsWhenNotEnded() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
