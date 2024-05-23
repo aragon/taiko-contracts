@@ -656,6 +656,21 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
+
+        // 2
+        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+            builder.withOkTaikoL1().withTokenHolder(taikoBridge, 0).withProposerOnOptimistic(alice).build();
+
+        // Try to create
+        actions = new IDAO.Action[](0);
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
+        optimisticPlugin.createProposal("", actions, 0, 4 days);
+
+        votingToken.mintAndDelegate(taikoBridge, 10 ether);
+        vm.warp(block.timestamp + 1);
+
+        // Now ok
+        optimisticPlugin.createProposal("", actions, 0, 4 days);
     }
 
     function test_CreateProposalRevertsIfDurationIsLowerThanMin() public {
@@ -764,7 +779,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(50 days + 10 days, parameters.vetoEndDate, "Incorrect vetoEndDate");
 
         // before end
-        vm.warp(50 days + 10 days - 1);
+        vm.warp(block.timestamp + 10 days - 1);
         (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, true, "Should be open");
 
@@ -791,7 +806,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(_open, true, "Should be open");
 
         // end
-        vm.warp(50 days + 10 days);
+        vm.warp(block.timestamp + 1);
         (_open,,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(_open, false, "Should not be open");
     }
