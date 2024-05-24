@@ -377,6 +377,77 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 180.1234 ether, "Incorrect past supply");
     }
 
+    function test_BridgedVotingPowerReturnsTheRightValue() public {
+        // No bridged tokens
+        assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 0, "Incorrect bridged voting power");
+        assertEq(votingToken.getPastVotes(taikoBridge, block.timestamp - 1), 0, "Incorrect past votes");
+        assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 10 ether, "Incorrect past supply");
+
+        // 1 bridged tokens
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+
+        assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 10 ether, "Incorrect bridged voting power");
+        assertEq(votingToken.getPastVotes(taikoBridge, block.timestamp - 1), 10 ether, "Incorrect past votes");
+        assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 20 ether, "Incorrect past supply");
+
+        // 2 bridged tokens
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
+            .withTokenHolder(taikoBridge, 1).build();
+
+        assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 1, "Incorrect bridged voting power");
+        assertEq(votingToken.getPastVotes(taikoBridge, block.timestamp - 1), 1, "Incorrect past votes");
+        assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 11 ether + 1, "Incorrect past supply");
+    }
+
+    function test_EffectiveVotingPowerReturnsTheRightValue() public {
+        // No bridged tokens
+        assertEq(
+            optimisticPlugin.effectiveVotingPower(block.timestamp - 1, false),
+            10 ether,
+            "Incorrect effective voting power"
+        );
+        assertEq(
+            optimisticPlugin.effectiveVotingPower(block.timestamp - 1, true),
+            10 ether,
+            "Incorrect effective voting power"
+        );
+
+        // 1 bridged tokens
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+
+        assertEq(
+            optimisticPlugin.effectiveVotingPower(block.timestamp - 1, false),
+            10 ether,
+            "Incorrect effective voting power"
+        );
+        assertEq(
+            optimisticPlugin.effectiveVotingPower(block.timestamp - 1, true),
+            20 ether,
+            "Incorrect effective voting power"
+        );
+
+        // 2 bridged tokens
+        builder = new DaoBuilder();
+        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
+            .withTokenHolder(taikoBridge, 1234).build();
+
+        assertEq(
+            optimisticPlugin.effectiveVotingPower(block.timestamp - 1, false),
+            11 ether,
+            "Incorrect effective voting power"
+        );
+        assertEq(
+            optimisticPlugin.effectiveVotingPower(block.timestamp - 1, true),
+            11 ether + 1234,
+            "Incorrect effective voting power"
+        );
+    }
+
     function test_MinVetoRatioReturnsTheRightValue() public {
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 10), "Incorrect minVetoRatio");
 

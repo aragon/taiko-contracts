@@ -270,7 +270,7 @@ contract OptimisticTokenVotingPlugin is
         }
         // Check if L2 bridged vetoes are still possible
         // For emergency multisig proposals with _duration == 0, this will return false because the L2 aggregation is skipped
-        else if (_proposalL2VetoingOpen(proposal_)) {
+        else if (_proposalL2VetoAggregationOpen(proposal_)) {
             return false;
         }
         // Check that not enough voters have vetoed the proposal
@@ -285,7 +285,7 @@ contract OptimisticTokenVotingPlugin is
     function isMinVetoRatioReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        bool _usingL2VotingPower = _proposalCanUseL2VotingPower(proposal_);
+        bool _usingL2VotingPower = _proposalUsesL2Vetoes(proposal_);
         uint256 _totalVotingPower = effectiveVotingPower(proposal_.parameters.snapshotTimestamp, _usingL2VotingPower);
         uint256 _minVetoPower = _applyRatioCeiled(_totalVotingPower, proposal_.parameters.minVetoRatio);
         return proposal_.vetoTally >= _minVetoPower;
@@ -525,8 +525,8 @@ contract OptimisticTokenVotingPlugin is
 
     /// @notice Determines whether the proposal has L2 voting enabled or not.
     /// @param proposal_ The proposal
-    function _proposalCanUseL2VotingPower(Proposal storage proposal_) internal view returns (bool) {
-        if (_proposalL2VetoingOpen(proposal_)) {
+    function _proposalUsesL2Vetoes(Proposal storage proposal_) internal view returns (bool) {
+        if (_proposalL2VetoAggregationOpen(proposal_)) {
             return true;
         }
 
@@ -538,7 +538,7 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Internal function to check if a proposal may still receive L2 vetoes.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal may still receive L2 bridged votes, false otherwise.
-    function _proposalL2VetoingOpen(Proposal storage proposal_) internal view virtual returns (bool) {
+    function _proposalL2VetoAggregationOpen(Proposal storage proposal_) internal view virtual returns (bool) {
         if (proposal_.parameters.skipL2) {
             return false;
         }
