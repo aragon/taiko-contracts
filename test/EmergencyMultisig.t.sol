@@ -318,6 +318,36 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.updateMultisigSettings(settings);
     }
 
+    function test_UpdateSettingsShouldRevertWithInvalidAddressSource() public {
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+
+        // ko
+        EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 1,
+            addresslistSource: Multisig(address(dao))
+        });
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidAddressListSource.selector, address(dao)));
+        eMultisig.updateMultisigSettings(settings);
+
+        // ko 2
+        settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 1,
+            addresslistSource: Multisig(address(optimisticPlugin))
+        });
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.InvalidAddressListSource.selector, address(optimisticPlugin))
+        );
+        eMultisig.updateMultisigSettings(settings);
+
+        // ok
+        (,, Multisig newMultisig,,,) = builder.build();
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: newMultisig});
+        eMultisig.updateMultisigSettings(settings);
+    }
+
     function test_onlyWalletWithPermissionsCanUpdateSettings() public {
         (,, Multisig newMultisig,,,) = builder.build();
 
