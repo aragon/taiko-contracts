@@ -946,6 +946,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(3 days - 1);
         (dao, optimisticPlugin,,, votingToken, taikoL1) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+
         vetoPeriod = 30 days;
 
         actions[0].to = bob;
