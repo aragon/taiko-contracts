@@ -35,7 +35,7 @@ contract TaikoL1WithOldLastBlock is TaikoL1 {
     }
 
     function slotB() public pure override returns (TaikoData.SlotB memory result) {
-        result.numBlocks = 0;
+        result.numBlocks = 1;
     }
 
     function getBlock(uint64 _blockId) public pure override returns (TaikoData.Block memory result) {

@@ -208,7 +208,8 @@ contract OptimisticTokenVotingPlugin is
 
         // The last L2 block is too old
         TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
-        if (_block.proposedAt < (block.timestamp - governanceSettings.l2InactivityPeriod)) return false;
+        // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
+        if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
 
         return true;
     }

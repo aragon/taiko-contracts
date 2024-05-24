@@ -504,6 +504,32 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.isMember(randomWallet), false, "Random wallet should not be a member");
     }
 
+    function test_IsL2AvailableReturnsTheRightValues() public {
+        assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
+
+        // paused
+        (, optimisticPlugin,,, votingToken,) = builder.withPausedTaikoL1().build();
+        assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
+
+        // out of sync
+        (, optimisticPlugin,,, votingToken,) = builder.withOutOfSyncTaikoL1().build();
+        assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
+
+        // out of sync: diff below lowerl2InactivityPeriod
+        setTime(5 minutes);
+        assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
+
+        // out of sync: still within the period
+        setTime(50 days);
+        (, optimisticPlugin,,, votingToken,) = builder.withL2InactivityPeriod(50 days).build();
+        assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
+
+        // out of sync: over
+        setTime(50 days + 1);
+        (, optimisticPlugin,,, votingToken,) = builder.withL2InactivityPeriod(50 days).build();
+        assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
+    }
+
     // Create proposal
     function test_CreateProposalRevertsWhenCalledByANonProposer() public {
         vm.startPrank(bob);
