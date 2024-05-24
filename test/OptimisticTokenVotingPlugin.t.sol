@@ -719,7 +719,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalEndsAfterMinDurationOnlyL1Tokens() public {
+<<<<<<< HEAD
         vm.warp(50 days - 1);
+=======
+        setTime(50 days - 1);
+>>>>>>> cd6330a (New features tested)
 
         // L2 Paused
         (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withPausedTaikoL1().build();
@@ -1420,6 +1424,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         optimisticPlugin.veto(proposalId); // 33%
+<<<<<<< HEAD
         vm.startPrank(bob);
         optimisticPlugin.veto(proposalId); // 66% (below 70%)
         // bridge supply counts but doesn't veto
@@ -1427,6 +1432,15 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(block.timestamp + 4 days); // end
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+=======
+        switchTo(bob);
+        optimisticPlugin.veto(proposalId); // 66% (below 70%)
+        // bridge supply counts but doesn't veto
+
+        timeForward(4 days); // end
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+        timeForward(builder.l2AggregationGracePeriod()); // grace period over
+>>>>>>> cd6330a (New features tested)
         assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
 
         // L2 paused, less token supply
@@ -1437,12 +1451,21 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         optimisticPlugin.veto(proposalId); // 50%
+<<<<<<< HEAD
         vm.startPrank(bob);
         optimisticPlugin.veto(proposalId); // 100% (above 70%)
 
         vm.warp(block.timestamp + 4 days); // end
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+=======
+        switchTo(bob);
+        optimisticPlugin.veto(proposalId); // 100% (above 70%)
+
+        timeForward(4 days); // end
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+        timeForward(builder.l2AggregationGracePeriod()); // grace period over
+>>>>>>> cd6330a (New features tested)
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
 
         // L2 out of sync, less token supply
@@ -1453,12 +1476,21 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         optimisticPlugin.veto(proposalId); // 50%
+<<<<<<< HEAD
         vm.startPrank(bob);
         optimisticPlugin.veto(proposalId); // 100% (above 70%)
 
         vm.warp(block.timestamp + 4 days); // end
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+=======
+        switchTo(bob);
+        optimisticPlugin.veto(proposalId); // 100% (above 70%)
+
+        timeForward(4 days); // end
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+        timeForward(builder.l2AggregationGracePeriod()); // grace period over
+>>>>>>> cd6330a (New features tested)
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
     }
 
@@ -1718,17 +1750,29 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.skipL2, false, "Should not skip the L2 census");
 
         optimisticPlugin.veto(proposalId); // 33%
+<<<<<<< HEAD
         vm.startPrank(bob);
         optimisticPlugin.veto(proposalId); // 66% (below 70%)
         // bridge supply counts but doesn't veto
 
         vm.warp(block.timestamp + 4 days); // end
+=======
+        switchTo(bob);
+        optimisticPlugin.veto(proposalId); // 66% (below 70%)
+        // bridge supply counts but doesn't veto
+
+        timeForward(4 days); // end
+>>>>>>> cd6330a (New features tested)
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
         optimisticPlugin.execute(proposalId);
         // ok
+<<<<<<< HEAD
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+=======
+        timeForward(builder.l2AggregationGracePeriod()); // grace period over
+>>>>>>> cd6330a (New features tested)
         optimisticPlugin.execute(proposalId);
 
         // L2 paused, less token supply
@@ -1742,16 +1786,27 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.skipL2, true, "Should skip the L2 census");
 
         optimisticPlugin.veto(proposalId); // 50%
+<<<<<<< HEAD
         vm.startPrank(bob);
         optimisticPlugin.veto(proposalId); // 100% (above 70%)
 
         vm.warp(block.timestamp + 4 days); // end
+=======
+        switchTo(bob);
+        optimisticPlugin.veto(proposalId); // 100% (above 70%)
+
+        timeForward(4 days); // end
+>>>>>>> cd6330a (New features tested)
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
         optimisticPlugin.execute(proposalId);
 
+<<<<<<< HEAD
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+=======
+        timeForward(builder.l2AggregationGracePeriod()); // grace period over
+>>>>>>> cd6330a (New features tested)
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
@@ -1768,16 +1823,27 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.skipL2, true, "Should skip the L2 census");
 
         optimisticPlugin.veto(proposalId); // 50%
+<<<<<<< HEAD
         vm.startPrank(bob);
         optimisticPlugin.veto(proposalId); // 100% (above 70%)
 
         vm.warp(block.timestamp + 4 days); // end
+=======
+        switchTo(bob);
+        optimisticPlugin.veto(proposalId); // 100% (above 70%)
+
+        timeForward(4 days); // end
+>>>>>>> cd6330a (New features tested)
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
         optimisticPlugin.execute(proposalId);
 
+<<<<<<< HEAD
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+=======
+        timeForward(builder.l2AggregationGracePeriod()); // grace period over
+>>>>>>> cd6330a (New features tested)
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
