@@ -185,7 +185,7 @@ contract DaoBuilder is Test {
                     address(OPTIMISTIC_BASE),
                     abi.encodeCall(
                         OptimisticTokenVotingPlugin.initialize,
-                        (dao, targetContractSettings, votingToken, taikoL1, taikoBridge)
+                        (dao, targetContractSettings, votingToken, address(taikoL1), taikoBridge)
                     )
                 )
             );

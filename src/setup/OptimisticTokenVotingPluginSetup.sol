@@ -53,7 +53,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         TokenSettings tokenSettings;
         // only used for GovernanceERC20 (when token is not passed)
         GovernanceERC20.MintSettings mintSettings;
-        TaikoL1 taikoL1;
+        address taikoL1;
         address taikoBridge;
         uint64 stdProposalMinDuration;
         address stdProposer;

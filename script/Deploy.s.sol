@@ -57,13 +57,13 @@ contract Deploy is Script {
         pluginSetupProcessor = PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR"));
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
 
-        minVetoRatio = uint32(vm.envUint("MIN_VETO_RATIO"));
-        l2InactivityPeriod = uint64(vm.envUint("L2_INACTIVITY_PERIOD"));
-        l2AggregationGracePeriod = uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD"));
         tokenAddress = vm.envAddress("TOKEN_ADDRESS");
         taikoL1 = vm.envAddress("TAIKO_L1_ADDRESS");
         taikoBridge = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
+        l2InactivityPeriod = uint64(vm.envUint("L2_INACTIVITY_PERIOD"));
+        l2AggregationGracePeriod = uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD"));
 
+        minVetoRatio = uint32(vm.envUint("MIN_VETO_RATIO"));
         minStdProposalDelay = uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY"));
         minStdApprovals = uint16(vm.envUint("MIN_STD_APPROVALS"));
         minEmergencyApprovals = uint16(vm.envUint("MIN_EMERGENCY_APPROVALS"));

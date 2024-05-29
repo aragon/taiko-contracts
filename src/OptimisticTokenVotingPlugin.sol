@@ -153,13 +153,13 @@ contract OptimisticTokenVotingPlugin is
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
-        TaikoL1 _taikoL1,
+        address _taikoL1,
         address _taikoBridge
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         votingToken = _token;
-        taikoL1 = _taikoL1;
+        taikoL1 = TaikoL1(_taikoL1);
         taikoBridge = _taikoBridge;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
