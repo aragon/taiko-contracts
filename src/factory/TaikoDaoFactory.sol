@@ -52,19 +52,19 @@ contract TaikoDaoFactory {
     struct Deployment {
         DAO dao;
         // Plugins
-        OptimisticTokenVotingPlugin optimisticTokenVotingPlugin;
         Multisig multisigPlugin;
         EmergencyMultisig emergencyMultisigPlugin;
+        OptimisticTokenVotingPlugin optimisticTokenVotingPlugin;
         // Plugin repo's
-        PluginRepo optimisticVotingPluginRepo;
         PluginRepo multisigPluginRepo;
         PluginRepo emergencyMultisigPluginRepo;
+        PluginRepo optimisticTokenVotingPluginRepo;
         // Other
         PublicKeyRegistry publicKeyRegistry;
     }
 
-    DeploymentSettings public settings;
-    Deployment public deployment;
+    DeploymentSettings settings;
+    Deployment deployment;
 
     // Implementations
     address immutable DAO_BASE = address(new DAO());
@@ -82,42 +82,49 @@ contract TaikoDaoFactory {
         IPluginSetup.PreparedSetupData memory preparedEmergencyMultisigSetupData;
         IPluginSetup.PreparedSetupData memory preparedOptimisticSetupData;
 
-        // Deploy the DAO with this contract as the owner
-        deployment.dao = prepareDao();
+        // DEPLOY THE DAO (The factory is the interim owner)
+        DAO dao = prepareDao();
+        deployment.dao = dao;
 
-        // Plugins
-        (deployment.multisigPlugin, deployment.multisigPluginRepo, preparedMultisigSetupData) =
-            prepareMultisig(deployment.dao);
+        // DEPLOY THE PLUGINS
+        (deployment.multisigPlugin, deployment.multisigPluginRepo, preparedMultisigSetupData) = prepareMultisig(dao);
 
         (deployment.emergencyMultisigPlugin, deployment.emergencyMultisigPluginRepo, preparedEmergencyMultisigSetupData)
-        = prepareEmergencyMultisig(deployment.dao, deployment.multisigPlugin);
+        = prepareEmergencyMultisig(dao, deployment.multisigPlugin);
 
-        (deployment.optimisticTokenVotingPlugin, deployment.optimisticVotingPluginRepo, preparedOptimisticSetupData) =
-        prepareOptimisticTokenVoting(
-            deployment.dao, address(deployment.multisigPlugin), address(deployment.emergencyMultisigPlugin)
+        (
+            deployment.optimisticTokenVotingPlugin,
+            deployment.optimisticTokenVotingPluginRepo,
+            preparedOptimisticSetupData
+        ) = prepareOptimisticTokenVoting(
+            dao, address(deployment.multisigPlugin), address(deployment.emergencyMultisigPlugin)
         );
 
-        // Apply permissions
+        // APPLY THE INSTALLATIONS
+        dao.grant(address(dao), address(settings.pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
 
         applyPluginInstallation(
-            deployment.dao, address(deployment.multisigPlugin), deployment.multisigPluginRepo, preparedMultisigSetupData
+            dao, address(deployment.multisigPlugin), deployment.multisigPluginRepo, preparedMultisigSetupData
         );
         applyPluginInstallation(
-            deployment.dao,
+            dao,
             address(deployment.emergencyMultisigPlugin),
             deployment.emergencyMultisigPluginRepo,
             preparedEmergencyMultisigSetupData
         );
         applyPluginInstallation(
-            deployment.dao,
+            dao,
             address(deployment.optimisticTokenVotingPlugin),
-            deployment.optimisticVotingPluginRepo,
+            deployment.optimisticTokenVotingPluginRepo,
             preparedOptimisticSetupData
         );
 
-        // Other contracts
+        dao.revoke(address(dao), address(settings.pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
+
+        // DEPLOY OTHER CONTRACTS
         deployment.publicKeyRegistry = deployPublicKeyRegistry();
 
+        // REMOVE THIS CONTRACT AS OWNER
         dropRootPermission(deployment.dao);
     }
 
@@ -291,5 +298,15 @@ contract TaikoDaoFactory {
 
     function dropRootPermission(DAO dao) internal {
         dao.revoke(address(dao), address(this), dao.ROOT_PERMISSION_ID());
+    }
+
+    // Getters
+
+    function getSettings() public view returns (DeploymentSettings memory) {
+        return settings;
+    }
+
+    function getDeployment() public view returns (Deployment memory) {
+        return deployment;
     }
 }
