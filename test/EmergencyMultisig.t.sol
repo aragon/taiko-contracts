@@ -17,7 +17,7 @@ import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
-import {createProxyAndCall} from "./helpers/proxy.sol";
+import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
 contract EmergencyMultisigTest is AragonTest {
     DaoBuilder builder;

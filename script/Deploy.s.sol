@@ -70,7 +70,7 @@ contract Deploy is Script {
 
         // JSON list of members
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/utils/members.json");
+        string memory path = string.concat(root, "/script/multisig-members.json");
         string memory json = vm.readFile(path);
         multisigMembers = vm.parseJsonAddressArray(json, "$.addresses");
 

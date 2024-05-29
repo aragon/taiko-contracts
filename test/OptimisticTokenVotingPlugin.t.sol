@@ -17,7 +17,7 @@ import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IERC1822ProxiableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
-import {createProxyAndCall} from "./helpers/proxy.sol";
+import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
 contract OptimisticTokenVotingPluginTest is AragonTest {
     DaoBuilder builder;

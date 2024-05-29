@@ -6,7 +6,7 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../../src/Multisig.sol";
 import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
-import {createProxyAndCall} from "./proxy.sol";
+import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
 import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
