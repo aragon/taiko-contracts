@@ -55,6 +55,8 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         // Print summary
+        console.log("Factory contract", address(this));
+        console.log("");
         console.log("DAO contract", address(deployment.dao));
         console.log("");
 
