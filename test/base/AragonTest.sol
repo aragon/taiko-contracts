@@ -40,30 +40,13 @@ contract AragonTest is Test {
         vm.label(randomWallet, "Random wallet");
     }
 
-    /// @notice Continue executing as the given wallet. Override any prior setting.
-    function switchTo(address target) internal {
-        (, address currentAddress,) = vm.readCallers();
-        if (currentAddress == target) return;
-
-        try vm.startPrank(target) {}
-        catch {
-            vm.stopPrank();
-            vm.startPrank(target);
-        }
-    }
-
-    /// @notice Stop using the last given wallet.
-    function undoSwitch() internal {
-        vm.stopPrank();
-    }
-
-    /// @notice Returns the address and private key associated to the given label.
-    /// @param label The label to get the address and private key for.
-    /// @return addr The address associated with the label.
-    /// @return pk The private key associated with the label.
-    function getWallet(string memory label) internal returns (address addr, uint256 pk) {
-        pk = uint256(keccak256(abi.encodePacked(label)));
+    /// @notice Returns the address and private key associated to the given name.
+    /// @param name The name to get the address and private key for.
+    /// @return addr The address associated with the name.
+    /// @return pk The private key associated with the name.
+    function getWallet(string memory name) internal returns (address addr, uint256 pk) {
+        pk = uint256(keccak256(abi.encodePacked(name)));
         addr = vm.addr(pk);
-        vm.label(addr, label);
+        vm.label(addr, name);
     }
 }

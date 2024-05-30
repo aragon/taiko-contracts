@@ -54,7 +54,7 @@ contract EmergencyMultisigTest is AragonTest {
     event Upgraded(address indexed implementation);
 
     function setUp() public {
-        switchTo(alice);
+        vm.startPrank(alice);
 
         builder = new DaoBuilder();
         (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
@@ -496,7 +496,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // someone else
         if (randomAccount != alice && randomAccount != address(0)) {
-            switchTo(randomAccount);
+            vm.startPrank(randomAccount);
 
             (,, newMultisig,,,) = builder.build();
             newSettings =
@@ -593,7 +593,7 @@ contract EmergencyMultisigTest is AragonTest {
         );
 
         // 2
-        switchTo(bob);
+        vm.startPrank(bob);
 
         vm.expectEmit();
         emit ProposalCreated({
@@ -639,24 +639,24 @@ contract EmergencyMultisigTest is AragonTest {
         // Deploy a new instance with custom settings
         (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withoutOnlyListed().build();
 
-        switchTo(randomWallet);
+        vm.startPrank(randomWallet);
         eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        switchTo(david);
+        vm.startPrank(david);
         eMultisig.createProposal("", 0, optimisticPlugin, false);
     }
 
     function test_RevertsWhenOnlyListedAndAnotherWalletCreates() public {
         // reverts if the user is not on the list and only listed accounts can create proposals
 
-        switchTo(randomWallet);
+        vm.startPrank(randomWallet);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, randomWallet));
         eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        switchTo(taikoBridge);
+        vm.startPrank(taikoBridge);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoBridge));
         eMultisig.createProposal("", 0, optimisticPlugin, false);
     }
@@ -682,18 +682,18 @@ contract EmergencyMultisigTest is AragonTest {
         addrs[0] = bob;
         stdMultisig.removeAddresses(addrs);
 
-        switchTo(bob);
+        vm.startPrank(bob);
 
         // Bob cannot create now
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, bob));
         eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        switchTo(alice);
+        vm.startPrank(alice);
 
         // Bob can create now
         stdMultisig.addAddresses(addrs); // Add Bob back
 
-        switchTo(alice);
+        vm.startPrank(alice);
 
         eMultisig.createProposal("", 0, optimisticPlugin, false);
     }
@@ -832,19 +832,19 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob
         assertEq(eMultisig.canApprove(pid, bob), true, "Should be true");
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         assertEq(eMultisig.canApprove(pid, bob), false, "Should be false");
 
         // Carol
         assertEq(eMultisig.canApprove(pid, carol), true, "Should be true");
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         assertEq(eMultisig.canApprove(pid, carol), false, "Should be false");
 
         // David
         assertEq(eMultisig.canApprove(pid, david), true, "Should be true");
-        switchTo(david);
+        vm.startPrank(david);
         eMultisig.approve(pid);
         assertEq(eMultisig.canApprove(pid, david), false, "Should be false");
     }
@@ -890,14 +890,14 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid); // passed
 
         (executed,,,,,) = eMultisig.getProposal(pid);
@@ -930,7 +930,7 @@ contract EmergencyMultisigTest is AragonTest {
             builder.withMultisigMember(randomWallet).withMinApprovals(1).withMinDuration(0).build();
 
         // now ko
-        switchTo(randomWallet);
+        vm.startPrank(randomWallet);
         pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
@@ -967,19 +967,19 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(eMultisig.hasApproved(pid, alice), true, "Should be true");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         assertEq(eMultisig.hasApproved(pid, bob), false, "Should be false");
         eMultisig.approve(pid);
         assertEq(eMultisig.hasApproved(pid, bob), true, "Should be true");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         assertEq(eMultisig.hasApproved(pid, carol), false, "Should be false");
         eMultisig.approve(pid);
         assertEq(eMultisig.hasApproved(pid, carol), true, "Should be true");
 
         // David
-        switchTo(david);
+        vm.startPrank(david);
         assertEq(eMultisig.hasApproved(pid, david), false, "Should be false");
         eMultisig.approve(pid);
         assertEq(eMultisig.hasApproved(pid, david), true, "Should be true");
@@ -999,20 +999,20 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, bob));
         eMultisig.approve(pid);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
         eMultisig.approve(pid);
 
-        switchTo(alice);
+        vm.startPrank(alice);
     }
 
     function test_ApprovesWithTheSenderAddress() public {
@@ -1027,24 +1027,24 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(eMultisig.hasApproved(pid, alice), true, "Should be true");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         assertEq(eMultisig.hasApproved(pid, bob), false, "Should be false");
         eMultisig.approve(pid);
         assertEq(eMultisig.hasApproved(pid, bob), true, "Should be true");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         assertEq(eMultisig.hasApproved(pid, carol), false, "Should be false");
         eMultisig.approve(pid);
         assertEq(eMultisig.hasApproved(pid, carol), true, "Should be true");
 
         // David
-        switchTo(david);
+        vm.startPrank(david);
         assertEq(eMultisig.hasApproved(pid, david), false, "Should be false");
         eMultisig.approve(pid);
         assertEq(eMultisig.hasApproved(pid, david), true, "Should be true");
 
-        switchTo(alice);
+        vm.startPrank(alice);
     }
 
     function test_ApproveRevertsIfExpired() public {
@@ -1087,19 +1087,19 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         vm.expectEmit();
         emit Approved(pid, bob);
         eMultisig.approve(pid);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         vm.expectEmit();
         emit Approved(pid, carol);
         eMultisig.approve(pid);
 
         // David (even if it already passed)
-        switchTo(david);
+        vm.startPrank(david);
         vm.expectEmit();
         emit Approved(pid, david);
         eMultisig.approve(pid);
@@ -1119,11 +1119,11 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        switchTo(alice);
+        vm.startPrank(alice);
 
         // More approvals required (4)
         (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(4).build();
@@ -1131,22 +1131,22 @@ contract EmergencyMultisigTest is AragonTest {
         pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Alice
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // David
-        switchTo(david);
+        vm.startPrank(david);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
     }
@@ -1158,9 +1158,9 @@ contract EmergencyMultisigTest is AragonTest {
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
@@ -1175,11 +1175,11 @@ contract EmergencyMultisigTest is AragonTest {
 
         pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
@@ -1201,11 +1201,11 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
@@ -1225,12 +1225,12 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
@@ -1253,11 +1253,11 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.execute(pid, actions);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         eMultisig.execute(pid, actions); // ok
 
-        switchTo(alice);
+        vm.startPrank(alice);
 
         // More approvals required (4)
         (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(4).build();
@@ -1265,25 +1265,25 @@ contract EmergencyMultisigTest is AragonTest {
         pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
 
         // David
-        switchTo(david);
+        vm.startPrank(david);
         eMultisig.approve(pid);
         eMultisig.execute(pid, actions);
     }
@@ -1297,9 +1297,9 @@ contract EmergencyMultisigTest is AragonTest {
         uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
@@ -1313,11 +1313,11 @@ contract EmergencyMultisigTest is AragonTest {
         // 2
         pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
@@ -1338,11 +1338,11 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
@@ -1366,11 +1366,11 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         // event
@@ -1391,15 +1391,15 @@ contract EmergencyMultisigTest is AragonTest {
         pid = eMultisig.createProposal("ipfs://", actionsHash, optimisticPlugin, false);
 
         // Alice
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         // events
@@ -1426,13 +1426,13 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
@@ -1451,19 +1451,19 @@ contract EmergencyMultisigTest is AragonTest {
         pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
@@ -1487,13 +1487,13 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
@@ -1513,19 +1513,19 @@ contract EmergencyMultisigTest is AragonTest {
         pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
 
         // Alice
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
@@ -1565,24 +1565,24 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        switchTo(randomWallet);
+        vm.startPrank(randomWallet);
         eMultisig.execute(pid, actions);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
         // 2
-        switchTo(alice);
+        vm.startPrank(alice);
 
         actions = new IDAO.Action[](1);
         actions[0].value = 3 ether;
@@ -1597,18 +1597,18 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(executed, false, "Should not be executed");
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
         (executed,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, false, "Should not be executed");
 
-        switchTo(randomWallet);
+        vm.startPrank(randomWallet);
         eMultisig.execute(pid, actions);
 
         (executed,,,,,) = eMultisig.getProposal(pid);
@@ -1664,9 +1664,9 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(newOptimisticPlugin));
 
         // 3 approve
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         (executed, approvals, parameters, encryptedPayloadURI, destinationActionsHash, destinationPlugin) =
@@ -1682,7 +1682,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(newOptimisticPlugin));
 
         // Execute
-        switchTo(alice);
+        vm.startPrank(alice);
         dao.grant(address(newOptimisticPlugin), address(eMultisig), newOptimisticPlugin.PROPOSER_PERMISSION_ID());
         eMultisig.execute(pid, actions);
 
@@ -1730,12 +1730,12 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Approve
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.execute(pid, submittedActions);
 
         // Check round
@@ -1778,12 +1778,12 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Approve
         eMultisig.approve(pid);
-        switchTo(bob);
+        vm.startPrank(bob);
         eMultisig.approve(pid);
-        switchTo(carol);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
-        switchTo(alice);
+        vm.startPrank(alice);
         eMultisig.execute(pid, submittedActions);
 
         // Check round

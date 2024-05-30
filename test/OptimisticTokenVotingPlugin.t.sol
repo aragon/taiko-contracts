@@ -46,7 +46,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     event Upgraded(address indexed implementation);
 
     function setUp() public {
-        switchTo(alice);
+        vm.startPrank(alice);
 
         builder = new DaoBuilder();
         // alice has root permission on the DAO, is a multisig member, holds tokens and can create proposals
@@ -439,7 +439,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     // Create proposal
     function test_CreateProposalRevertsWhenCalledByANonProposer() public {
-        switchTo(bob);
+        vm.startPrank(bob);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         vm.expectRevert(
@@ -453,12 +453,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        switchTo(alice);
+        vm.startPrank(alice);
         dao.grant(address(optimisticPlugin), bob, optimisticPlugin.PROPOSER_PERMISSION_ID());
-        switchTo(bob);
+        vm.startPrank(bob);
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        switchTo(carol);
+        vm.startPrank(carol);
         vm.expectRevert(
             abi.encodeWithSelector(
                 DaoUnauthorized.selector,
@@ -472,10 +472,10 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalRevertsIfThereIsNoVotingPower() public {
-        switchTo(alice);
+        vm.startPrank(alice);
         (dao, optimisticPlugin,,, votingToken, taikoL1) =
             builder.withTokenHolder(alice, 0).withProposerOnOptimistic(alice).build();
-        switchTo(alice);
+        vm.startPrank(alice);
 
         // Try to create
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -490,7 +490,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalRevertsIfDurationIsLowerThanMin() public {
-        switchTo(alice);
+        vm.startPrank(alice);
         (dao, optimisticPlugin,,, votingToken, taikoL1) =
             builder.withMinDuration(0).withProposerOnOptimistic(alice).build();
 
@@ -872,15 +872,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         // Bob owns no tokens
-        switchTo(bob);
+        vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, bob)
         );
         optimisticPlugin.veto(proposalId);
         assertEq(optimisticPlugin.hasVetoed(proposalId, bob), false, "Bob should not have vetoed");
 
-        undoSwitch();
-        switchTo(alice);
+        vm.startPrank(alice);
 
         // Alice owns tokens
         optimisticPlugin.veto(proposalId);
@@ -920,12 +919,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         emit VetoCast(proposalId, alice, 5 ether);
         optimisticPlugin.veto(proposalId);
 
-        switchTo(bob);
+        vm.startPrank(bob);
         vm.expectEmit();
         emit VetoCast(proposalId, bob, 10 ether);
         optimisticPlugin.veto(proposalId);
 
-        switchTo(carol);
+        vm.startPrank(carol);
         vm.expectEmit();
         emit VetoCast(proposalId, carol, 15 ether);
         optimisticPlugin.veto(proposalId);
@@ -950,14 +949,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.hasVetoed(proposalId, bob), false, "Bob should not have vetoed");
         assertEq(optimisticPlugin.hasVetoed(proposalId, carol), false, "Carol should not have vetoed");
 
-        switchTo(bob);
+        vm.startPrank(bob);
         optimisticPlugin.veto(proposalId);
 
         assertEq(optimisticPlugin.hasVetoed(proposalId, alice), true, "Alice should have vetoed");
         assertEq(optimisticPlugin.hasVetoed(proposalId, bob), true, "Bob should have vetoed");
         assertEq(optimisticPlugin.hasVetoed(proposalId, carol), false, "Carol should not have vetoed");
 
-        switchTo(carol);
+        vm.startPrank(carol);
         optimisticPlugin.veto(proposalId);
 
         assertEq(optimisticPlugin.hasVetoed(proposalId, alice), true, "Alice should have vetoed");
@@ -1036,14 +1035,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
 
-        switchTo(bob);
+        vm.startPrank(bob);
 
         // Bob vetoes +1% => met
         optimisticPlugin.veto(proposalId);
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), true, "The veto threshold should be met");
 
-        switchTo(randomWallet);
+        vm.startPrank(randomWallet);
 
         // Random wallet vetoes +75% => still met
         optimisticPlugin.veto(proposalId);

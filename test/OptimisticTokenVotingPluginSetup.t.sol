@@ -857,8 +857,6 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_wrappedToken.balanceOf(address(0x1234)), 100);
         assertEq(_wrappedToken.balanceOf(address(0x5678)), 200);
         assertEq(_wrappedToken.balanceOf(address(0x0)), 0);
-
-        vm.stopPrank();
     }
 
     function test_UsesAnExistingGovernanceERC20Token() public {
