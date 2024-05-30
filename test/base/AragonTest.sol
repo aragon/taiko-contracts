@@ -66,40 +66,4 @@ contract AragonTest is Test {
         addr = vm.addr(pk);
         vm.label(addr, label);
     }
-
-    /// @notice Moves the EVM time forward by a given amount.
-    /// @param time The amount of seconds to advance.
-    function timeForward(uint256 time) internal {
-        vm.warp(block.timestamp + time);
-    }
-
-    /// @notice Moves the EVM time back by a given amount.
-    /// @param time The amount of seconds to subtract.
-    function timeBack(uint256 time) internal {
-        vm.warp(block.timestamp - time);
-    }
-
-    /// @notice Sets the EVM timestamp.
-    /// @param timestamp The timestamp in seconds.
-    function setTime(uint256 timestamp) internal {
-        vm.warp(timestamp);
-    }
-
-    /// @notice Moves the EVM block number forward by a given amount.
-    /// @param blocks The number of blocks to advance.
-    function blockForward(uint256 blocks) internal {
-        vm.roll(block.number + blocks);
-    }
-
-    /// @notice Moves the EVM block number back by a given amount.
-    /// @param blocks The number of blocks to subtract.
-    function blockBack(uint256 blocks) internal {
-        vm.roll(block.number - blocks);
-    }
-
-    /// @notice Set the EVM block number to the given value.
-    /// @param blockNumber The new block number
-    function setBlock(uint256 blockNumber) internal {
-        vm.roll(blockNumber);
-    }
 }

@@ -492,7 +492,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(onlyListed, true, "Should be true");
         assertEq(address(givenAddresslistSource), address(stdMultisig), "Incorrect addresslistSource");
 
-        blockForward(1);
+        vm.roll(block.number + 1);
 
         // someone else
         if (randomAccount != alice && randomAccount != address(0)) {
@@ -629,7 +629,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.createProposal("", bytes32(0), optimisticPlugin, false);
 
         // Next block
-        blockForward(1);
+        vm.roll(block.number + 1);
         eMultisig.createProposal("", bytes32(0), optimisticPlugin, false);
     }
 
@@ -675,7 +675,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         stdMultisig.addAddresses(addrs); // Add Alice back
-        blockForward(1);
+        vm.roll(block.number + 1);
         eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // Add+remove
@@ -803,7 +803,7 @@ contract EmergencyMultisigTest is AragonTest {
                 )
             );
 
-            blockForward(1);
+            vm.roll(block.number + 1);
         }
 
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
@@ -856,22 +856,22 @@ contract EmergencyMultisigTest is AragonTest {
 
         assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
         assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        timeForward(1); // expiration time
+        vm.warp(block.timestamp + 1); // expiration time
         assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
 
         // Start later
-        setTime(50 days);
+        vm.warp(50 days);
         pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
         assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        timeForward(1); // expiration time
+        vm.warp(block.timestamp + 1); // expiration time
         assertEq(eMultisig.canApprove(pid, alice), false, "Should be false");
     }
 
@@ -915,7 +915,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CanApproveReturnsTrueIfListed() public {
         // returns `true` if the approver is listed
 
-        setTime(10);
+        vm.warp(10);
 
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
@@ -1054,25 +1054,25 @@ contract EmergencyMultisigTest is AragonTest {
 
         assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         eMultisig.approve(pid);
 
-        timeForward(15 days);
+        vm.warp(block.timestamp + 15 days);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         eMultisig.approve(pid);
 
         // 2
-        setTime(10 days);
+        vm.warp(10 days);
         pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
 
-        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         eMultisig.approve(pid);
 
-        timeForward(15 days);
+        vm.warp(block.timestamp + 15 days);
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, alice));
         eMultisig.approve(pid);
     }
@@ -1164,14 +1164,14 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        timeForward(1);
+        vm.warp(block.timestamp + 1);
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
 
         // 2
-        setTime(50 days);
+        vm.warp(50 days);
 
         pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
@@ -1183,10 +1183,10 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        timeForward(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        timeForward(1);
+        vm.warp(block.timestamp + 1);
         assertEq(eMultisig.canExecute(pid), false, "Should be false");
     }
 
@@ -1303,12 +1303,12 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        setTime(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        vm.warp(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
 
-        setTime(100 days);
+        vm.warp(100 days);
 
         // 2
         pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
@@ -1321,7 +1321,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        setTime(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        vm.warp(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
@@ -1355,7 +1355,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ExecuteEmitsEvents() public {
         // emits the `ProposalExecuted` and `ProposalCreated` events
 
-        setTime(10);
+        vm.warp(10);
         vm.deal(address(dao), 1 ether);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1382,7 +1382,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.execute(pid, actions);
 
         // 2
-        setTime(20 days);
+        vm.warp(20 days);
         actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
@@ -1618,7 +1618,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_GetProposalReturnsTheRightValues() public {
         // Get proposal returns the right values
 
-        setTime(10);
+        vm.warp(10);
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
@@ -1711,7 +1711,7 @@ contract EmergencyMultisigTest is AragonTest {
         IDAO.Action[] memory retrievedActions;
         uint256 allowFailureMap;
 
-        setTime(10);
+        vm.warp(10);
 
         vm.deal(address(dao), 100 ether);
 

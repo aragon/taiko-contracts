@@ -133,8 +133,8 @@ contract DaoBuilder is Test {
             TaikoL1 taikoL1
         )
     {
-        setBlock(0);
-        setTime(0);
+        vm.roll(0);
+        vm.warp(0);
 
         // Deploy the DAO with `this` as root
         dao = DAO(
@@ -257,43 +257,7 @@ contract DaoBuilder is Test {
         vm.label(address(taikoBridge), "TaikoBridge");
 
         // Moving forward to avoid proposal creations failing or getVotes() giving inconsistent values
-        blockForward(1);
-        timeForward(1);
-    }
-
-    /// @notice Moves the EVM time forward by a given amount.
-    /// @param time The amount of seconds to advance.
-    function timeForward(uint256 time) internal {
-        vm.warp(block.timestamp + time);
-    }
-
-    /// @notice Moves the EVM time back by a given amount.
-    /// @param time The amount of seconds to subtract.
-    function timeBack(uint256 time) internal {
-        vm.warp(block.timestamp - time);
-    }
-
-    /// @notice Sets the EVM timestamp.
-    /// @param timestamp The timestamp in seconds.
-    function setTime(uint256 timestamp) internal {
-        vm.warp(timestamp);
-    }
-
-    /// @notice Moves the EVM block number forward by a given amount.
-    /// @param blocks The number of blocks to advance.
-    function blockForward(uint256 blocks) internal {
-        vm.roll(block.number + blocks);
-    }
-
-    /// @notice Moves the EVM block number back by a given amount.
-    /// @param blocks The number of blocks to subtract.
-    function blockBack(uint256 blocks) internal {
-        vm.roll(block.number - blocks);
-    }
-
-    /// @notice Set the EVM block number to the given value.
-    /// @param blockNumber The new block number
-    function setBlock(uint256 blockNumber) internal {
-        vm.roll(blockNumber);
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1);
     }
 }
