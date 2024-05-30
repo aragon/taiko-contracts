@@ -12,7 +12,7 @@ contract ERC20Mock is ERC20 {
         _mint(msg.sender, 10 ether);
     }
 
-    function mint(address receiver, uint256 amount) external {
+    function mintTo(address receiver, uint256 amount) external {
         _mint(receiver, amount);
     }
 }

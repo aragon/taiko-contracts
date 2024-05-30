@@ -55,7 +55,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         GovernanceERC20.MintSettings mintSettings;
         TaikoL1 taikoL1;
         address taikoBridge;
-        uint64 stdProposalMinDelay;
+        uint64 stdProposalMinDuration;
         address stdProposer;
         address emergencyProposer;
     }
@@ -189,7 +189,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         {
             // Deploy the Std proposal condition
             StandardProposalCondition stdProposalCondition =
-                new StandardProposalCondition(address(_dao), installationParams.stdProposalMinDelay);
+                new StandardProposalCondition(address(_dao), installationParams.stdProposalMinDuration);
 
             // Proposer plugins can create proposals
             permissions[3] = PermissionLib.MultiTargetPermission({

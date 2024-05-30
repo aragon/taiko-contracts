@@ -63,11 +63,13 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
+    /// @param metadataUri The IPFS URI where the proposal metadata is pinned.
     /// @param vetoEndDate The end date of the proposal vote.
     /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param skipL2 True if the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
+        bytes metadataUri;
         uint64 vetoEndDate;
         uint64 snapshotTimestamp;
         uint32 minVetoRatio;
@@ -87,11 +89,11 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
     address public taikoBridge;
 
-    /// @notice The struct storing the governance settings.
-    OptimisticGovernanceSettings public governanceSettings;
-
     /// @notice Taiko L1 contract to check the status from.
     TaikoL1 public taikoL1;
+
+    /// @notice The struct storing the governance settings.
+    OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -114,7 +116,7 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Thrown if a date is out of bounds.
     /// @param limit The limit value.
     /// @param actual The actual value.
-    error DateOutOfBounds(uint64 limit, uint64 actual);
+    error DurationOutOfBounds(uint64 limit, uint64 actual);
 
     /// @notice Thrown if the minimum duration value is out of bounds (less than four days or greater than 1 year).
     /// @param limit The limit value.
@@ -213,11 +215,6 @@ contract OptimisticTokenVotingPlugin is
     /// @inheritdoc IOptimisticTokenVoting
     function minVetoRatio() public view virtual returns (uint32) {
         return governanceSettings.minVetoRatio;
-    }
-
-    /// @inheritdoc IOptimisticTokenVoting
-    function minDuration() public view virtual returns (uint64) {
-        return governanceSettings.minDuration;
     }
 
     /// @inheritdoc IMembership
@@ -338,7 +335,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         if (_duration < governanceSettings.minDuration) {
-            revert DateOutOfBounds({limit: governanceSettings.minDuration, actual: _duration});
+            revert DurationOutOfBounds({limit: governanceSettings.minDuration, actual: _duration});
         }
         uint64 _now = block.timestamp.toUint64();
         uint64 _vetoEndDate = _now + _duration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
@@ -355,6 +352,7 @@ contract OptimisticTokenVotingPlugin is
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
+        proposal_.parameters.metadataUri = _metadata;
         proposal_.parameters.vetoEndDate = _vetoEndDate;
         proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoRatio = minVetoRatio();

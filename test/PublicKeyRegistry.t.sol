@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {AragonTest} from "./base/AragonTest.sol";
 import {PublicKeyRegistry} from "../src/PublicKeyRegistry.sol";
-import {createProxyAndCall} from "./helpers.sol";
+import {createProxyAndCall} from "./helpers/proxy.sol";
 
 contract EmergencyMultisigTest is AragonTest {
     PublicKeyRegistry registry;
@@ -21,20 +21,20 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(registry.getPublicKey(alice), 0x0000000000000000000000000000000000000000000000000000000000000000);
 
         // Alice
-        switchTo(alice);
+        vm.startPrank(alice);
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
         assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
 
         // Bob
-        switchTo(bob);
+        vm.startPrank(bob);
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
 
         assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
         assertEq(registry.getPublicKey(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
 
         // Carol
-        switchTo(carol);
+        vm.startPrank(carol);
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
@@ -42,7 +42,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(registry.getPublicKey(carol), 0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         // David
-        switchTo(david);
+        vm.startPrank(david);
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
 
         assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
@@ -52,50 +52,50 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_ShouldEmitARegistrationEvent() public {
-        switchTo(alice);
+        vm.startPrank(alice);
         vm.expectEmit();
         emit PublicKeyRegistered(alice, 0x000000000000cdef000000000000000000000000000000000000000000000000);
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
 
-        switchTo(bob);
+        vm.startPrank(bob);
         vm.expectEmit();
         emit PublicKeyRegistered(bob, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
-        switchTo(carol);
+        vm.startPrank(carol);
         vm.expectEmit();
         emit PublicKeyRegistered(carol, 0x0000567800000000000000000000000000000000000000000000000000000000);
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
 
-        switchTo(david);
+        vm.startPrank(david);
         vm.expectEmit();
         emit PublicKeyRegistered(david, 0x1234000000000000000000000000000000000000000000000000000000000000);
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
     }
 
     function test_ShouldRevertIfReRegistering() public {
-        switchTo(alice);
+        vm.startPrank(alice);
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
-        switchTo(bob);
+        vm.startPrank(bob);
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
-        switchTo(carol);
+        vm.startPrank(carol);
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
-        switchTo(david);
+        vm.startPrank(david);
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);

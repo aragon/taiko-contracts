@@ -98,11 +98,6 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param actual The actual value.
     error AddresslistLengthOutOfBounds(uint16 limit, uint256 actual);
 
-    /// @notice Thrown if a date is out of bounds.
-    /// @param limit The limit value.
-    /// @param actual The actual value.
-    error DateOutOfBounds(uint64 limit, uint64 actual);
-
     /// @notice Emitted when a proposal is approve by an approver.
     /// @param proposalId The ID of the proposal.
     /// @param approver The approver casting the approve.
@@ -391,7 +386,7 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @return True if the proposal vote is open, false otherwise.
     function _isProposalOpen(Proposal storage proposal_) internal view returns (bool) {
         uint64 currentTimestamp64 = block.timestamp.toUint64();
-        return !proposal_.executed && proposal_.parameters.expirationDate >= currentTimestamp64;
+        return !proposal_.executed && proposal_.parameters.expirationDate > currentTimestamp64;
     }
 
     /// @notice Internal function to update the plugin settings.
