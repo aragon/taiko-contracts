@@ -100,34 +100,39 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 revert TokenNotContract(token);
             }
 
-            if (!_isERC20(token)) {
+            if (!_supportsErc20(token)) {
                 revert TokenNotERC20(token);
             }
 
-            // [0] = IERC20Upgradeable, [1] = IVotesUpgradeable, [2] = IGovernanceWrappedERC20
-            bool[] memory supportedIds = _getTokenInterfaceIds(token);
-
-            if (
-                // If token supports none of them
-                // it's simply ERC20 which gets checked by _isERC20
-                // Currently, not a satisfiable check.
-                (!supportedIds[0] && !supportedIds[1] && !supportedIds[2])
-                // If token supports IERC20, but neither
-                // IVotes nor IGovernanceWrappedERC20, it needs wrapping.
-                || (supportedIds[0] && !supportedIds[1] && !supportedIds[2])
-            ) {
-                token = governanceWrappedERC20Base.clone();
-                // User already has a token. We need to wrap it in
-                // GovernanceWrappedERC20 in order to make the token
-                // include governance functionality.
-                GovernanceWrappedERC20(token).initialize(
-                    IERC20Upgradeable(installationParams.tokenSettings.addr),
-                    installationParams.tokenSettings.name,
-                    installationParams.tokenSettings.symbol
-                );
+            if (!_supportsIVotes(token) && !_supportsIGovernanceWrappedERC20(token)) {
+                // WRAP
             }
+
+            // // [0] = IERC20Upgradeable, [1] = IVotesUpgradeable, [2] = IGovernanceWrappedERC20
+            // bool[] memory supportedIds = _getTokenInterfaceIds(token);
+
+            // if (
+            //     // If token supports none of them
+            //     // it's simply ERC20 which gets checked by _supportsErc20
+            //     // Currently, not a satisfiable check.
+            //     (!supportedIds[0] && !supportedIds[1] && !supportedIds[2])
+            //     // If token supports IERC20, but neither
+            //     // IVotes nor IGovernanceWrappedERC20, it needs wrapping.
+            //     || (supportedIds[0] && !supportedIds[1] && !supportedIds[2])
+            // ) {
+            //     token = governanceWrappedERC20Base.clone();
+
+            //     // User already has a token. We need to wrap it in
+            //     // GovernanceWrappedERC20 in order to make the token
+            //     // include governance functionality.
+            //     GovernanceWrappedERC20(token).initialize(
+            //         IERC20Upgradeable(installationParams.tokenSettings.addr),
+            //         installationParams.tokenSettings.name,
+            //         installationParams.tokenSettings.symbol
+            //     );
+            // }
         } else {
-            // Clone a `GovernanceERC20`.
+            // Create a brand new token
             token = governanceERC20Base.clone();
             GovernanceERC20(token).initialize(
                 IDAO(_dao),
@@ -309,23 +314,54 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         installationParams = abi.decode(_data, (InstallationParameters));
     }
 
-    /// @notice Retrieves the interface identifiers supported by the token contract.
-    /// @dev It is crucial to verify if the provided token address represents a valid contract before using the below.
+    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
-    function _getTokenInterfaceIds(address token) private view returns (bool[] memory) {
-        bytes4[] memory interfaceIds = new bytes4[](3);
-        interfaceIds[0] = type(IERC20Upgradeable).interfaceId;
-        interfaceIds[1] = type(IVotesUpgradeable).interfaceId;
-        interfaceIds[2] = type(IGovernanceWrappedERC20).interfaceId;
-        return token.getSupportedInterfaces(interfaceIds);
+    function _supportsErc20(address token) private view returns (bool) {
+        (bool success, bytes memory data) =
+            token.staticcall(abi.encodeCall(IERC20Upgradeable.balanceOf, (address(this))));
+        if (!success || data.length != 0x20) return false;
+
+        (success, data) = token.staticcall(abi.encodeCall(IERC20Upgradeable.totalSupply, ()));
+        if (!success || data.length != 0x20) return false;
+
+        (success, data) = token.staticcall(abi.encodeCall(IERC20Upgradeable.allowance, (address(this), address(this))));
+        if (!success || data.length != 0x20) return false;
+
+        return true;
     }
 
     /// @notice Unsatisfiably determines if the contract is an ERC20 token.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
-    function _isERC20(address token) private view returns (bool) {
+    function _supportsIVotes(address token) private view returns (bool) {
         (bool success, bytes memory data) =
-            token.staticcall(abi.encodeCall(IERC20Upgradeable.balanceOf, (address(this))));
-        return success && data.length == 0x20;
+            token.staticcall(abi.encodeCall(IVotesUpgradeable.getVotes, (address(this))));
+        if (!success || data.length != 0x20) return false;
+
+        (success, data) = token.staticcall(abi.encodeCall(IVotesUpgradeable.getPastVotes, (address(this), 0)));
+        if (!success || data.length != 0x20) return false;
+
+        (success, data) = token.staticcall(abi.encodeCall(IVotesUpgradeable.getPastTotalSupply, (0)));
+        if (!success || data.length != 0x20) return false;
+
+        (success, data) = token.staticcall(abi.encodeCall(IVotesUpgradeable.delegates, (address(this))));
+        if (!success || data.length != 0x20) return false;
+
+        return true;
+    }
+
+    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @dev It's important to first check whether token is a contract prior to this call.
+    /// @param token The token address
+    function _supportsIGovernanceWrappedERC20(address token) private view returns (bool) {
+        // (bool success, bytes memory data) =
+        //     token.staticcall(abi.encodeCall(IERC20Upgradeable.getVotes, (address(this))));
+        // if (!success || data.length != 0x20) return false;
+
+        // (success, data) = token.staticcall(abi.encodeCall(IERC20Upgradeable.getPastVotes, (address(this), 0)));
+        // if (!success || data.length != 0x20) return false;
+
+        return true;
     }
 }
