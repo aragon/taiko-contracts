@@ -6,7 +6,6 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../../src/Multisig.sol";
 import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
-import {ERC20VotesMock} from "../mocks/ERC20VotesMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {createProxyAndCall} from "../helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
@@ -27,7 +26,6 @@ contract AragonTest is Test {
     address immutable MULTISIG_BASE = address(new Multisig());
     address immutable EMERGENCY_MULTISIG_BASE = address(new EmergencyMultisig());
     address immutable OPTIMISTIC_BASE = address(new OptimisticTokenVotingPlugin());
-    address immutable VOTING_TOKEN_BASE = address(new ERC20VotesMock());
 
     bytes internal constant EMPTY_BYTES = "";
 

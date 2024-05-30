@@ -12,7 +12,7 @@ import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
-import {ERC20VotesMock} from "./mocks/ERC20VotesMock.sol";
+import {GovernanceERC20Mock} from "./mocks/GovernanceERC20Mock.sol";
 import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IERC1822ProxiableUpgradeable} from
@@ -24,7 +24,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     DAO dao;
     OptimisticTokenVotingPlugin optimisticPlugin;
-    ERC20VotesMock votingToken;
+    GovernanceERC20Mock votingToken;
     TaikoL1 taikoL1;
 
     // Events from external contracts
@@ -194,10 +194,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
 
         // Different token with 23 eth supply
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
-        );
-        votingToken.mint(alice, 23 ether);
+        votingToken = new GovernanceERC20Mock(address(dao));
+        votingToken.mintTo(alice, 23 ether);
         vm.warp(block.timestamp + 5);
 
         optimisticPlugin = OptimisticTokenVotingPlugin(
@@ -332,9 +330,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         address oldToken = address(optimisticPlugin.votingToken());
 
         // New token
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
-        );
+        votingToken = new GovernanceERC20Mock(address(dao));
 
         // Deploy a new optimisticPlugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
@@ -407,11 +403,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.isMember(randomWallet), false, "Random wallet should not be a member");
 
         // New token
-        votingToken = ERC20VotesMock(
-            createProxyAndCall(address(VOTING_TOKEN_BASE), abi.encodeCall(ERC20VotesMock.initialize, ()))
-        );
-        votingToken.mint(alice, 10 ether);
-        votingToken.mint(bob, 5 ether);
+        votingToken = new GovernanceERC20Mock(address(dao));
+        votingToken.mintTo(alice, 10 ether);
+        votingToken.mintTo(bob, 5 ether);
         vm.warp(block.timestamp + 1);
 
         // Deploy a new optimisticPlugin instance

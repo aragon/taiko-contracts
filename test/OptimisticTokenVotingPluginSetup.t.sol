@@ -813,8 +813,8 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     function test_WrapsAnExistingToken() public {
         // Wrap existing token
         ERC20Mock _originalToken = new ERC20Mock();
-        _originalToken.mint(address(0x1234), 100);
-        _originalToken.mint(address(0x5678), 200);
+        _originalToken.mintTo(address(0x1234), 100);
+        _originalToken.mintTo(address(0x5678), 200);
         assertEq(_originalToken.balanceOf(address(0x1234)), 100);
         assertEq(_originalToken.balanceOf(address(0x5678)), 200);
 
