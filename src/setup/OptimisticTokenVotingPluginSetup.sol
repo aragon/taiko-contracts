@@ -17,6 +17,7 @@ import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/Governa
 import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGovernanceWrappedERC20.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {TaikoL1} from "../adapted-dependencies/TaikoL1.sol";
 // import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
@@ -98,39 +99,23 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         if (token != address(0x0)) {
             if (!token.isContract()) {
                 revert TokenNotContract(token);
-            }
-
-            if (!_supportsErc20(token)) {
+            } else if (!_supportsErc20(token)) {
                 revert TokenNotERC20(token);
             }
 
             if (!_supportsIVotes(token) && !_supportsIGovernanceWrappedERC20(token)) {
-                // WRAP
+                // Wrap the token
+                token = governanceWrappedERC20Base.clone();
+
+                // User already has a token. We need to wrap it in
+                // GovernanceWrappedERC20 in order to make the token
+                // include governance functionality.
+                GovernanceWrappedERC20(token).initialize(
+                    IERC20Upgradeable(installationParams.tokenSettings.addr),
+                    installationParams.tokenSettings.name,
+                    installationParams.tokenSettings.symbol
+                );
             }
-
-            // // [0] = IERC20Upgradeable, [1] = IVotesUpgradeable, [2] = IGovernanceWrappedERC20
-            // bool[] memory supportedIds = _getTokenInterfaceIds(token);
-
-            // if (
-            //     // If token supports none of them
-            //     // it's simply ERC20 which gets checked by _supportsErc20
-            //     // Currently, not a satisfiable check.
-            //     (!supportedIds[0] && !supportedIds[1] && !supportedIds[2])
-            //     // If token supports IERC20, but neither
-            //     // IVotes nor IGovernanceWrappedERC20, it needs wrapping.
-            //     || (supportedIds[0] && !supportedIds[1] && !supportedIds[2])
-            // ) {
-            //     token = governanceWrappedERC20Base.clone();
-
-            //     // User already has a token. We need to wrap it in
-            //     // GovernanceWrappedERC20 in order to make the token
-            //     // include governance functionality.
-            //     GovernanceWrappedERC20(token).initialize(
-            //         IERC20Upgradeable(installationParams.tokenSettings.addr),
-            //         installationParams.tokenSettings.name,
-            //         installationParams.tokenSettings.symbol
-            //     );
-            // }
         } else {
             // Create a brand new token
             token = governanceERC20Base.clone();
@@ -244,9 +229,8 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // does not follow the GovernanceERC20 and GovernanceWrappedERC20 standard.
         address token = _payload.currentHelpers[0];
 
-        bool[] memory supportedIds = _getTokenInterfaceIds(token);
-
-        bool isGovernanceERC20 = supportedIds[0] && supportedIds[1] && !supportedIds[2];
+        bool isGovernanceERC20 =
+            _supportsErc20(token) && _supportsIVotes(token) && !_supportsIGovernanceWrappedERC20(token);
 
         permissions = new PermissionLib.MultiTargetPermission[](isGovernanceERC20 ? 4 : 3);
 
@@ -355,13 +339,9 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsIGovernanceWrappedERC20(address token) private view returns (bool) {
-        // (bool success, bytes memory data) =
-        //     token.staticcall(abi.encodeCall(IERC20Upgradeable.getVotes, (address(this))));
-        // if (!success || data.length != 0x20) return false;
+        (bool success, bytes memory data) = token.staticcall(abi.encodeCall(IERC165.supportsInterface, (bytes4(0))));
+        if (!success || data.length != 0x20) return false;
 
-        // (success, data) = token.staticcall(abi.encodeCall(IERC20Upgradeable.getPastVotes, (address(this), 0)));
-        // if (!success || data.length != 0x20) return false;
-
-        return true;
+        return IERC165(token).supportsInterface(type(IGovernanceWrappedERC20).interfaceId);
     }
 }
