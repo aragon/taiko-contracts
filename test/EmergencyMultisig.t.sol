@@ -55,6 +55,8 @@ contract EmergencyMultisigTest is AragonTest {
 
     function setUp() public {
         vm.startPrank(alice);
+        vm.warp(1 days);
+        vm.roll(100);
 
         builder = new DaoBuilder();
         (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
@@ -313,6 +315,36 @@ contract EmergencyMultisigTest is AragonTest {
 
         vm.expectEmit();
         emit MultisigSettingsUpdated(false, 4, stdMultisig);
+        eMultisig.updateMultisigSettings(settings);
+    }
+
+    function test_UpdateSettingsShouldRevertWithInvalidAddressSource() public {
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+
+        // ko
+        EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 1,
+            addresslistSource: Multisig(address(dao))
+        });
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidAddressListSource.selector, address(dao)));
+        eMultisig.updateMultisigSettings(settings);
+
+        // ko 2
+        settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 1,
+            addresslistSource: Multisig(address(optimisticPlugin))
+        });
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.InvalidAddressListSource.selector, address(optimisticPlugin))
+        );
+        eMultisig.updateMultisigSettings(settings);
+
+        // ok
+        (,, Multisig newMultisig,,,) = builder.build();
+        settings =
+            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: newMultisig});
         eMultisig.updateMultisigSettings(settings);
     }
 
@@ -777,7 +809,16 @@ contract EmergencyMultisigTest is AragonTest {
 
     // CAN APPROVE
 
-    function testFuzz_CanApproveReturnsfFalseIfNotListed(address _randomWallet) public {
+    function testFuzz_CanApproveReturnsfFalseIfNotCreated(uint256 randomProposalId) public view {
+        // returns `false` if the proposal doesn't exist
+
+        assertEq(eMultisig.canApprove(randomProposalId, alice), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, bob), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, carol), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, david), false, "Should be false");
+    }
+
+    function testFuzz_CanApproveReturnsfFalseIfNotListed(address randomWallet) public {
         // returns `false` if the approver is not listed
 
         {
@@ -809,8 +850,8 @@ contract EmergencyMultisigTest is AragonTest {
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
 
         // ko
-        if (_randomWallet != address(0x0)) {
-            assertEq(eMultisig.canApprove(pid, _randomWallet), false, "Should be false");
+        if (randomWallet != address(0x0)) {
+            assertEq(eMultisig.canApprove(pid, randomWallet), false, "Should be false");
         }
 
         // static ok
@@ -987,7 +1028,52 @@ contract EmergencyMultisigTest is AragonTest {
 
     // APPROVE
 
-    function test_ApproveRevertsIfApprovingMultipleTimes() public {
+    function testFuzz_ApproveRevertsIfNotCreated(uint256 randomProposalId) public {
+        // Reverts if the proposal doesn't exist
+
+        vm.startPrank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, alice)
+        );
+        eMultisig.approve(randomProposalId);
+
+        // 2
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, bob));
+        eMultisig.approve(randomProposalId);
+
+        // 3
+        vm.startPrank(carol);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, carol)
+        );
+        eMultisig.approve(randomProposalId);
+
+        // 4
+        vm.startPrank(david);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, david)
+        );
+        eMultisig.approve(randomProposalId);
+    }
+
+    function testFuzz_ApproveRevertsIfNotListed(address randomSigner) public {
+        // Reverts if the signer is not listed
+
+        builder = new DaoBuilder();
+        (,,, eMultisig,,) = builder.withMultisigMember(alice).withMinApprovals(1).build();
+        uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
+
+        if (randomSigner == alice) {
+            return;
+        }
+
+        vm.startPrank(randomSigner);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, randomSigner));
+        eMultisig.approve(pid);
+    }
+
+    function test_ApproveRevertsIfAlreadyApproved() public {
         // reverts when approving multiple times
 
         uint256 pid = eMultisig.createProposal("", 0, optimisticPlugin, false);
@@ -1077,6 +1163,26 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
     }
 
+    function test_ApproveRevertsIfExecuted() public {
+        // reverts if the proposal has ended
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", actionsHash, optimisticPlugin, false);
+        eMultisig.approve(pid);
+        vm.startPrank(bob);
+        eMultisig.approve(pid);
+        vm.startPrank(carol);
+        eMultisig.approve(pid);
+
+        eMultisig.execute(pid, actions);
+        (bool executed,,,,,) = eMultisig.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, carol));
+        eMultisig.approve(pid);
+    }
+
     function test_ApprovingProposalsEmits() public {
         // Approving a proposal emits the Approved event
 
@@ -1106,6 +1212,12 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     // CAN EXECUTE
+
+    function testFuzz_CanExecuteReturnsFalseIfNotCreated(uint256 randomProposalId) public view {
+        // returns `false` if the proposal doesn't exist
+
+        assertEq(eMultisig.canExecute(randomProposalId), false, "Should be false");
+    }
 
     function test_CanExecuteReturnsFalseIfBelowMinApprovals() public {
         // returns `false` if the proposal has not reached the minimum approvals yet
@@ -1238,6 +1350,14 @@ contract EmergencyMultisigTest is AragonTest {
 
     // EXECUTE
 
+    function testFuzz_ExecuteRevertsIfNotCreated(uint256 randomProposalId) public {
+        // reverts if the proposal doesn't exist
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, randomProposalId));
+        eMultisig.execute(randomProposalId, actions);
+    }
+
     function test_ExecuteRevertsIfBelowMinApprovals() public {
         // reverts if minApprovals is not met yet
 
@@ -1303,7 +1423,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        vm.warp(EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        vm.warp(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
@@ -1321,7 +1441,7 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.approve(pid);
         assertEq(eMultisig.canExecute(pid), true, "Should be true");
 
-        vm.warp(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD + 1);
+        vm.warp(100 days + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, pid));
         eMultisig.execute(pid, actions);
@@ -1355,7 +1475,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ExecuteEmitsEvents() public {
         // emits the `ProposalExecuted` and `ProposalCreated` events
 
-        vm.warp(10);
+        vm.warp(5 days);
         vm.deal(address(dao), 1 ether);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1377,8 +1497,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        uint256 targetPid = 10 << 128 | 10 << 64;
-        emit ProposalCreated(targetPid, address(eMultisig), 10, 10, "", actions, 0);
+        uint256 targetPid = 5 days << 128 | 5 days << 64;
+        emit ProposalCreated(targetPid, address(eMultisig), 5 days, 5 days, "", actions, 0);
         eMultisig.execute(pid, actions);
 
         // 2
@@ -1701,6 +1821,26 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(newOptimisticPlugin));
     }
 
+    function testFuzz_GetProposalReturnsEmptyValuesForNonExistingOnes(uint256 randomProposalId) public view {
+        (
+            bool executed,
+            uint16 approvals,
+            EmergencyMultisig.ProposalParameters memory parameters,
+            bytes memory encryptedPayloadURI,
+            bytes32 destinationActionsHash,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = eMultisig.getProposal(randomProposalId);
+
+        assertEq(executed, false, "The proposal should not be executed");
+        assertEq(approvals, 0, "The tally should be zero");
+        assertEq(encryptedPayloadURI, "", "Incorrect encryptedPayloadURI");
+        assertEq(parameters.expirationDate, 0, "Incorrect expirationDate");
+        assertEq(parameters.snapshotBlock, 0, "Incorrect snapshotBlock");
+        assertEq(parameters.minApprovals, 0, "Incorrect minApprovals");
+        assertEq(destinationActionsHash, 0, "Actions hash should have no items");
+        assertEq(address(destinationPlugin), address(0), "Incorrect destination plugin");
+    }
+
     function test_ProxiedProposalHasTheSameSettingsAsTheOriginal() public {
         // Recreated proposal has the same settings and actions as registered here
 
@@ -1708,10 +1848,11 @@ contract EmergencyMultisigTest is AragonTest {
         bool executed;
         OptimisticTokenVotingPlugin.ProposalParameters memory parameters;
         uint256 vetoTally;
+        bytes memory metadataUri;
         IDAO.Action[] memory retrievedActions;
         uint256 allowFailureMap;
 
-        vm.warp(10);
+        vm.warp(10 days);
 
         vm.deal(address(dao), 100 ether);
 
@@ -1725,8 +1866,9 @@ contract EmergencyMultisigTest is AragonTest {
         submittedActions[2].to = carol;
         submittedActions[2].value = 3 ether;
         submittedActions[2].data = hex"";
-        bytes32 actionsHash = eMultisig.hashActions(submittedActions);
-        uint256 pid = eMultisig.createProposal("ipfs://metadata", actionsHash, optimisticPlugin, false);
+        uint256 pid = eMultisig.createProposal(
+            "ipfs://metadata", eMultisig.hashActions(submittedActions), optimisticPlugin, false
+        );
 
         // Approve
         eMultisig.approve(pid);
@@ -1739,16 +1881,15 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.execute(pid, submittedActions);
 
         // Check round
-        uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64);
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
-            optimisticPlugin.getProposal(targetPid);
+        (open, executed, parameters, vetoTally, metadataUri, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal((uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64));
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
         assertEq(parameters.vetoEndDate, block.timestamp, "Incorrect vetoEndDate");
-        assertEq(parameters.metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
+        assertEq(metadataUri, "ipfs://metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 3, "Should be 3");
 
@@ -1765,6 +1906,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(allowFailureMap, 0, "Should be 0");
 
         // New proposal
+        vm.warp(15 days);
 
         submittedActions = new IDAO.Action[](2);
         submittedActions[1].to = address(dao);
@@ -1773,8 +1915,9 @@ contract EmergencyMultisigTest is AragonTest {
         submittedActions[0].to = address(stdMultisig);
         submittedActions[0].value = 0;
         submittedActions[0].data = abi.encodeWithSelector(Addresslist.addresslistLength.selector);
-        actionsHash = eMultisig.hashActions(submittedActions);
-        pid = eMultisig.createProposal("ipfs://more-metadata", actionsHash, optimisticPlugin, false);
+        pid = eMultisig.createProposal(
+            "ipfs://more-metadata", eMultisig.hashActions(submittedActions), optimisticPlugin, false
+        );
 
         // Approve
         eMultisig.approve(pid);
@@ -1787,16 +1930,15 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.execute(pid, submittedActions);
 
         // Check round
-        targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1;
-        (open, executed, parameters, vetoTally, retrievedActions, allowFailureMap) =
-            optimisticPlugin.getProposal(targetPid);
+        (open, executed, parameters, vetoTally, metadataUri, retrievedActions, allowFailureMap) =
+            optimisticPlugin.getProposal((uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
         assertEq(vetoTally, 0, "Should be 0");
 
-        assertEq(parameters.vetoEndDate, 10, "Incorrect vetoEndDate");
-        assertEq(parameters.metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
+        assertEq(parameters.vetoEndDate, 15 days, "Incorrect vetoEndDate");
+        assertEq(metadataUri, "ipfs://more-metadata", "Incorrect target metadataUri");
 
         assertEq(retrievedActions.length, 2, "Should be 2");
 

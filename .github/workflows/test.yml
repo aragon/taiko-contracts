@@ -4,11 +4,15 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'lib/**'
-      - 'script/**'
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/*.yml'
+      - "lib/**"
+      - "script/**"
+      - "src/**"
+      - "test/**"
+      - "utils/**"
+      - ".github/workflows/*.yml"
+      - ".gitignore"
+      - "remappings.txt"
+      - "foundry.toml"
 
 env:
   FOUNDRY_PROFILE: ci

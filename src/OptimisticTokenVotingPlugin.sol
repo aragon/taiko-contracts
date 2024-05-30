@@ -49,6 +49,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param parameters The proposal parameters at the time of the proposal creation.
     /// @param vetoTally The amount of voting power used to veto the proposal.
     /// @param vetoVoters The voters who have vetoed.
+    /// @param metadataURI The IPFS URI where the proposal metadata is pinned.
     /// @param actions The actions to be executed when the proposal passes.
     /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     /// @param aggregatedL2Balance The amount of balance that has been registered from the L2.
@@ -57,19 +58,18 @@ contract OptimisticTokenVotingPlugin is
         ProposalParameters parameters;
         uint256 vetoTally;
         mapping(address => bool) vetoVoters;
+        bytes metadataURI;
         IDAO.Action[] actions;
         uint256 allowFailureMap;
         uint256 aggregatedL2Balance;
     }
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param metadataUri The IPFS URI where the proposal metadata is pinned.
     /// @param vetoEndDate The end date of the proposal vote.
     /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param skipL2 True if the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
-        bytes metadataUri;
         uint64 vetoEndDate;
         uint64 snapshotTimestamp;
         uint32 minVetoRatio;
@@ -93,6 +93,7 @@ contract OptimisticTokenVotingPlugin is
     TaikoL1 public taikoL1;
 
     /// @notice The struct storing the governance settings.
+    /// @dev Takes 1 storage slot (32+64+64+64)
     OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
@@ -207,7 +208,8 @@ contract OptimisticTokenVotingPlugin is
 
         // The last L2 block is too old
         TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
-        if (_block.proposedAt < (block.timestamp - governanceSettings.l2InactivityPeriod)) return false;
+        // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
+        if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
 
         return true;
     }
@@ -247,6 +249,11 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
+        // The bridge cannot vote directly. It must use a dedicated function.
+        if (_voter == taikoBridge) {
+            return false;
+        }
+
         return true;
     }
 
@@ -264,7 +271,7 @@ contract OptimisticTokenVotingPlugin is
         }
         // Check if L2 bridged vetoes are still possible
         // For emergency multisig proposals with _duration == 0, this will return false because the L2 aggregation is skipped
-        else if (_proposalL2VetoingOpen(proposal_)) {
+        else if (_proposalL2VetoAggregationOpen(proposal_)) {
             return false;
         }
         // Check that not enough voters have vetoed the proposal
@@ -279,7 +286,7 @@ contract OptimisticTokenVotingPlugin is
     function isMinVetoRatioReached(uint256 _proposalId) public view virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        bool _usingL2VotingPower = _proposalCanUseL2VotingPower(proposal_);
+        bool _usingL2VotingPower = _proposalUsesL2Vetoes(proposal_);
         uint256 _totalVotingPower = effectiveVotingPower(proposal_.parameters.snapshotTimestamp, _usingL2VotingPower);
         uint256 _minVetoPower = _applyRatioCeiled(_totalVotingPower, proposal_.parameters.minVetoRatio);
         return proposal_.vetoTally >= _minVetoPower;
@@ -291,6 +298,7 @@ contract OptimisticTokenVotingPlugin is
     /// @return executed Whether the proposal is executed or not.
     /// @return parameters The parameters of the proposal vote.
     /// @return vetoTally The current voting power used to veto the proposal.
+    /// @return metadataURI The IPFS URI at which the metadata is pinned.
     /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
     /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
     function getProposal(uint256 _proposalId)
@@ -302,6 +310,7 @@ contract OptimisticTokenVotingPlugin is
             bool executed,
             ProposalParameters memory parameters,
             uint256 vetoTally,
+            bytes memory metadataURI,
             IDAO.Action[] memory actions,
             uint256 allowFailureMap
         )
@@ -312,6 +321,7 @@ contract OptimisticTokenVotingPlugin is
         executed = proposal_.executed;
         parameters = proposal_.parameters;
         vetoTally = proposal_.vetoTally;
+        metadataURI = proposal_.metadataURI;
         actions = proposal_.actions;
         allowFailureMap = proposal_.allowFailureMap;
     }
@@ -329,7 +339,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Checks
-        bool _enableL2 = isL2Available();
+        bool _enableL2 = votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0 && isL2Available();
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
@@ -352,7 +362,7 @@ contract OptimisticTokenVotingPlugin is
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
-        proposal_.parameters.metadataUri = _metadata;
+        proposal_.metadataURI = _metadata;
         proposal_.parameters.vetoEndDate = _vetoEndDate;
         proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
         proposal_.parameters.minVetoRatio = minVetoRatio();
@@ -516,8 +526,8 @@ contract OptimisticTokenVotingPlugin is
 
     /// @notice Determines whether the proposal has L2 voting enabled or not.
     /// @param proposal_ The proposal
-    function _proposalCanUseL2VotingPower(Proposal storage proposal_) internal view returns (bool) {
-        if (_proposalL2VetoingOpen(proposal_)) {
+    function _proposalUsesL2Vetoes(Proposal storage proposal_) internal view returns (bool) {
+        if (_proposalL2VetoAggregationOpen(proposal_)) {
             return true;
         }
 
@@ -529,7 +539,7 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Internal function to check if a proposal may still receive L2 vetoes.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal may still receive L2 bridged votes, false otherwise.
-    function _proposalL2VetoingOpen(Proposal storage proposal_) internal view virtual returns (bool) {
+    function _proposalL2VetoAggregationOpen(Proposal storage proposal_) internal view virtual returns (bool) {
         if (proposal_.parameters.skipL2) {
             return false;
         }

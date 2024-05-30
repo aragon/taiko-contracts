@@ -27,16 +27,16 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param approvals The number of approvals casted.
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
-    /// @param destinationActionsHash The hash of the serialized list of actions to be executed
     /// @param encryptedPayloadURI The IPFS URI where a JSON with the encrypted payload is pinned
+    /// @param destinationActionsHash The hash of the serialized list of actions to be executed
     /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
         uint16 approvals;
         ProposalParameters parameters;
         mapping(address => bool) approvers;
-        bytes32 destinationActionsHash;
         bytes encryptedPayloadURI;
+        bytes32 destinationActionsHash;
         OptimisticTokenVotingPlugin destinationPlugin;
     }
 
@@ -98,8 +98,9 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param actual The actual value.
     error MinApprovalsOutOfBounds(uint16 limit, uint16 actual);
 
-    /// @notice Thrown if the address list source is empty
-    error InvalidAddressListSource();
+    /// @notice Thrown if the address list source is empty.
+    /// @param givenContract The received address that doesn't conform to Addresslist.
+    error InvalidAddressListSource(address givenContract);
 
     /// @notice Emitted when a proposal is created.
     /// @param proposalId The ID of the proposal.
@@ -372,7 +373,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param _multisigSettings The new settings.
     function _updateMultisigSettings(MultisigSettings calldata _multisigSettings) internal {
         if (!IERC165(address(_multisigSettings.addresslistSource)).supportsInterface(type(Addresslist).interfaceId)) {
-            revert InvalidAddressListSource();
+            revert InvalidAddressListSource(address(_multisigSettings.addresslistSource));
         } else if (_multisigSettings.minApprovals < 1) {
             revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
         }

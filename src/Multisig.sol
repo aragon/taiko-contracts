@@ -26,16 +26,16 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param approvals The number of approvals casted.
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
-    /// @param destinationActions The actions to be executed by the destination plugin when the proposal passes.
     /// @param metadataURI The URI on which human readable data ca ben retrieved
+    /// @param destinationActions The actions to be executed by the destination plugin when the proposal passes.
     /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
         uint16 approvals;
         ProposalParameters parameters;
         mapping(address => bool) approvers;
-        IDAO.Action[] destinationActions;
         bytes metadataURI;
+        IDAO.Action[] destinationActions;
         OptimisticTokenVotingPlugin destinationPlugin;
     }
 
