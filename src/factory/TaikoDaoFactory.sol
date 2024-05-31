@@ -65,6 +65,9 @@ contract TaikoDaoFactory {
         PublicKeyRegistry publicKeyRegistry;
     }
 
+    /// @notice Thrown when attempting to call deployOnce() when the DAO is already deployed.
+    error AlreadyDeployed();
+
     DeploymentSettings settings;
     Deployment deployment;
 
@@ -72,11 +75,11 @@ contract TaikoDaoFactory {
     /// @param _settings The settings of the one-time deployment.
     constructor(DeploymentSettings memory _settings) {
         settings = _settings;
-
-        deploy();
     }
 
-    function deploy() internal {
+    function deployOnce() public {
+        if (address(deployment.dao) != address(0)) revert AlreadyDeployed();
+
         IPluginSetup.PreparedSetupData memory preparedMultisigSetupData;
         IPluginSetup.PreparedSetupData memory preparedEmergencyMultisigSetupData;
         IPluginSetup.PreparedSetupData memory preparedOptimisticSetupData;

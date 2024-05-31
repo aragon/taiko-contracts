@@ -33,6 +33,7 @@ contract Deploy is Script {
         }
 
         TaikoDaoFactory factory = new TaikoDaoFactory(settings);
+        factory.deployOnce();
         TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
 
         vm.stopBroadcast();
