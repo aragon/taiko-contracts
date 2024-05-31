@@ -54,8 +54,7 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         // Print summary
-        console.log("Factory contract:", address(this));
-        console.log("");
+        console.log("Factory contract:", address(factory));
         console.log("DAO contract:", address(deployment.dao));
         console.log("");
 
@@ -108,6 +107,7 @@ contract Deploy is Script {
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
 
         console.log("Test voting token:", votingToken);
+        console.log("");
 
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
