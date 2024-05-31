@@ -98,11 +98,12 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     }
 
     /// @notice Encodes the given installation parameters into a byte array
-    function encodeInstallationParameters(
-        address[] memory _members,
-        EmergencyMultisig.MultisigSettings memory _multisigSettings
-    ) external pure returns (bytes memory) {
-        return abi.encode(_members, _multisigSettings);
+    function encodeInstallationParameters(EmergencyMultisig.MultisigSettings memory _multisigSettings)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return abi.encode(_multisigSettings);
     }
 
     /// @notice Decodes the given byte array into the original installation parameters

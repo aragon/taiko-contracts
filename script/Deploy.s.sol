@@ -21,6 +21,10 @@ contract Deploy is Script {
     function run() public {
         vm.startBroadcast(vm.envUint("DEPLOYMENT_PRIVATE_KEY"));
 
+        console.log("Chain ID:", block.chainid);
+        console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
+        console.log("");
+
         TaikoDaoFactory.DeploymentSettings memory settings;
         if (block.chainid == 1) {
             settings = getMainnetSettings();
@@ -34,8 +38,6 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         // Print summary
-        console.log("Chain ID:", block.chainid);
-        console.log("");
         console.log("Factory contract:", address(this));
         console.log("");
         console.log("DAO contract:", address(deployment.dao));
@@ -68,6 +70,7 @@ contract Deploy is Script {
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
+            osxDaoFactory: vm.envAddress("DAO_FACTORY"),
             pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR")),
             pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY")),
             // Token contracts
@@ -83,7 +86,7 @@ contract Deploy is Script {
     }
 
     function getTestnetSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
-        address taikoBridgeAddress = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
+        address taikoBridgeAddress = vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")); // Using the deployment wallet for test
         address[] memory multisigMembers = readMultisigMembers();
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
 
@@ -102,6 +105,7 @@ contract Deploy is Script {
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
+            osxDaoFactory: vm.envAddress("DAO_FACTORY"),
             pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR")),
             pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY")),
             // Token contracts
@@ -120,19 +124,19 @@ contract Deploy is Script {
         // JSON list of members
         string memory path = string.concat(vm.projectRoot(), "/script/multisig-members.json");
         string memory json = vm.readFile(path);
-        return vm.parseJsonAddressArray(json, "$.addresses");
+        return vm.parseJsonAddressArray(json, "$.members");
     }
 
     function createTestToken(address[] memory members, address taikoBridge) internal returns (address) {
-        GovernanceERC20Mock testToken = new GovernanceERC20Mock(address(0));
-        console.log("Minting test tokens for the multisig members");
-
+        address[] memory allTokenHolders = new address[](members.length + 1);
         for (uint256 i = 0; i < members.length; i++) {
-            testToken.mintAndDelegate(members[i], 10 ether);
+            allTokenHolders[i] = members[i];
         }
+        allTokenHolders[members.length] = taikoBridge;
 
-        console.log("Minting test tokens for the multisig members");
-        testToken.mintAndDelegate(taikoBridge, 10 ether);
+        GovernanceERC20Mock testToken = new GovernanceERC20Mock(address(0));
+        console.log("Minting test tokens for the multisig members and the bridge");
+        testToken.mintAndDelegate(allTokenHolders, 10 ether);
 
         return address(testToken);
     }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {Multisig} from "../Multisig.sol";
 import {EmergencyMultisig} from "../EmergencyMultisig.sol";
 import {PublicKeyRegistry} from "../PublicKeyRegistry.sol";
@@ -36,6 +37,7 @@ contract TaikoDaoFactory {
         uint16 minStdApprovals;
         uint16 minEmergencyApprovals;
         // OSx contracts
+        address osxDaoFactory;
         PluginSetupProcessor pluginSetupProcessor;
         PluginRepoFactory pluginRepoFactory;
         // Token contracts
@@ -65,9 +67,6 @@ contract TaikoDaoFactory {
 
     DeploymentSettings settings;
     Deployment deployment;
-
-    // Implementations
-    address immutable DAO_BASE = address(new DAO());
 
     /// @notice Initializes the factory and performs the full deployment. Values become read-only after that.
     /// @param _settings The settings of the one-time deployment.
@@ -101,7 +100,7 @@ contract TaikoDaoFactory {
         );
 
         // APPLY THE INSTALLATIONS
-        dao.grant(address(dao), address(settings.pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
+        grantApplyInstallationPermissions(dao);
 
         applyPluginInstallation(
             dao, address(deployment.multisigPlugin), deployment.multisigPluginRepo, preparedMultisigSetupData
@@ -119,20 +118,22 @@ contract TaikoDaoFactory {
             preparedOptimisticSetupData
         );
 
-        dao.revoke(address(dao), address(settings.pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
+        revokeApplyInstallationPermissions(dao);
+
+        // REMOVE THIS CONTRACT AS OWNER
+        revokeOwnerPermission(deployment.dao);
 
         // DEPLOY OTHER CONTRACTS
         deployment.publicKeyRegistry = deployPublicKeyRegistry();
-
-        // REMOVE THIS CONTRACT AS OWNER
-        dropRootPermission(deployment.dao);
     }
 
     function prepareDao() internal returns (DAO dao) {
+        address daoBase = DAOFactory(settings.osxDaoFactory).daoBase();
+
         dao = DAO(
             payable(
                 createERC1967Proxy(
-                    address(DAO_BASE),
+                    address(daoBase),
                     abi.encodeCall(
                         DAO.initialize,
                         (
@@ -153,7 +154,7 @@ contract TaikoDaoFactory {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.stdMultisigEnsDomain, address(pluginSetup), msg.sender, "", ""
+            settings.stdMultisigEnsDomain, address(pluginSetup), msg.sender, " ", " "
         );
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
@@ -186,11 +187,10 @@ contract TaikoDaoFactory {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, "", ""
+            settings.emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, " ", " "
         );
 
         bytes memory settingsData = pluginSetup.encodeInstallationParameters(
-            settings.multisigMembers,
             EmergencyMultisig.MultisigSettings(
                 true, // onlyListed
                 settings.minEmergencyApprovals, // minAppovals
@@ -220,7 +220,7 @@ contract TaikoDaoFactory {
 
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.optimisticTokenVotingEnsDomain, address(pluginSetup), msg.sender, "", ""
+            settings.optimisticTokenVotingEnsDomain, address(pluginSetup), msg.sender, " ", " "
         );
 
         // Plugin settings
@@ -235,7 +235,7 @@ contract TaikoDaoFactory {
             );
 
             OptimisticTokenVotingPluginSetup.TokenSettings memory tokenSettings =
-                OptimisticTokenVotingPluginSetup.TokenSettings(address(settings.tokenAddress), "", "");
+                OptimisticTokenVotingPluginSetup.TokenSettings(address(settings.tokenAddress), " ", " ");
 
             GovernanceERC20.MintSettings memory mintSettings =
                 GovernanceERC20.MintSettings(new address[](0), new uint256[](0));
@@ -276,27 +276,42 @@ contract TaikoDaoFactory {
         PluginRepo pluginRepo,
         IPluginSetup.PreparedSetupData memory preparedSetupData
     ) internal {
-        IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0] = IDAO.Action(
+        settings.pluginSetupProcessor.applyInstallation(
             address(dao),
-            0,
-            abi.encodeCall(
-                PluginSetupProcessor.applyInstallation,
-                (
-                    address(dao),
-                    PluginSetupProcessor.ApplyInstallationParams(
-                        PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo),
-                        plugin,
-                        preparedSetupData.permissions,
-                        hashHelpers(preparedSetupData.helpers)
-                    )
-                )
+            PluginSetupProcessor.ApplyInstallationParams(
+                PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo),
+                plugin,
+                preparedSetupData.permissions,
+                hashHelpers(preparedSetupData.helpers)
             )
         );
-        dao.execute(bytes32(uint256(0x1)), actions, 0);
     }
 
-    function dropRootPermission(DAO dao) internal {
+    function grantApplyInstallationPermissions(DAO dao) internal {
+        // The PSP can manage permissions on the new DAO
+        dao.grant(address(dao), address(settings.pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
+
+        // This factory can call applyInstallation() on the PSP
+        dao.grant(
+            address(settings.pluginSetupProcessor),
+            address(this),
+            settings.pluginSetupProcessor.APPLY_INSTALLATION_PERMISSION_ID()
+        );
+    }
+
+    function revokeApplyInstallationPermissions(DAO dao) internal {
+        // Revoking the permission for the factory to call applyInstallation() on the PSP
+        dao.revoke(
+            address(settings.pluginSetupProcessor),
+            address(this),
+            settings.pluginSetupProcessor.APPLY_INSTALLATION_PERMISSION_ID()
+        );
+
+        // Revoke the PSP permission to manage permissions on the new DAO
+        dao.revoke(address(dao), address(settings.pluginSetupProcessor), dao.ROOT_PERMISSION_ID());
+    }
+
+    function revokeOwnerPermission(DAO dao) internal {
         dao.revoke(address(dao), address(this), dao.ROOT_PERMISSION_ID());
     }
 

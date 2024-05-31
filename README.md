@@ -230,7 +230,20 @@ $ forge build
 $ forge test
 ```
 
-### Format
+### Deploying the DAO
+
+1. Edit `script/multisig-members.json` with the list of addresses to set as signers
+2. Run `forge build`
+3. Copy `.env.example` into `.env`
+4. Define the deployment settings within `.env`
+5. Set the RPC URL and run the deployment script
+
+```shell
+SEPOLIA_RPC_URL="https://..."
+forge script --chain sepolia script/Deploy.s.sol:Deploy --rpc-url "$SEPOLIA_RPC_URL" --broadcast --verify -vvvv
+```
+
+### Formatting the code
 
 ```shell
 $ forge fmt
@@ -242,16 +255,10 @@ $ forge fmt
 $ forge snapshot
 ```
 
-### Anvil
+### Run a local test EVM
 
 ```shell
 $ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Example.s.sol:ExampleScript --rpc-url <your_rpc_url> --private-key <your_private_key>
 ```
 
 ### Cast
