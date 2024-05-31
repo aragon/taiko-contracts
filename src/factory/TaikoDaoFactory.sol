@@ -20,7 +20,6 @@ import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
-import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
 
 contract TaikoDaoFactory {
@@ -40,9 +39,10 @@ contract TaikoDaoFactory {
         address osxDaoFactory;
         PluginSetupProcessor pluginSetupProcessor;
         PluginRepoFactory pluginRepoFactory;
-        // Token contracts
-        GovernanceERC20 governanceErc20Base;
-        GovernanceWrappedERC20 governanceErcWrapped20Base;
+        // Plugin setup's
+        MultisigPluginSetup multisigPluginSetup;
+        EmergencyMultisigPluginSetup emergencyMultisigPluginSetup;
+        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup;
         // Multisig
         address[] multisigMembers;
         // ENS
@@ -152,15 +152,12 @@ contract TaikoDaoFactory {
     }
 
     function prepareMultisig(DAO dao) internal returns (Multisig, PluginRepo, IPluginSetup.PreparedSetupData memory) {
-        // Deploy plugin setup
-        MultisigPluginSetup pluginSetup = new MultisigPluginSetup();
-
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.stdMultisigEnsDomain, address(pluginSetup), msg.sender, " ", " "
+            settings.stdMultisigEnsDomain, address(settings.multisigPluginSetup), msg.sender, " ", " "
         );
 
-        bytes memory settingsData = pluginSetup.encodeInstallationParameters(
+        bytes memory settingsData = settings.multisigPluginSetup.encodeInstallationParameters(
             settings.multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
@@ -185,15 +182,12 @@ contract TaikoDaoFactory {
         internal
         returns (EmergencyMultisig, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
-        // Deploy plugin setup
-        EmergencyMultisigPluginSetup pluginSetup = new EmergencyMultisigPluginSetup();
-
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.emergencyMultisigEnsDomain, address(pluginSetup), msg.sender, " ", " "
+            settings.emergencyMultisigEnsDomain, address(settings.emergencyMultisigPluginSetup), msg.sender, " ", " "
         );
 
-        bytes memory settingsData = pluginSetup.encodeInstallationParameters(
+        bytes memory settingsData = settings.emergencyMultisigPluginSetup.encodeInstallationParameters(
             EmergencyMultisig.MultisigSettings(
                 true, // onlyListed
                 settings.minEmergencyApprovals, // minAppovals
@@ -217,13 +211,13 @@ contract TaikoDaoFactory {
         internal
         returns (OptimisticTokenVotingPlugin, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
-        // Deploy plugin setup
-        OptimisticTokenVotingPluginSetup pluginSetup =
-            new OptimisticTokenVotingPluginSetup(settings.governanceErc20Base, settings.governanceErcWrapped20Base);
-
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.optimisticTokenVotingEnsDomain, address(pluginSetup), msg.sender, " ", " "
+            settings.optimisticTokenVotingEnsDomain,
+            address(settings.optimisticTokenVotingPluginSetup),
+            msg.sender,
+            " ",
+            " "
         );
 
         // Plugin settings
@@ -237,17 +231,16 @@ contract TaikoDaoFactory {
                 settings.l2AggregationGracePeriod
             );
 
-            OptimisticTokenVotingPluginSetup.TokenSettings memory tokenSettings =
-                OptimisticTokenVotingPluginSetup.TokenSettings(address(settings.tokenAddress), " ", " ");
-
-            GovernanceERC20.MintSettings memory mintSettings =
+            OptimisticTokenVotingPluginSetup.TokenSettings memory existingTokenSettings =
+                OptimisticTokenVotingPluginSetup.TokenSettings(address(settings.tokenAddress), "Taiko", "TKO");
+            GovernanceERC20.MintSettings memory unusedMintSettings =
                 GovernanceERC20.MintSettings(new address[](0), new uint256[](0));
 
-            settingsData = pluginSetup.encodeInstallationParams(
+            settingsData = settings.optimisticTokenVotingPluginSetup.encodeInstallationParams(
                 OptimisticTokenVotingPluginSetup.InstallationParameters(
                     votingSettings,
-                    tokenSettings,
-                    mintSettings,
+                    existingTokenSettings,
+                    unusedMintSettings,
                     settings.taikoL1ContractAddress,
                     settings.taikoBridgeAddress,
                     settings.minStdProposalDelay,

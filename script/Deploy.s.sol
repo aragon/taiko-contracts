@@ -8,8 +8,11 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {Multisig} from "../src/Multisig.sol";
+import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
 import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
+import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
 import {PublicKeyRegistry} from "../src/PublicKeyRegistry.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
@@ -18,8 +21,20 @@ import {GovernanceERC20Mock} from "../test/mocks/GovernanceERC20Mock.sol";
 import {TaikoL1Mock} from "../test/mocks/TaikoL1Mock.sol";
 
 contract Deploy is Script {
+    MultisigPluginSetup multisigPluginSetup;
+    EmergencyMultisigPluginSetup emergencyMultisigPluginSetup;
+    OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup;
+
     function run() public {
         vm.startBroadcast(vm.envUint("DEPLOYMENT_PRIVATE_KEY"));
+
+        // Deploy the plugin setup's
+        multisigPluginSetup = new MultisigPluginSetup();
+        emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
+        optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
+            GovernanceERC20(vm.envAddress("GOVERNANCE_ERC20_BASE")),
+            GovernanceWrappedERC20(vm.envAddress("GOVERNANCE_WRAPPED_ERC20_BASE"))
+        );
 
         console.log("Chain ID:", block.chainid);
         console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
@@ -74,10 +89,11 @@ contract Deploy is Script {
             osxDaoFactory: vm.envAddress("DAO_FACTORY"),
             pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR")),
             pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY")),
-            // Token contracts
-            governanceErc20Base: GovernanceERC20(vm.envAddress("GOVERNANCE_ERC20_BASE")),
-            governanceErcWrapped20Base: GovernanceWrappedERC20(vm.envAddress("GOVERNANCE_WRAPPED_ERC20_BASE")),
-            // Multisig
+            // Plugin setup's
+            multisigPluginSetup: MultisigPluginSetup(multisigPluginSetup),
+            emergencyMultisigPluginSetup: EmergencyMultisigPluginSetup(emergencyMultisigPluginSetup),
+            optimisticTokenVotingPluginSetup: OptimisticTokenVotingPluginSetup(optimisticTokenVotingPluginSetup),
+            // Multisig members
             multisigMembers: readMultisigMembers(),
             // ENS
             stdMultisigEnsDomain: vm.envString("STD_MULTISIG_ENS_DOMAIN"),
@@ -109,10 +125,11 @@ contract Deploy is Script {
             osxDaoFactory: vm.envAddress("DAO_FACTORY"),
             pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR")),
             pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY")),
-            // Token contracts
-            governanceErc20Base: GovernanceERC20(vm.envAddress("GOVERNANCE_ERC20_BASE")),
-            governanceErcWrapped20Base: GovernanceWrappedERC20(vm.envAddress("GOVERNANCE_WRAPPED_ERC20_BASE")),
-            // Multisig
+            // Plugin setup's
+            multisigPluginSetup: MultisigPluginSetup(multisigPluginSetup),
+            emergencyMultisigPluginSetup: EmergencyMultisigPluginSetup(emergencyMultisigPluginSetup),
+            optimisticTokenVotingPluginSetup: OptimisticTokenVotingPluginSetup(optimisticTokenVotingPluginSetup),
+            // Multisig members
             multisigMembers: multisigMembers,
             // ENS
             stdMultisigEnsDomain: vm.envString("STD_MULTISIG_ENS_DOMAIN"),
