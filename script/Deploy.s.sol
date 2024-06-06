@@ -36,8 +36,8 @@ contract Deploy is Script {
         );
 
         console.log("Chain ID:", block.chainid);
-        console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
         console.log("");
+        console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
 
         TaikoDaoFactory.DeploymentSettings memory settings;
         if (block.chainid == 1) {
@@ -55,6 +55,7 @@ contract Deploy is Script {
 
         // Print summary
         console.log("Factory contract:", address(factory));
+        console.log("");
         console.log("DAO contract:", address(daoDeployment.dao));
         console.log("");
 
@@ -110,7 +111,6 @@ contract Deploy is Script {
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
 
         console.log("Test voting token:", votingToken);
-        console.log("");
 
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
