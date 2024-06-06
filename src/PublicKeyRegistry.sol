@@ -6,7 +6,10 @@ pragma solidity ^0.8.17;
 /// @author Aragon Association - 2024
 /// @notice A smart contract where any wallet can register its own libsodium public key for encryption purposes
 contract PublicKeyRegistry {
-    mapping(address => bytes32) internal publicKeys;
+    mapping(address => bytes32) public publicKeys;
+
+    /// @dev Allows to enumerate the wallets that have a public key registered
+    address[] public registeredWallets;
 
     /// @notice Emitted when a public key is registered
     event PublicKeyRegistered(address wallet, bytes32 publicKey);
@@ -19,9 +22,17 @@ contract PublicKeyRegistry {
 
         publicKeys[msg.sender] = _publicKey;
         emit PublicKeyRegistered(msg.sender, _publicKey);
+        registeredWallets.push(msg.sender);
     }
 
-    function getPublicKey(address _wallet) public view returns (bytes32) {
-        return publicKeys[_wallet];
+    /// @notice Returns the list of wallets that have registered a public key
+    /// @dev Use this function to get all addresses in a single call. You can still call registeredWallets[idx] to resolve them one by one.
+    function getRegisteredWallets() public view returns (address[] memory) {
+        return registeredWallets;
+    }
+
+    /// @notice Returns the number of publicKey entries available
+    function registeredWalletCount() public view returns (uint256) {
+        return registeredWallets.length;
     }
 }

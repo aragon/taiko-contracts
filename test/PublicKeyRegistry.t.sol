@@ -18,37 +18,37 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_ShouldRegisterAPublicKey() public {
-        assertEq(registry.getPublicKey(alice), 0x0000000000000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(alice), 0x0000000000000000000000000000000000000000000000000000000000000000);
 
         // Alice
         vm.startPrank(alice);
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
-        assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
 
         // Bob
         vm.startPrank(bob);
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
 
-        assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
-        assertEq(registry.getPublicKey(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
 
         // Carol
         vm.startPrank(carol);
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
-        assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
-        assertEq(registry.getPublicKey(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
-        assertEq(registry.getPublicKey(carol), 0x0000000090ab0000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(carol), 0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         // David
         vm.startPrank(david);
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
 
-        assertEq(registry.getPublicKey(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
-        assertEq(registry.getPublicKey(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
-        assertEq(registry.getPublicKey(carol), 0x0000000090ab0000000000000000000000000000000000000000000000000000);
-        assertEq(registry.getPublicKey(david), 0x000000000000cdef000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(alice), 0x1234000000000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(bob), 0x0000567800000000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(carol), 0x0000000090ab0000000000000000000000000000000000000000000000000000);
+        assertEq(registry.publicKeys(david), 0x000000000000cdef000000000000000000000000000000000000000000000000);
     }
 
     function test_ShouldEmitARegistrationEvent() public {
@@ -101,5 +101,66 @@ contract EmergencyMultisigTest is AragonTest {
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
         vm.expectRevert(abi.encodeWithSelector(AlreadySet.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
+    }
+
+    function test_ShouldCountRegisteredCandidates() public {
+        assertEq(registry.registeredWalletCount(), 0, "Incorrect count");
+
+        // Alice
+        vm.startPrank(alice);
+        registry.setPublicKey(bytes32(uint256(1234)));
+        assertEq(registry.registeredWalletCount(), 1, "Incorrect count");
+
+        // Bob
+        vm.startPrank(bob);
+        registry.setPublicKey(bytes32(uint256(2345)));
+        assertEq(registry.registeredWalletCount(), 2, "Incorrect count");
+
+        // Carol
+        vm.startPrank(carol);
+        registry.setPublicKey(bytes32(uint256(3456)));
+        assertEq(registry.registeredWalletCount(), 3, "Incorrect count");
+
+        // David
+        vm.startPrank(david);
+        registry.setPublicKey(bytes32(uint256(4567)));
+        assertEq(registry.registeredWalletCount(), 4, "Incorrect count");
+    }
+
+    function test_ShouldEnumerateRegisteredCandidates() public {
+        // Register
+        vm.startPrank(alice);
+        registry.setPublicKey(bytes32(uint256(1234)));
+        vm.startPrank(bob);
+        registry.setPublicKey(bytes32(uint256(2345)));
+        vm.startPrank(carol);
+        registry.setPublicKey(bytes32(uint256(3456)));
+        vm.startPrank(david);
+        registry.setPublicKey(bytes32(uint256(4567)));
+
+        assertEq(registry.registeredWalletCount(), 4, "Incorrect count");
+
+        assertEq(registry.registeredWallets(0), alice);
+        assertEq(registry.registeredWallets(1), bob);
+        assertEq(registry.registeredWallets(2), carol);
+        assertEq(registry.registeredWallets(3), david);
+    }
+
+    function test_ShouldLoadTheRegisteredAddresses() public {
+        vm.startPrank(alice);
+        registry.setPublicKey(bytes32(uint256(1234)));
+        vm.startPrank(bob);
+        registry.setPublicKey(bytes32(uint256(2345)));
+        vm.startPrank(carol);
+        registry.setPublicKey(bytes32(uint256(3456)));
+        vm.startPrank(david);
+        registry.setPublicKey(bytes32(uint256(4567)));
+
+        address[] memory candidates = registry.getRegisteredWallets();
+        assertEq(candidates.length, 4);
+        assertEq(candidates[0], alice);
+        assertEq(candidates[1], bob);
+        assertEq(candidates[2], carol);
+        assertEq(candidates[3], david);
     }
 }

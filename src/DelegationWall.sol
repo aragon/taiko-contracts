@@ -12,6 +12,7 @@ contract DelegationWall {
 
     /// @dev Stores the data registered by the delegate candidates
     mapping(address => Candidate) public candidates;
+
     /// @dev Keeps track of the addresses that have been already registered, used to enumerate.
     address[] public candidateAddresses;
 
@@ -33,6 +34,13 @@ contract DelegationWall {
         emit CandidateRegistered(msg.sender, _contentUrl);
     }
 
+    /// @notice Returns the list of candidate addresses registered
+    /// @dev Use this function to get all addresses in a single call. You can still call candidateAddresses[idx] to resolve them one by one.
+    function getCandidateAddresses() public view returns (address[] memory) {
+        return candidateAddresses;
+    }
+
+    /// @notice Returns the number of candidate entries available
     function candidateCount() public view returns (uint256) {
         return candidateAddresses.length;
     }

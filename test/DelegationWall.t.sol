@@ -216,6 +216,24 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(wall.candidateAddresses(3), david, "Incorrect candidate address");
     }
 
+    function test_ShouldLoadTheRegisteredAddresses() public {
+        vm.startPrank(alice);
+        wall.register("https://");
+        vm.startPrank(bob);
+        wall.register("https://taiko.xyz");
+        vm.startPrank(carol);
+        wall.register("https://x.com/carol");
+        vm.startPrank(david);
+        wall.register("https://defeat-goliath.org");
+
+        address[] memory candidates = wall.getCandidateAddresses();
+        assertEq(candidates.length, 4);
+        assertEq(candidates[0], alice);
+        assertEq(candidates[1], bob);
+        assertEq(candidates[2], carol);
+        assertEq(candidates[3], david);
+    }
+
     function test_ShouldEmitAnEventWhenRegistering() public {
         // Alice
         vm.startPrank(alice);
