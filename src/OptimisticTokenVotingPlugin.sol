@@ -99,6 +99,9 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
 
+    /// @notice A mapping to enumerate proposal ID's by index
+    mapping(uint256 => uint256) public proposalIds;
+
     /// @notice Emitted when the vetoing settings are updated.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
@@ -358,6 +361,8 @@ contract OptimisticTokenVotingPlugin is
             _actions: _actions,
             _allowFailureMap: _allowFailureMap
         });
+        // Index the ID to make it enumerable. Proposal ID's contain timestamps and cannot be iterated
+        proposalIds[proposalCount() - 1] = proposalId;
 
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
@@ -549,5 +554,5 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
-    uint256[45] private __gap;
+    uint256[44] private __gap;
 }
