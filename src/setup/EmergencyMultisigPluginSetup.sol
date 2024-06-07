@@ -25,8 +25,8 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
         external
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
-        // Decode `_data` to extract the params needed for deploying and initializing `EmergencyMultisig` plugin.
-        (EmergencyMultisig.MultisigSettings memory multisigSettings) = decodeInstallationParams(_data);
+        // Decode `_data` to extract the parameters needed for deploying and initializing `EmergencyMultisig` plugin.
+        (EmergencyMultisig.MultisigSettings memory multisigSettings) = decodeInstallationParameters(_data);
 
         // Prepare and Deploy the plugin proxy.
         plugin = createERC1967Proxy(
@@ -34,7 +34,7 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
         );
 
         // Prepare permissions
-        PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](3);
+        PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](2);
 
         // Set permissions to be granted.
         // Grant the list of permissions of the plugin to the DAO.
@@ -107,7 +107,7 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
-    function decodeInstallationParams(bytes memory _data)
+    function decodeInstallationParameters(bytes memory _data)
         public
         pure
         returns (EmergencyMultisig.MultisigSettings memory _multisigSettings)
