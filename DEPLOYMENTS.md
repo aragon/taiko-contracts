@@ -4,26 +4,25 @@
 
 ## Sepolia
 
-On June 6th 2024:
+On June 13th 2024:
 
 ```
 Chain ID: 11155111
 
 Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
-Test voting token: 0xf7A8F99a1d0AFB3C95f80770223b00e062C6Ec19
-Factory contract: 0x8c99CDb5567206660CA9b77C3B26C13F6C674952
+Test voting token: 0x7Ae1BbFfF99316922cebC74C9465d8E3Cdfc65e3
+Factory contract: 0x8793E7847d4a522aE3b76b2F05AD48C390b079A6
 
-DAO contract: 0x6C477915CC803518723d4Bdd5B2170cf38A57203
+DAO contract: 0x464E808De86C90Ea0423854cABE887b6AEF85c1E
 
-- Multisig plugin: 0x0fC611670228A61824c317926f30e8a2615aa1A3
-- Emergency multisig plugin: 0x619d6661eA06b917e26694f23c5Bb32fa0456773
-- Optimistic token voting plugin: 0xC9304930f6a4fB2DAe74A17032426Aa1E817897A
+- Multisig plugin: 0x07d0ac4ef82cA8E799BAB1f07f5e4f1De933E88C
+- Emergency multisig plugin: 0x143209C5fc8004c4B41cA7Bd27666d884B35c809
+- Optimistic token voting plugin: 0x73aA4dBD85eca05542013dcd893CC9DD0c681184
 
-- Multisig plugin repository: 0x841E3dA30697C8FC7224a43952041001545a2443
-- Emergency multisig plugin repository: 0x6E8578B1519a04BA9262CB633B06624f636D4795
-- Optimistic token voting plugin repository: 0x58CA6f90edB98f9213353f456c685ABF253edAA7
+- Multisig plugin repository: 0xA3E9182048AE97ABd2AF3045d7690Ea87B44beAF
+- Emergency multisig plugin repository: 0x1cF2c1A6075B532df0E9CEA2734AF526Ff058B19
+- Optimistic token voting plugin repository: 0x44Bf21d7d7d052b67A98C924617583f8EBC8a5bC
 
-Public key registry 0xadAb459A189AAaa17D4807805e6Fab55d3fb5C44
-Delegation wall 0x0cE7f031BA69abFB404fE148dD09F597db8AB3a0
+Public key registry 0xD4615654030982779AC1DD0ff3e69FCD8f8b702d
+Delegation wall 0x32ccaee7288e43128C99B5505e6B9cF395ED8b64
 ```
-

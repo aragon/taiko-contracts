@@ -28,8 +28,8 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
     /// @param encryptedPayloadURI The IPFS URI where a JSON with the encrypted payload is pinned
-    /// @param destinationActionsHash The hash of the serialized list of final actions to be eventually executed
     /// @param publicMetadataUriHash The hash of the metadata IPFS URI to be created on the optimistic proposal
+    /// @param destinationActionsHash The hash of the serialized list of final actions to be eventually executed
     /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
@@ -293,14 +293,14 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
             revert ProposalExecutionForbidden(_proposalId);
         }
 
-        if (proposals[_proposalId].destinationActionsHash != hashActions(_actions)) {
-            // This check is intentionally not part of canExecute() in order to prevent
-            // the private actions from leaving the app before being executed
-            revert InvalidActions(_proposalId);
-        } else if (proposals[_proposalId].publicMetadataUriHash != keccak256(_metadataUri)) {
+        if (proposals[_proposalId].publicMetadataUriHash != keccak256(_metadataUri)) {
             // This check is intentionally not part of canExecute() in order to prevent
             // the the metadata from leaving the app before being executed
             revert InvalidMetadataUri(_proposalId);
+        } else if (proposals[_proposalId].destinationActionsHash != hashActions(_actions)) {
+            // This check is intentionally not part of canExecute() in order to prevent
+            // the private actions from leaving the app before being executed
+            revert InvalidActions(_proposalId);
         }
 
         _execute(_proposalId, _metadataUri, _actions);
