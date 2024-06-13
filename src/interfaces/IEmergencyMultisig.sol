@@ -34,6 +34,7 @@ interface IEmergencyMultisig {
 
     /// @notice Executes a proposal.
     /// @param _proposalId The ID of the proposal to be executed.
+    /// @param _metadataUri An IPFS URI pointing to the public content URI.
     /// @param _actions the list of actions to execute.
-    function execute(uint256 _proposalId, IDAO.Action[] calldata _actions) external;
+    function execute(uint256 _proposalId, bytes memory _metadataUri, IDAO.Action[] calldata _actions) external;
 }

@@ -28,7 +28,8 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
     /// @param approvers The approves casted by the approvers.
     /// @param encryptedPayloadURI The IPFS URI where a JSON with the encrypted payload is pinned
-    /// @param destinationActionsHash The hash of the serialized list of actions to be executed
+    /// @param destinationActionsHash The hash of the serialized list of final actions to be eventually executed
+    /// @param publicMetadataUriHash The hash of the metadata IPFS URI to be created on the optimistic proposal
     /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
         bool executed;
@@ -36,6 +37,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         ProposalParameters parameters;
         mapping(address => bool) approvers;
         bytes encryptedPayloadURI;
+        bytes32 publicMetadataUriHash;
         bytes32 destinationActionsHash;
         OptimisticTokenVotingPlugin destinationPlugin;
     }
@@ -93,6 +95,10 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param proposalId The ID of the proposal.
     error InvalidActions(uint256 proposalId);
 
+    /// @notice Thrown if the metadata UI passed for execution doesn't match the expected hash.
+    /// @param proposalId The ID of the proposal.
+    error InvalidMetadataUri(uint256 proposalId);
+
     /// @notice Thrown if the minimal approvals value is out of bounds (less than 1 or greater than the number of members in the address list).
     /// @param limit The maximal value.
     /// @param actual The actual value.
@@ -106,10 +112,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param proposalId The ID of the proposal.
     /// @param creator  The creator of the proposal.
     /// @param encryptedPayloadURI The IPFS URI where the encrypted proposal data is pinned.
-    /// @param destinationActionsHash The hash of the serialized actions that will be executed if the proposal passes.
-    event ProposalCreated(
-        uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI, bytes32 destinationActionsHash
-    );
+    event EmergencyProposalCreated(uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI);
 
     /// @notice Emitted when a proposal is approved by an approver.
     /// @param proposalId The ID of the proposal.
@@ -161,12 +164,14 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
 
     /// @notice Creates a new multisig proposal.
     /// @param _encryptedPayloadURI The URI where the encrypted contents of the proposal can be found.
+    /// @param _publicMetadataUriHash The hash of the metadata IPFS URI that will be published on the optimistic proposal.
     /// @param _destinationActionsHash The hash of the serialized actions that will be executed after the proposal passes.
     /// @param _destinationPlugin The address of the plugin to forward the proposal to when it passes.
     /// @param _approveProposal If `true`, the sender will approve the proposal.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _encryptedPayloadURI,
+        bytes32 _publicMetadataUriHash,
         bytes32 _destinationActionsHash,
         OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal
@@ -197,13 +202,13 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         proposal_.parameters.expirationDate = block.timestamp.toUint64() + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
+        proposal_.publicMetadataUriHash = _publicMetadataUriHash;
         proposal_.destinationActionsHash = _destinationActionsHash;
 
-        emit ProposalCreated({
+        emit EmergencyProposalCreated({
             proposalId: proposalId,
             creator: msg.sender,
-            encryptedPayloadURI: _encryptedPayloadURI,
-            destinationActionsHash: _destinationActionsHash
+            encryptedPayloadURI: _encryptedPayloadURI
         });
 
         if (_approveProposal) {
@@ -250,6 +255,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @return approvals The number of approvals casted.
     /// @return parameters The parameters of the proposal vote.
     /// @return encryptedPayloadURI The URI at which the corresponding encrypted data data can be found.
+    /// @return publicMetadataUriHash The hash of the metadata IPFS URI to create on the optimistic plugin if the proposal passes.
     /// @return destinationActionsHash The hash of the actions to be executed by the destination plugin after the proposal passes.
     /// @return destinationPlugin The address of the plugin where the proposal will be forwarded to when executed.
     function getProposal(uint256 _proposalId)
@@ -260,6 +266,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
             uint16 approvals,
             ProposalParameters memory parameters,
             bytes memory encryptedPayloadURI,
+            bytes32 publicMetadataUriHash,
             bytes32 destinationActionsHash,
             OptimisticTokenVotingPlugin destinationPlugin
         )
@@ -270,6 +277,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         approvals = proposal_.approvals;
         parameters = proposal_.parameters;
         encryptedPayloadURI = proposal_.encryptedPayloadURI;
+        publicMetadataUriHash = proposal_.publicMetadataUriHash;
         destinationActionsHash = proposal_.destinationActionsHash;
         destinationPlugin = proposal_.destinationPlugin;
     }
@@ -280,18 +288,22 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     }
 
     /// @inheritdoc IEmergencyMultisig
-    function execute(uint256 _proposalId, IDAO.Action[] calldata _actions) public {
+    function execute(uint256 _proposalId, bytes memory _metadataUri, IDAO.Action[] calldata _actions) public {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
 
         if (proposals[_proposalId].destinationActionsHash != hashActions(_actions)) {
             // This check is intentionally not part of canExecute() in order to prevent
-            // the private actions from ever leaving the local computer before being executed
+            // the private actions from leaving the app before being executed
             revert InvalidActions(_proposalId);
+        } else if (proposals[_proposalId].publicMetadataUriHash != keccak256(_metadataUri)) {
+            // This check is intentionally not part of canExecute() in order to prevent
+            // the the metadata from leaving the app before being executed
+            revert InvalidMetadataUri(_proposalId);
         }
 
-        _execute(_proposalId, _actions);
+        _execute(_proposalId, _metadataUri, _actions);
     }
 
     /// @notice Computes the hash of the given list of actions
@@ -308,14 +320,14 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
 
     /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
-    function _execute(uint256 _proposalId, IDAO.Action[] calldata _actions) internal {
+    function _execute(uint256 _proposalId, bytes memory _metadataUri, IDAO.Action[] calldata _actions) internal {
         Proposal storage proposal_ = proposals[_proposalId];
 
         proposal_.executed = true;
         emit Executed(_proposalId);
 
         proposal_.destinationPlugin.createProposal(
-            proposal_.encryptedPayloadURI,
+            _metadataUri,
             _actions,
             0, // allowFailureMap, no single action may fail
             0 // no duration, immediate executioon
