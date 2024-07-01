@@ -2,6 +2,32 @@
 
 ## Mainnet
 
+## Holesly
+
+On July 1st 2024:
+
+```
+  Chain ID: 17000
+  
+  Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
+  Minting test tokens for the multisig members and the bridge
+  Test voting token: 0xa95BADd91beB92F364905187eCB08B80220d5FA3
+  Factory contract: 0xFbA94606d10e807Bf6542C19a68DfEa815a4eeC3
+  
+  DAO contract: 0xdA69Bd97278c409574AdC39295465A848C82CD16
+  
+  - Multisig plugin: 0x2a22Fc29dE8944E62227bf75C89cA2e8CE9BA274
+  - Emergency multisig plugin: 0x7C36a0F03c27880C23f5704296Bc18Bfc33A7f59
+  - Optimistic token voting plugin: 0x40CD85d43B883C83290ed5D18400C640176A9679
+  
+  - Multisig plugin repository: 0x307d009483C1b8Ef3C91F6ae748385Bf0936C59e
+  - Emergency multisig plugin repository: 0x8181da2e9b1a428a4cF60fF6CEFc0098c1298aaA
+  - Optimistic token voting plugin repository: 0x0847F2531e070353297fc3D7fFDB4656C1664c6d
+  
+  Public key registry 0x7A9577A02608446022F52984435ce1ca632BA629
+  Delegation wall 0xE917426E10a54FbF22FDAF32A4151c90550e1cA5
+```
+
 ## Sepolia
 
 On June 13th 2024:
