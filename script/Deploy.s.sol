@@ -28,6 +28,9 @@ contract Deploy is Script {
     function run() public {
         vm.startBroadcast(vm.envUint("DEPLOYMENT_PRIVATE_KEY"));
 
+        // NOTE: Deploying the plugin setup's separately because of the code size limit
+        //       PublicKeyRegistry and DelegationWall are deployed by the TaikoDaoFactory
+
         // Deploy the plugin setup's
         multisigPluginSetup = new MultisigPluginSetup();
         emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
@@ -69,6 +72,7 @@ contract Deploy is Script {
         console.log("");
 
         console.log("Public key registry", address(deployment.publicKeyRegistry));
+        console.log("Delegation wall", address(deployment.delegationWall));
     }
 
     function getMainnetSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
