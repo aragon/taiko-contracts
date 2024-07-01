@@ -8,7 +8,7 @@ The Security Council has a standard multisig plugin and an emergency variant. Th
 
 [Learn more about Aragon OSx](#protocol-overview).
 
-See [Deploying the DAO](#deploying-the-dao) below.
+See [Deploying the DAO](#deploying-the-dao) below and check out the [latest deployments](./DEPLOYMENTS.md).
 
 ## Optimistic Token Voting plugin
 
@@ -177,8 +177,8 @@ $ forge test
 
 1. Edit `script/multisig-members.json` with the list of addresses to set as signers
 2. Run `forge build`
-3. Copy `.env.example` into `.env`
-4. Define the deployment settings within `.env`
+3. Copy `.env.example` into `.env` and define the settings
+4. Run `source .env` to load them
 5. Set the RPC URL and run the deployment script
 
 ```shell
