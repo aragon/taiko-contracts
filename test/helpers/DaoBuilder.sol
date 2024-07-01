@@ -6,7 +6,7 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../../src/Multisig.sol";
 import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
-import {createProxyAndCall} from "./proxy.sol";
+import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
 import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
@@ -185,7 +185,7 @@ contract DaoBuilder is Test {
                     address(OPTIMISTIC_BASE),
                     abi.encodeCall(
                         OptimisticTokenVotingPlugin.initialize,
-                        (dao, targetContractSettings, votingToken, taikoL1, taikoBridge)
+                        (dao, targetContractSettings, votingToken, address(taikoL1), taikoBridge)
                     )
                 )
             );

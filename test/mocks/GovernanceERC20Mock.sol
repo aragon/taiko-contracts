@@ -53,4 +53,11 @@ contract GovernanceERC20Mock is GovernanceERC20 {
         _mint(receiver, amount);
         _delegate(receiver, receiver);
     }
+
+    function mintAndDelegate(address[] memory receivers, uint256 amount) external {
+        for (uint256 i = 0; i < receivers.length; i++) {
+            _mint(receivers[i], amount);
+            _delegate(receivers[i], receivers[i]);
+        }
+    }
 }

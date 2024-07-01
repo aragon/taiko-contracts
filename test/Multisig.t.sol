@@ -16,7 +16,7 @@ import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
-import {createProxyAndCall} from "./helpers/proxy.sol";
+import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
 contract MultisigTest is AragonTest {
     DaoBuilder builder;
@@ -2368,8 +2368,9 @@ contract MultisigTest is AragonTest {
         multisig.execute(pid);
 
         // Check round
+        // start=1d, end=10d, counter=0
         (open, executed, parameters, vetoTally, metadataUri, actions, allowFailureMap) =
-            optimisticPlugin.getProposal(uint256(2 days) << 128 | uint256(2 days + 10 days) << 64); // PID: start=1d, end=10d, counter=0
+            optimisticPlugin.getProposal(uint256(2 days) << 128 | uint256(2 days + 10 days) << 64);
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");
