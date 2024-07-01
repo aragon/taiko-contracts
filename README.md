@@ -8,7 +8,7 @@ The Security Council has a standard multisig plugin and an emergency variant. Th
 
 [Learn more about Aragon OSx](#protocol-overview).
 
-See [Deploying the DAO](#deploying-the-dao) below.
+See [Deploying the DAO](#deploying-the-dao) below and check out the [latest deployments](./DEPLOYMENTS.md).
 
 ## Optimistic Token Voting plugin
 
