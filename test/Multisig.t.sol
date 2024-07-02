@@ -548,6 +548,23 @@ contract MultisigTest is AragonTest {
         assertEq(multisig.isMember(david), false, "Should not be a member");
     }
 
+    function test_RevertsIfAddingTooManyMembers() public {
+        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+
+        address[] memory addrs = new address[](type(uint16).max);
+        addrs[0] = address(12345678);
+
+        assertEq(multisig.isMember(addrs[0]), false, "Should not be a member");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multisig.AddresslistLengthOutOfBounds.selector, type(uint16).max, uint256(type(uint16).max) + 4
+            )
+        );
+        multisig.addAddresses(addrs);
+
+        assertEq(multisig.isMember(addrs[0]), false, "Should not be a member");
+    }
+
     function test_ShouldRevertIfEmptySignersList() public {
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         Multisig.MultisigSettings memory settings =

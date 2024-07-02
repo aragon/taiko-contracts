@@ -74,6 +74,16 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         emergencyProposer = address(0x2345678901);
     }
 
+    function test_ConstructorShouldDefineTheRightValues() public {
+        setUp();
+
+        assertEq(pluginSetup.implementation() != address(0), true);
+        assertEq(pluginSetup.governanceERC20Base(), address(governanceERC20Base), "Address should be equal");
+        assertEq(
+            pluginSetup.governanceWrappedERC20Base(), address(governanceWrappedERC20Base), "Address should be equal"
+        );
+    }
+
     function test_ShouldEncodeInstallationParams_Default() public view {
         // Default
         bytes memory output = pluginSetup.encodeInstallationParams(
@@ -655,6 +665,56 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[5].permissionId, keccak256("MINT_PERMISSION"));
     }
 
+    function test_PrepareInstallationWithNonContractTokenReverts() public {
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
+            addr: address(1234),
+            name: "Non-contract address",
+            symbol: "abc"
+        });
+        bytes memory installationParams = pluginSetup.encodeInstallationParams(
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                address(taikoL1),
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.TokenNotContract.selector, address(1234))
+        );
+        pluginSetup.prepareInstallation(address(dao), installationParams);
+    }
+
+    function test_PrepareInstallationWithNonErc20TokenReverts() public {
+        tokenSettings = OptimisticTokenVotingPluginSetup.TokenSettings({
+            addr: address(dao),
+            name: "Non-ERC20 address",
+            symbol: "abc"
+        });
+        bytes memory installationParams = pluginSetup.encodeInstallationParams(
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                // only used for GovernanceERC20 (when a token is not passed)
+                mintSettings,
+                address(taikoL1),
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.TokenNotERC20.selector, address(dao)));
+        pluginSetup.prepareInstallation(address(dao), installationParams);
+    }
+
     function test_PrepareUninstallationReturnsTheProperPermissions_1() public {
         // Prepare a dummy install
         bytes memory installationParams = pluginSetup.encodeInstallationParams(
@@ -773,6 +833,57 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_permissionChanges[3].who, address(dao), "Incorrect who");
         assertEq(_permissionChanges[3].condition, address(0), "Incorrect condition");
         assertEq(_permissionChanges[3].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
+    }
+
+    function test_PrepareUninstallationRevertsWithWrongHelpersLength() public {
+        // 0
+
+        // Prepare a dummy install
+        bytes memory installationParams = pluginSetup.encodeInstallationParams(
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                address(taikoL1),
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
+        );
+        (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
+
+        _preparedSetupData.helpers = new address[](0);
+        OptimisticTokenVotingPluginSetup.SetupPayload memory _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
+
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.WrongHelpersArrayLength.selector, 0));
+        pluginSetup.prepareUninstallation(address(dao), _payload);
+
+        // 2
+
+        // Prepare a dummy install
+        installationParams = pluginSetup.encodeInstallationParams(
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                address(taikoL1),
+                taikoBridge,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
+        );
+        (_dummyPlugin, _preparedSetupData) = pluginSetup.prepareInstallation(address(dao), installationParams);
+
+        _preparedSetupData.helpers = new address[](2);
+        _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
+
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.WrongHelpersArrayLength.selector, 2));
+        pluginSetup.prepareUninstallation(address(dao), _payload);
     }
 
     function test_CreatesANewERC20Token() public {

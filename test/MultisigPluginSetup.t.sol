@@ -153,6 +153,43 @@ contract MultisigPluginSetupTest is Test {
         );
     }
 
+    function test_PrepareUninstallationReturnsTheProperPermissions_1() public {
+        // Prepare a dummy install
+        bytes memory installationParams = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+
+        (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
+
+        MultisigPluginSetup.SetupPayload memory _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
+
+        // Check uninstall
+        PermissionLib.MultiTargetPermission[] memory _permissionChanges =
+            pluginSetup.prepareUninstallation(address(dao), _payload);
+
+        assertEq(_permissionChanges.length, 2, "Incorrect permission changes length");
+        // 1
+        assertEq(
+            uint256(_permissionChanges[0].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
+        );
+        assertEq(_permissionChanges[0].where, _dummyPlugin);
+        assertEq(_permissionChanges[0].who, address(dao));
+        assertEq(_permissionChanges[0].condition, address(0));
+        assertEq(_permissionChanges[0].permissionId, keccak256("UPDATE_MULTISIG_SETTINGS_PERMISSION"));
+        // 2
+        assertEq(
+            uint256(_permissionChanges[1].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
+        );
+        assertEq(_permissionChanges[1].where, _dummyPlugin);
+        assertEq(_permissionChanges[1].who, address(dao));
+        assertEq(_permissionChanges[1].condition, address(0));
+        assertEq(_permissionChanges[1].permissionId, keccak256("UPGRADE_PLUGIN_PERMISSION"));
+    }
+
+    function test_ImplementationIsNotEmpty() public view {
+        assertEq(pluginSetup.implementation() != address(0), true);
+    }
+
     // HELPERS
     function createProxyAndCall(address _logic, bytes memory _data) private returns (address) {
         return address(new ERC1967Proxy(_logic, _data));
