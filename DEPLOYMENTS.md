@@ -4,7 +4,33 @@
 
 ## Holesly
 
-On July 1st 2024:
+### July 3rd 2024
+Used for internal development.
+
+```
+  Chain ID: 17000
+  
+  Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
+  Minting test tokens for the multisig members and the bridge
+  Test voting token: 0x53bbA0e878a73013AA0B1Dc6e6c4ea9691182E04
+  Factory contract: 0x06D323915f7057e32B0560b95A298c5a2Fe80C8d
+  
+  DAO contract: 0xC373851C8a42D0c9120f5bd6c218693CFED068C1
+  
+  - Multisig plugin: 0x754C929002d09d09610831F81263Bb5A43Ea0865
+  - Emergency multisig plugin: 0x21B1eeb7A9ff58e4422eB2a06A8b2b2ceb0aC581
+  - Optimistic token voting plugin: 0x14DCBE5aAF3Ce2998E93f98DcFAB1cbd198D1257
+  
+  - Multisig plugin repository: 0x494d47d419c2b48e3f888066FAf210DD32BFA1b6
+  - Emergency multisig plugin repository: 0xcA7404c1dDD5cb817E94F970256972b277F82f80
+  - Optimistic token voting plugin repository: 0xAe66318a5941712A80eA7B6e2F96C23B071816E5
+  
+  Public key registry 0x683C6B9c550870423cEc58f6cedd78BCE36Fd7f1
+  Delegation wall 0x291aAE5fCAbBbD19A1b64F93338B71343E2AD740
+```
+
+### July 1st 2024
+Used as a staging deployment.
 
 ```
   Chain ID: 17000
@@ -30,7 +56,7 @@ On July 1st 2024:
 
 ## Sepolia
 
-On June 13th 2024:
+### June 13th 2024
 
 ```
 Chain ID: 11155111
