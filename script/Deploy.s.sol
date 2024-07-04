@@ -36,7 +36,6 @@ contract Deploy is Script {
         );
 
         console.log("Chain ID:", block.chainid);
-        console.log("");
         console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
 
         TaikoDaoFactory.DeploymentSettings memory settings;
@@ -46,6 +45,8 @@ contract Deploy is Script {
             settings = getTestnetSettings();
         }
 
+        console.log("");
+
         TaikoDaoFactory factory = new TaikoDaoFactory(settings);
         factory.deployOnce();
         TaikoDaoFactory.Deployment memory daoDeployment = factory.getDeployment();
@@ -54,16 +55,20 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         // Print summary
-        console.log("Factory contract:", address(factory));
+        console.log("Factory:", address(factory));
         console.log("");
-        console.log("DAO contract:", address(daoDeployment.dao));
+        console.log("DAO:", address(daoDeployment.dao));
+        console.log("Voting token:", address(settings.tokenAddress));
+        console.log("Taiko Bridge:", settings.taikoBridgeAddress);
         console.log("");
 
+        console.log("Plugins");
         console.log("- Multisig plugin:", address(daoDeployment.multisigPlugin));
         console.log("- Emergency multisig plugin:", address(daoDeployment.emergencyMultisigPlugin));
         console.log("- Optimistic token voting plugin:", address(daoDeployment.optimisticTokenVotingPlugin));
         console.log("");
 
+        console.log("Plugin repositories");
         console.log("- Multisig plugin repository:", address(daoDeployment.multisigPluginRepo));
         console.log("- Emergency multisig plugin repository:", address(daoDeployment.emergencyMultisigPluginRepo));
         console.log(
@@ -71,8 +76,9 @@ contract Deploy is Script {
         );
         console.log("");
 
-        console.log("Public key registry", address(daoDeployment.publicKeyRegistry));
-        console.log("Delegation wall", address(delegationWall));
+        console.log("Helpers");
+        console.log("- Public key registry", address(daoDeployment.publicKeyRegistry));
+        console.log("- Delegation wall", address(delegationWall));
     }
 
     function getMainnetSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
@@ -106,11 +112,9 @@ contract Deploy is Script {
     }
 
     function getTestnetSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
-        address taikoBridgeAddress = vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")); // Using the deployment wallet for test
+        address taikoBridgeAddress = address(0x1234567890);
         address[] memory multisigMembers = readMultisigMembers();
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
-
-        console.log("Test voting token:", votingToken);
 
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
