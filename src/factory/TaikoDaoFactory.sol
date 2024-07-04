@@ -2,12 +2,10 @@
 pragma solidity ^0.8.17;
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
-import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {Multisig} from "../Multisig.sol";
 import {EmergencyMultisig} from "../EmergencyMultisig.sol";
 import {PublicKeyRegistry} from "../PublicKeyRegistry.sol";
-import {DelegationWall} from "../DelegationWall.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../setup/MultisigPluginSetup.sol";
@@ -64,7 +62,6 @@ contract TaikoDaoFactory {
         PluginRepo optimisticTokenVotingPluginRepo;
         // Other
         PublicKeyRegistry publicKeyRegistry;
-        DelegationWall delegationWall;
     }
 
     /// @notice Thrown when attempting to call deployOnce() when the DAO is already deployed.
@@ -130,7 +127,6 @@ contract TaikoDaoFactory {
 
         // DEPLOY OTHER CONTRACTS
         deployment.publicKeyRegistry = deployPublicKeyRegistry();
-        deployment.delegationWall = deployDelegationWall();
     }
 
     function prepareDao() internal returns (DAO dao) {
@@ -267,10 +263,6 @@ contract TaikoDaoFactory {
 
     function deployPublicKeyRegistry() internal returns (PublicKeyRegistry) {
         return new PublicKeyRegistry();
-    }
-
-    function deployDelegationWall() internal returns (DelegationWall) {
-        return new DelegationWall();
     }
 
     function applyPluginInstallation(

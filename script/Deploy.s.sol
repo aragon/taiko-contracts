@@ -7,14 +7,10 @@ import {TaikoDaoFactory} from "../src/factory/TaikoDaoFactory.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
-import {Multisig} from "../src/Multisig.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
-import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
 import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
-import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../src/setup/OptimisticTokenVotingPluginSetup.sol";
-import {PublicKeyRegistry} from "../src/PublicKeyRegistry.sol";
-import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
+import {DelegationWall} from "../src/DelegationWall.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {GovernanceERC20Mock} from "../test/mocks/GovernanceERC20Mock.sol";
@@ -52,27 +48,30 @@ contract Deploy is Script {
 
         TaikoDaoFactory factory = new TaikoDaoFactory(settings);
         factory.deployOnce();
-        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+        TaikoDaoFactory.Deployment memory daoDeployment = factory.getDeployment();
+        address delegationWall = address(new DelegationWall());
 
         vm.stopBroadcast();
 
         // Print summary
         console.log("Factory contract:", address(factory));
-        console.log("DAO contract:", address(deployment.dao));
+        console.log("DAO contract:", address(daoDeployment.dao));
         console.log("");
 
-        console.log("- Multisig plugin:", address(deployment.multisigPlugin));
-        console.log("- Emergency multisig plugin:", address(deployment.emergencyMultisigPlugin));
-        console.log("- Optimistic token voting plugin:", address(deployment.optimisticTokenVotingPlugin));
+        console.log("- Multisig plugin:", address(daoDeployment.multisigPlugin));
+        console.log("- Emergency multisig plugin:", address(daoDeployment.emergencyMultisigPlugin));
+        console.log("- Optimistic token voting plugin:", address(daoDeployment.optimisticTokenVotingPlugin));
         console.log("");
 
-        console.log("- Multisig plugin repository:", address(deployment.multisigPluginRepo));
-        console.log("- Emergency multisig plugin repository:", address(deployment.emergencyMultisigPluginRepo));
-        console.log("- Optimistic token voting plugin repository:", address(deployment.optimisticTokenVotingPluginRepo));
+        console.log("- Multisig plugin repository:", address(daoDeployment.multisigPluginRepo));
+        console.log("- Emergency multisig plugin repository:", address(daoDeployment.emergencyMultisigPluginRepo));
+        console.log(
+            "- Optimistic token voting plugin repository:", address(daoDeployment.optimisticTokenVotingPluginRepo)
+        );
         console.log("");
 
-        console.log("Public key registry", address(deployment.publicKeyRegistry));
-        console.log("Delegation wall", address(deployment.delegationWall));
+        console.log("Public key registry", address(daoDeployment.publicKeyRegistry));
+        console.log("Delegation wall", address(delegationWall));
     }
 
     function getMainnetSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {

@@ -7,7 +7,7 @@ pragma solidity ^0.8.17;
 /// @notice A smart contract where any wallet can register its own libsodium public key for encryption purposes
 contract DelegationWall {
     struct Candidate {
-        bytes message;
+        bytes contentUrl;
         bytes socialUrl;
     }
 
@@ -17,22 +17,22 @@ contract DelegationWall {
     address[] public candidateAddresses;
 
     /// @notice Emitted when a wallet registers as a candidate
-    event CandidateRegistered(address indexed candidate, bytes message, bytes socialUrl);
+    event CandidateRegistered(address indexed candidate, bytes contentUrl, bytes socialUrl);
 
-    /// @notice Raised when a delegate registers with an empty message
-    error EmptyMessage();
+    /// @notice Raised when a delegate registers with an empty contentUrl
+    error EmptyContent();
 
-    function register(bytes memory _message, bytes memory _socialUrl) public {
-        if (_message.length == 0) revert EmptyMessage();
+    function register(bytes memory _contentUrl, bytes memory _socialUrl) public {
+        if (_contentUrl.length == 0) revert EmptyContent();
 
-        if (candidates[msg.sender].message.length == 0) {
+        if (candidates[msg.sender].contentUrl.length == 0) {
             candidateAddresses.push(msg.sender);
         }
 
-        candidates[msg.sender].message = _message;
+        candidates[msg.sender].contentUrl = _contentUrl;
         candidates[msg.sender].socialUrl = _socialUrl;
 
-        emit CandidateRegistered(msg.sender, _message, _socialUrl);
+        emit CandidateRegistered(msg.sender, _contentUrl, _socialUrl);
     }
 
     function candidateCount() public view returns (uint256) {
