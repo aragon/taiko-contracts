@@ -8,7 +8,6 @@ pragma solidity ^0.8.17;
 contract DelegationWall {
     struct Candidate {
         bytes contentUrl;
-        bytes socialUrl;
     }
 
     /// @dev Stores the data registered by the delegate candidates
@@ -17,12 +16,12 @@ contract DelegationWall {
     address[] public candidateAddresses;
 
     /// @notice Emitted when a wallet registers as a candidate
-    event CandidateRegistered(address indexed candidate, bytes contentUrl, bytes socialUrl);
+    event CandidateRegistered(address indexed candidate, bytes contentUrl);
 
     /// @notice Raised when a delegate registers with an empty contentUrl
     error EmptyContent();
 
-    function register(bytes memory _contentUrl, bytes memory _socialUrl) public {
+    function register(bytes memory _contentUrl) public {
         if (_contentUrl.length == 0) revert EmptyContent();
 
         if (candidates[msg.sender].contentUrl.length == 0) {
@@ -30,9 +29,8 @@ contract DelegationWall {
         }
 
         candidates[msg.sender].contentUrl = _contentUrl;
-        candidates[msg.sender].socialUrl = _socialUrl;
 
-        emit CandidateRegistered(msg.sender, _contentUrl, _socialUrl);
+        emit CandidateRegistered(msg.sender, _contentUrl);
     }
 
     function candidateCount() public view returns (uint256) {

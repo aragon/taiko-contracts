@@ -9,7 +9,7 @@ contract EmergencyMultisigTest is AragonTest {
     DelegationWall wall;
 
     /// @notice Emitted when a wallet registers as a candidate
-    event CandidateRegistered(address indexed candidate, bytes contentUrl, bytes socialUrl);
+    event CandidateRegistered(address indexed candidate, bytes contentUrl);
 
     /// @notice Raised when a delegate registers with an empty contentUrl
     error EmptyContent();
@@ -19,105 +19,93 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_ShouldRegisterACandidate() public {
-        wall.register("ipfs://1234", "");
+        wall.register("ipfs://1234");
 
         vm.startPrank(alice);
-        wall.register("ipfs://abcdef", "");
+        wall.register("ipfs://abcdef");
 
         vm.startPrank(bob);
-        wall.register("ipfs://xyz", " ");
+        wall.register("ipfs://xyz");
 
         vm.startPrank(carol);
-        wall.register("ipfs://____", "https://taiko.xyz/");
+        wall.register("ipfs://____");
 
         vm.startPrank(david);
-        wall.register("ipfs://1234000", "https://aragon.org/");
+        wall.register("ipfs://1234000");
     }
 
     function test_ShouldRevertIfEmptyContent() public {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(EmptyContent.selector));
-        wall.register("", "");
-        vm.expectRevert(abi.encodeWithSelector(EmptyContent.selector));
-        wall.register("", "https://taiko.xyz/");
+        wall.register("");
 
         // Not revert
-        wall.register(" ", "https://taiko.xyz/");
+        wall.register(" ");
 
         vm.startPrank(bob);
 
         vm.expectRevert(abi.encodeWithSelector(EmptyContent.selector));
-        wall.register("", "");
-        vm.expectRevert(abi.encodeWithSelector(EmptyContent.selector));
-        wall.register("", "https://taiko.xyz/");
+        wall.register("");
 
         // Not revert
-        wall.register(" ", "https://taiko.xyz/");
+        wall.register(" ");
     }
 
     function test_ShouldStoreCandidateDetails() public {
         // Alice
         vm.startPrank(alice);
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
 
-        (bytes memory contentUrl, bytes memory url) = wall.candidates(alice);
+        bytes memory contentUrl = wall.candidates(alice);
         assertEq(contentUrl, "ipfs://alice", "Incorrect delegate contentUrl");
-        assertEq(url, "https://", "Incorrect social URL");
 
         // Bob
         vm.startPrank(bob);
 
-        wall.register("ipfs://bob", "https://taiko.xyz");
-        (contentUrl, url) = wall.candidates(bob);
+        wall.register("ipfs://bob");
+        (contentUrl) = wall.candidates(bob);
         assertEq(contentUrl, "ipfs://bob", "Incorrect delegate contentUrl");
-        assertEq(url, "https://taiko.xyz", "Incorrect social URL");
 
         // Carol
         vm.startPrank(carol);
 
-        wall.register("ipfs://carol", "https://x.com/carol");
-        (contentUrl, url) = wall.candidates(carol);
+        wall.register("ipfs://carol");
+        (contentUrl) = wall.candidates(carol);
         assertEq(contentUrl, "ipfs://carol", "Incorrect delegate contentUrl");
-        assertEq(url, "https://x.com/carol", "Incorrect social URL");
 
         // David
         vm.startPrank(david);
 
-        wall.register("ipfs://david", "https://defeat-goliath.org");
-        (contentUrl, url) = wall.candidates(david);
+        wall.register("ipfs://david");
+        (contentUrl) = wall.candidates(david);
         assertEq(contentUrl, "ipfs://david", "Incorrect delegate contentUrl");
-        assertEq(url, "https://defeat-goliath.org", "Incorrect social URL");
     }
 
     function test_ShouldUpdateCandidateDetails() public {
         // Alice
         vm.startPrank(alice);
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
 
-        (bytes memory contentUrl, bytes memory url) = wall.candidates(alice);
+        bytes memory contentUrl = wall.candidates(alice);
         assertEq(contentUrl, "ipfs://alice", "Incorrect delegate contentUrl");
-        assertEq(url, "https://", "Incorrect social URL");
 
         // update
-        wall.register("ipfs://alice-2", "https://alice-for-president.org");
-        (contentUrl, url) = wall.candidates(alice);
+        wall.register("ipfs://alice-2");
+        (contentUrl) = wall.candidates(alice);
         assertEq(contentUrl, "ipfs://alice-2", "Incorrect delegate contentUrl");
-        assertEq(url, "https://alice-for-president.org", "Incorrect social URL");
 
         // Bob
         vm.startPrank(bob);
 
-        wall.register("ipfs://bob", "https://taiko.xyz");
-        (contentUrl, url) = wall.candidates(bob);
+        wall.register("ipfs://bob");
+        (contentUrl) = wall.candidates(bob);
         assertEq(contentUrl, "ipfs://bob", "Incorrect delegate contentUrl");
-        assertEq(url, "https://taiko.xyz", "Incorrect social URL");
 
         // update
-        wall.register("ipfs://bob-2", "https://bob-president.org");
-        (contentUrl, url) = wall.candidates(bob);
+        wall.register("ipfs://bob-2");
+        (contentUrl) = wall.candidates(bob);
         assertEq(contentUrl, "ipfs://bob-2", "Incorrect delegate contentUrl");
-        assertEq(url, "https://bob-president.org", "Incorrect social URL");
     }
 
     function test_ShouldCountRegisteredCandidates() public {
@@ -125,22 +113,22 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.startPrank(alice);
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
         assertEq(wall.candidateCount(), 1, "Incorrect candidate count");
 
         // Bob
         vm.startPrank(bob);
-        wall.register("ipfs://bob", "https://taiko.xyz");
+        wall.register("ipfs://bob");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
 
         // Carol
         vm.startPrank(carol);
-        wall.register("ipfs://carol", "https://x.com/carol");
+        wall.register("ipfs://carol");
         assertEq(wall.candidateCount(), 3, "Incorrect candidate count");
 
         // David
         vm.startPrank(david);
-        wall.register("ipfs://david", "https://defeat-goliath.org");
+        wall.register("ipfs://david");
         assertEq(wall.candidateCount(), 4, "Incorrect candidate count");
     }
 
@@ -149,29 +137,29 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.startPrank(alice);
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
         assertEq(wall.candidateCount(), 1, "Incorrect candidate count");
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
         assertEq(wall.candidateCount(), 1, "Incorrect candidate count");
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
         assertEq(wall.candidateCount(), 1, "Incorrect candidate count");
-        wall.register("Alice", "https://alice-for-president.org");
+        wall.register("Alice");
         assertEq(wall.candidateCount(), 1, "Incorrect candidate count");
-        wall.register("Vote Alice", "https://alice.land");
+        wall.register("Vote Alice");
 
         // Bob
         vm.startPrank(bob);
-        wall.register("ipfs://bob", "https://taiko.xyz");
+        wall.register("ipfs://bob");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
-        wall.register("ipfs://bob-1", "https://taiko.xyz");
+        wall.register("ipfs://bob-1");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
-        wall.register("ipfs://bob-2", "https://taiko.xyz");
+        wall.register("ipfs://bob-2");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
-        wall.register("ipfs://bob-3", "https://taiko.xyz");
+        wall.register("ipfs://bob-3");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
-        wall.register("ipfs://bob-4", "https://bob.xyz");
+        wall.register("ipfs://bob-4");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
-        wall.register("ipfs://bob-5", "https://bob.robot");
+        wall.register("ipfs://bob-5");
         assertEq(wall.candidateCount(), 2, "Incorrect candidate count");
     }
 
@@ -187,7 +175,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Alice
         vm.startPrank(alice);
-        wall.register("ipfs://alice", "https://");
+        wall.register("ipfs://alice");
 
         assertEq(wall.candidateAddresses(0), alice, "Incorrect candidate address");
         vm.expectRevert();
@@ -199,7 +187,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob
         vm.startPrank(bob);
-        wall.register("ipfs://bob", "https://taiko.xyz");
+        wall.register("ipfs://bob");
 
         assertEq(wall.candidateAddresses(0), alice, "Incorrect candidate address");
         assertEq(wall.candidateAddresses(1), bob, "Incorrect candidate address");
@@ -210,7 +198,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Carol
         vm.startPrank(carol);
-        wall.register("ipfs://carol", "https://x.com/carol");
+        wall.register("ipfs://carol");
 
         assertEq(wall.candidateAddresses(0), alice, "Incorrect candidate address");
         assertEq(wall.candidateAddresses(1), bob, "Incorrect candidate address");
@@ -220,7 +208,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // David
         vm.startPrank(david);
-        wall.register("ipfs://david", "https://defeat-goliath.org");
+        wall.register("ipfs://david");
 
         assertEq(wall.candidateAddresses(0), alice, "Incorrect candidate address");
         assertEq(wall.candidateAddresses(1), bob, "Incorrect candidate address");
@@ -232,25 +220,25 @@ contract EmergencyMultisigTest is AragonTest {
         // Alice
         vm.startPrank(alice);
         vm.expectEmit();
-        emit CandidateRegistered(alice, "ipfs://alice", "https://");
-        wall.register("ipfs://alice", "https://");
+        emit CandidateRegistered(alice, "ipfs://alice");
+        wall.register("ipfs://alice");
 
         // Bob
         vm.startPrank(bob);
         vm.expectEmit();
-        emit CandidateRegistered(bob, "ipfs://bob", "https://taiko.xyz");
-        wall.register("ipfs://bob", "https://taiko.xyz");
+        emit CandidateRegistered(bob, "ipfs://bob");
+        wall.register("ipfs://bob");
 
         // Carol
         vm.startPrank(carol);
         vm.expectEmit();
-        emit CandidateRegistered(carol, "ipfs://carol", "https://x.com/carol");
-        wall.register("ipfs://carol", "https://x.com/carol");
+        emit CandidateRegistered(carol, "ipfs://carol");
+        wall.register("ipfs://carol");
 
         // David
         vm.startPrank(david);
         vm.expectEmit();
-        emit CandidateRegistered(david, "ipfs://david", "https://defeat-goliath.org");
-        wall.register("ipfs://david", "https://defeat-goliath.org");
+        emit CandidateRegistered(david, "ipfs://david");
+        wall.register("ipfs://david");
     }
 }
