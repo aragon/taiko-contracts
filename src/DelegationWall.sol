@@ -22,6 +22,7 @@ contract DelegationWall {
     /// @notice Raised when a delegate registers with an empty contentUrl
     error EmptyContent();
 
+    /// @notice Registers the given data as a new delegation candidate
     function register(bytes memory _contentUrl) public {
         if (_contentUrl.length == 0) revert EmptyContent();
 
