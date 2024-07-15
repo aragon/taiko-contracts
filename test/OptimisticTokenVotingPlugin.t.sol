@@ -862,6 +862,45 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(proposalId, expectedPid, "Should have created proposal 2");
     }
 
+    function test_CreateProposalIncrementsTheProposalCounter() public {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        assertEq(optimisticPlugin.proposalCount(), 0);
+        optimisticPlugin.createProposal("", actions, 0, 10 days);
+        assertEq(optimisticPlugin.proposalCount(), 1);
+        optimisticPlugin.createProposal("ipfs://", actions, 0, 10 days);
+        assertEq(optimisticPlugin.proposalCount(), 2);
+        optimisticPlugin.createProposal("", actions, 255, 15 days);
+        assertEq(optimisticPlugin.proposalCount(), 3);
+        optimisticPlugin.createProposal("", actions, 127, 20 days);
+        assertEq(optimisticPlugin.proposalCount(), 4);
+        optimisticPlugin.createProposal("ipfs://meta", actions, 0, 10 days);
+        assertEq(optimisticPlugin.proposalCount(), 5);
+        optimisticPlugin.createProposal("", actions, 0, 100 days);
+        assertEq(optimisticPlugin.proposalCount(), 6);
+    }
+
+    function test_CreateProposalIndexesThePid() public {
+        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        // 1
+        assertEq(optimisticPlugin.proposalIds(0), 0);
+        optimisticPlugin.createProposal("", actions, 0, 10 days);
+        assertEq(optimisticPlugin.proposalIds(0), expectedPid);
+
+        // 2
+        expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 100 days) << 64 | 1;
+        assertEq(optimisticPlugin.proposalIds(1), 0);
+        optimisticPlugin.createProposal("ipfs://meta", actions, 0, 100 days);
+        assertEq(optimisticPlugin.proposalIds(1), expectedPid);
+
+        // 3
+        expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64 | 2;
+        assertEq(optimisticPlugin.proposalIds(2), 0);
+        optimisticPlugin.createProposal("", actions, 0, 50 days);
+        assertEq(optimisticPlugin.proposalIds(2), expectedPid);
+    }
+
     function test_CreateProposalEmitsAnEvent() public {
         uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
 
