@@ -73,7 +73,7 @@ contract MultisigPluginSetup is PluginSetup {
         returns (PermissionLib.MultiTargetPermission[] memory permissions)
     {
         // Prepare permissions
-        permissions = new PermissionLib.MultiTargetPermission[](3);
+        permissions = new PermissionLib.MultiTargetPermission[](2);
 
         // Set permissions to be Revoked.
         permissions[0] = PermissionLib.MultiTargetPermission(

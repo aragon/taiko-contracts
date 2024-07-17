@@ -224,7 +224,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(carol);
         wall.register("https://x.com/carol");
         vm.startPrank(david);
-        wall.register("https://defeat-goliath.org");
+        wall.register("https://david.org");
 
         address[] memory candidates = wall.getCandidateAddresses();
         assertEq(candidates.length, 4);

@@ -6,6 +6,8 @@ import {StandardProposalCondition} from "../src/conditions/StandardProposalCondi
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondition.sol";
 import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
@@ -68,7 +70,7 @@ contract StandardProposalConditionTest is Test {
         assertEq(granted, true, "Condition should still pass");
     }
 
-    function test_ShouldRevertWhenNotEnoughDelay() public view {
+    function test_ShouldReturnFalseWhenNotEnoughDelay() public view {
         // Almost the minimum
         uint32 votingDuration = MIN_DELAY_1 - 1;
 
@@ -165,7 +167,7 @@ contract StandardProposalConditionTest is Test {
         assertEq(granted, true, "Condition should still pass");
     }
 
-    function test_ShouldRevertWhenNotEnoughDelay2() public {
+    function test_ShouldReturnFalseWhenNotEnoughDelay2() public {
         dao = DAO(payable(address(0x12345678)));
         condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
 
@@ -226,6 +228,35 @@ contract StandardProposalConditionTest is Test {
         data = abi.encodeCall(OptimisticTokenVotingPlugin.createProposal, ("", actions, 0, voteDuration));
         granted = condition.isGranted(address(0x0), address(0x0), 0, data);
         assertEq(granted, false, "Condition should not pass");
+    }
+
+    function testFuzz_ShouldReturnFalseWhenInvalidSelector(bytes4 selector) public {
+        dao = DAO(payable(address(0x12345678)));
+        condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+
+        if (selector == OptimisticTokenVotingPlugin.createProposal.selector) {
+            bytes memory _data = abi.encodeWithSelector(selector, "", actions, 0, MIN_DELAY_2);
+            bool _granted = condition.isGranted(address(0x0), address(0x0), 0, _data);
+            assertEq(_granted, true, "Condition should pass");
+            return;
+        }
+
+        bytes memory data = abi.encodeWithSelector(selector, "", actions, 0, MIN_DELAY_2);
+        bool granted = condition.isGranted(address(0x0), address(0x0), 0, data);
+        assertEq(granted, false, "Condition should not pass");
+    }
+
+    function testFuzz_SupportsTheRightInterfaces(bytes4 interfaceId) public view {
+        if (interfaceId == type(IPermissionCondition).interfaceId || interfaceId == type(IERC165).interfaceId) {
+            // Should be true
+            assertEq(condition.supportsInterface(interfaceId), true, "Should support it");
+            return;
+        }
+
+        // Should be false
+        assertEq(condition.supportsInterface(interfaceId), false, "Should not support it");
     }
 }
 

@@ -445,8 +445,8 @@ contract OptimisticTokenVotingPlugin is
         returns (uint256 counter, uint64 startDate, uint64 endDate)
     {
         counter = _proposalId & type(uint64).max;
-        startDate = uint64((_proposalId & (uint256(type(uint64).max) << 128)) >> 128);
-        endDate = uint64((_proposalId & (uint256(type(uint64).max) << 64)) >> 64);
+        startDate = uint64(_proposalId >> 128) & type(uint64).max;
+        endDate = uint64(_proposalId >> 64) & type(uint64).max;
     }
 
     /// @dev Creates a new proposal ID, containing the start and end timestamps

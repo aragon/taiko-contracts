@@ -182,14 +182,15 @@ $ forge test
 5. Set the RPC URL and run the deployment script
 
 ```shell
-SEPOLIA_RPC_URL="https://..."
-forge script --chain sepolia script/Deploy.s.sol:Deploy --rpc-url "$SEPOLIA_RPC_URL" --broadcast --verify
+RPC_URL="https://..."
+NETWORK="holesky"
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify
 ```
 
 If you get the error `Failed to get EIP-1559 fees`, add `--legacy` to the last command:
 
 ```shell
-forge script --chain sepolia script/Deploy.s.sol:Deploy --rpc-url "$SEPOLIA_RPC_URL" --broadcast --verify --legacy
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --legacy
 ```
 
 ### Formatting the code
