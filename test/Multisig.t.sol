@@ -200,7 +200,7 @@ contract MultisigTest is AragonTest {
         assertEq(minDuration, 3 days, "Incorrect minDuration");
     }
 
-    function test_InitializeEmitsMultisigSettingsUpdatedOnInstall() public {
+    function test_InitializeEmitsMultisigSettingsUpdatedOnInstall1() public {
         // Deploy with true/3/2
         Multisig.MultisigSettings memory settings =
             Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
@@ -216,9 +216,18 @@ contract MultisigTest is AragonTest {
         multisig = Multisig(
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
+    }
 
+    function test_InitializeEmitsMultisigSettingsUpdatedOnInstall2() public {
         // Deploy with false/2/7
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationProposalDuration: 7 days});
+        Multisig.MultisigSettings memory settings =
+            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationProposalDuration: 7 days});
+        address[] memory signers = new address[](4);
+        signers[0] = alice;
+        signers[1] = bob;
+        signers[2] = carol;
+        signers[3] = david;
+
         vm.expectEmit();
         emit MultisigSettingsUpdated(false, uint16(2), 7 days);
 
