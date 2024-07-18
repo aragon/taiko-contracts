@@ -182,15 +182,20 @@ $ forge test
 5. Set the RPC URL and run the deployment script
 
 ```shell
-RPC_URL="https://..."
-NETWORK="holesky"
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify
+RPC_URL="https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --via-ir
 ```
 
 If you get the error `Failed to get EIP-1559 fees`, add `--legacy` to the last command:
 
 ```shell
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --legacy
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --via-ir --legacy
+```
+
+If a some contracts fail to verify on Etherscan, retry with this command:
+
+```shell
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --verify --via-ir --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
 ```
 
 ### Formatting the code

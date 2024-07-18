@@ -39,10 +39,10 @@ contract Deploy is Script {
         console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
 
         TaikoDaoFactory.DeploymentSettings memory settings;
-        if (block.chainid == 1) {
-            settings = getMainnetSettings();
+        if (vm.envBool("DEPLOY_AS_PRODUCTION")) {
+            settings = getProductionSettings();
         } else {
-            settings = getTestnetSettings();
+            settings = getInternalTestingSettings();
         }
 
         console.log("");
@@ -81,7 +81,9 @@ contract Deploy is Script {
         console.log("- Delegation wall", address(delegationWall));
     }
 
-    function getMainnetSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
+    function getProductionSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
+        console.log("Using production settings");
+
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
             tokenAddress: IVotesUpgradeable(vm.envAddress("TOKEN_ADDRESS")),
@@ -111,7 +113,9 @@ contract Deploy is Script {
         });
     }
 
-    function getTestnetSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
+    function getInternalTestingSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
+        console.log("Using internal testing settings");
+
         address taikoBridgeAddress = address(0x1234567890);
         address[] memory multisigMembers = readMultisigMembers();
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
