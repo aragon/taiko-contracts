@@ -91,6 +91,7 @@ contract Deploy is Script {
             taikoBridgeAddress: vm.envAddress("TAIKO_BRIDGE_ADDRESS"),
             l2InactivityPeriod: uint64(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
+            skipL2: bool(vm.envBool("SKIP_L2")),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
             minStdProposalDelay: uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY")),
@@ -127,6 +128,7 @@ contract Deploy is Script {
             taikoBridgeAddress: taikoBridgeAddress,
             l2InactivityPeriod: uint64(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
+            skipL2: bool(vm.envBool("SKIP_L2")),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
             minStdProposalDelay: uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY")),

@@ -42,6 +42,7 @@ contract OptimisticTokenVotingPlugin is
         uint64 minDuration;
         uint64 l2InactivityPeriod;
         uint64 l2AggregationGracePeriod;
+        bool skipL2;
     }
 
     /// @notice A container for proposal-related information.
@@ -203,7 +204,8 @@ contract OptimisticTokenVotingPlugin is
 
     /// @notice Determines whether the L2 is currently available
     function isL2Available() public view returns (bool) {
-        if (taikoL1.paused()) return false;
+        if (governanceSettings.skipL2) return false;
+        else if (taikoL1.paused()) return false;
 
         uint64 _id = taikoL1.slotB().numBlocks;
         // No L2 blocks yet
@@ -342,7 +344,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Checks
-        bool _enableL2 = votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0 && isL2Available();
+        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }

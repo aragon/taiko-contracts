@@ -63,7 +63,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         vm.expectRevert(bytes("Initializable: contract is already initialized"));
@@ -77,7 +78,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 7 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -87,13 +89,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 )
             )
         );
-        (uint32 minVetoRatio, uint64 minDuration, uint64 l2InactivityPeriod, uint64 l2AggregationGracePeriod) =
-            optimisticPlugin.governanceSettings();
+        (
+            uint32 minVetoRatio,
+            uint64 minDuration,
+            uint64 l2InactivityPeriod,
+            uint64 l2AggregationGracePeriod,
+            bool skipL2
+        ) = optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 10), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 10), "Incorrect minVetoRatio");
         assertEq(minDuration, 7 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 10 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 2 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, false, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
@@ -110,13 +118,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 )
             )
         );
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 7 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 10 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 2 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, false, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
@@ -134,13 +143,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 25 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 10 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 2 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, false, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
@@ -158,13 +168,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 25 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 30 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 2 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, false, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
@@ -182,13 +193,39 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 25 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 30 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, false, "Incorrect skipL2");
+
+        assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
+        assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
+        assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
+        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+
+        // Different skipL2
+        settings.skipL2 = true;
+        optimisticPlugin = OptimisticTokenVotingPlugin(
+            createProxyAndCall(
+                address(OPTIMISTIC_BASE),
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                )
+            )
+        );
+
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
+            optimisticPlugin.governanceSettings();
+        assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
+        assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
+        assertEq(minDuration, 25 days, "Incorrect minDuration");
+        assertEq(l2InactivityPeriod, 30 minutes, "Incorrect l2InactivityPeriod");
+        assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, true, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
@@ -209,13 +246,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 25 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 30 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, true, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
@@ -233,13 +271,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 25 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 30 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, true, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
@@ -258,13 +297,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(optimisticPlugin.minVetoRatio(), uint32(RATIO_BASE / 5), "Incorrect minVetoRatio()");
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5), "Incorrect minVetoRatio");
         assertEq(minDuration, 25 days, "Incorrect minDuration");
         assertEq(l2InactivityPeriod, 30 minutes, "Incorrect l2InactivityPeriod");
         assertEq(l2AggregationGracePeriod, 5 days, "Incorrect l2AggregationGracePeriod");
+        assertEq(skipL2, true, "Incorrect skipL2");
 
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
@@ -278,7 +318,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         vm.expectEmit();
@@ -341,7 +382,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         optimisticPlugin = OptimisticTokenVotingPlugin(
@@ -488,7 +530,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         optimisticPlugin = OptimisticTokenVotingPlugin(
@@ -507,6 +550,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_IsL2AvailableReturnsTheRightValues() public {
         assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
+
+        // skipL2 setting
+        (, optimisticPlugin,,, votingToken,) = builder.withSkipL2().build();
+        assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
+        builder.withoutSkipL2();
 
         // paused
         (, optimisticPlugin,,, votingToken,) = builder.withPausedTaikoL1().build();
@@ -826,7 +874,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -1555,6 +1604,48 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.skipL2, false, "SkipL2 should be false");
     }
 
+    function test_CanExecuteReturnsFalseWhenSkipL2AndEnded() public {
+        // An ended proposal with L2 skipped
+
+        (, optimisticPlugin,,,,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).withSkipL2().build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        (bool open, bool executed, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
+            optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, true, "Open should be true");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.skipL2, true, "SkipL2 should be true");
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+
+        // Ended
+        vm.warp(block.timestamp + 4 days);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.skipL2, true, "SkipL2 should be true");
+
+        // Grace period almost over
+        vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+
+        // Grace period over
+        vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.skipL2, true, "SkipL2 should be true");
+    }
+
     function test_CanExecuteReturnsTrueOtherwise() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
@@ -1942,7 +2033,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1972,7 +2064,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: 0,
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, 1, 0));
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
@@ -1988,7 +2081,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE + 1),
             minDuration: 10 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, RATIO_BASE, uint32(RATIO_BASE + 1)));
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
@@ -2007,7 +2101,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 4 days - 1,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 4 days - 1)
@@ -2019,7 +2114,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 10 hours,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 10 hours)
@@ -2031,7 +2127,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 0 ether,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 0));
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
@@ -2047,7 +2144,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 365 days + 1,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 365 days, 365 days + 1)
@@ -2059,7 +2157,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 500 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 365 days, 500 days)
@@ -2071,7 +2170,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 10),
             minDuration: 1000 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 365 days, 1000 days)
@@ -2089,7 +2189,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         vm.expectEmit();
@@ -2108,7 +2209,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 19 days,
             l2InactivityPeriod: 50 minutes,
-            l2AggregationGracePeriod: 20 days
+            l2AggregationGracePeriod: 20 days,
+            skipL2: false
         });
 
         vm.warp(block.timestamp + 1);
@@ -2125,13 +2227,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_GovernanceSettingsReturnsTheRightValues() public {
-        (uint32 minVetoRatio, uint64 minDuration, uint64 l2InactivityPeriod, uint64 l2AggregationGracePeriod) =
-            optimisticPlugin.governanceSettings();
+        (
+            uint32 minVetoRatio,
+            uint64 minDuration,
+            uint64 l2InactivityPeriod,
+            uint64 l2AggregationGracePeriod,
+            bool skipL2
+        ) = optimisticPlugin.governanceSettings();
 
         assertEq(minVetoRatio, uint32(RATIO_BASE / 10));
         assertEq(minDuration, 4 days);
         assertEq(l2InactivityPeriod, 10 minutes);
         assertEq(l2AggregationGracePeriod, 2 days);
+        assertEq(skipL2, false);
 
         // Deploy a new optimisticPlugin instance
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
@@ -2139,7 +2247,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 2),
             minDuration: 0,
             l2InactivityPeriod: 15 minutes,
-            l2AggregationGracePeriod: 73 days
+            l2AggregationGracePeriod: 73 days,
+            skipL2: true
         });
 
         optimisticPlugin = OptimisticTokenVotingPlugin(
@@ -2152,12 +2261,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             )
         );
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(minVetoRatio, uint32(RATIO_BASE / 2));
         assertEq(minDuration, 0);
         assertEq(l2InactivityPeriod, 15 minutes);
         assertEq(l2AggregationGracePeriod, 73 days);
+        assertEq(skipL2, true);
 
         // updated settings
         dao.grant(
@@ -2168,17 +2278,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
             l2InactivityPeriod: 0,
-            l2AggregationGracePeriod: 1234 minutes
+            l2AggregationGracePeriod: 1234 minutes,
+            skipL2: false
         });
 
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
 
-        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod) =
+        (minVetoRatio, minDuration, l2InactivityPeriod, l2AggregationGracePeriod, skipL2) =
             optimisticPlugin.governanceSettings();
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5));
         assertEq(minDuration, 15 days);
         assertEq(l2InactivityPeriod, 0);
         assertEq(l2AggregationGracePeriod, 1234 minutes);
+        assertEq(skipL2, false);
     }
 
     // Upgrade optimisticPlugin
@@ -2214,7 +2326,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         address _newImplementation = address(new OptimisticTokenVotingPlugin());
@@ -2264,7 +2377,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
         optimisticPlugin.upgradeToAndCall(
             _newImplementation,
