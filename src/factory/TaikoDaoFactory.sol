@@ -32,7 +32,7 @@ contract TaikoDaoFactory {
         bool skipL2;
         // Voting settings
         uint32 minVetoRatio;
-        uint64 minStdProposalDelay;
+        uint64 minStdProposalDuration;
         uint16 minStdApprovals;
         uint16 minEmergencyApprovals;
         // OSx contracts
@@ -162,7 +162,7 @@ contract TaikoDaoFactory {
             Multisig.MultisigSettings(
                 true, // onlyListed
                 settings.minStdApprovals,
-                settings.minStdProposalDelay // destination minDuration
+                settings.minStdProposalDuration // destination minDuration
             )
         );
 
@@ -244,7 +244,7 @@ contract TaikoDaoFactory {
                     unusedMintSettings,
                     settings.taikoL1ContractAddress,
                     settings.taikoBridgeAddress,
-                    settings.minStdProposalDelay,
+                    settings.minStdProposalDuration,
                     stdProposer,
                     emergencyProposer
                 )
