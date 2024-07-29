@@ -202,9 +202,11 @@ contract OptimisticTokenVotingPlugin is
         return _totalVotingPower;
     }
 
-    /// @notice Determines whether the L2 is currently available
+    /// @notice Determines whether L2 votes are currently usable for voting
     function isL2Available() public view returns (bool) {
+        // Actively disabled L2 voting?
         if (governanceSettings.skipL2) return false;
+        // Is the L1 bridge paused?
         else if (taikoL1.paused()) return false;
 
         uint64 _id = taikoL1.slotB().numBlocks;
