@@ -37,6 +37,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
     /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
+    /// @param skipL2 Defines wether the plugin should ignore the voting power bridged to the L2, in terms of the token supply and L2 votes accepted. NOTE: This may affect ongoing proposals.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
         uint64 minDuration;
