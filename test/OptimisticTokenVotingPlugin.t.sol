@@ -41,7 +41,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     event VetoCast(uint256 indexed proposalId, address indexed voter, uint256 votingPower);
     event ProposalExecuted(uint256 indexed proposalId);
     event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod
+        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
     );
     event Upgraded(address indexed implementation);
 
@@ -2198,7 +2198,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
             l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
         });
 
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
@@ -2210,7 +2211,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minDuration: 19 days,
             l2InactivityPeriod: 50 minutes,
             l2AggregationGracePeriod: 20 days,
-            skipL2: false
+            skipL2: true
         });
 
         vm.warp(block.timestamp + 1);
@@ -2220,7 +2221,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 19 days,
             l2InactivityPeriod: 50 minutes,
-            l2AggregationGracePeriod: 20 days
+            l2AggregationGracePeriod: 20 days,
+            skipL2: true
         });
 
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
