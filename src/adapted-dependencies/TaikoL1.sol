@@ -15,6 +15,11 @@ abstract contract TaikoL1 {
     function slotB() public view virtual returns (TaikoData.SlotB memory);
 
     function getBlock(uint64 _blockId) public view virtual returns (TaikoData.Block memory);
+    function getLastVerifiedBlock()
+        public
+        view
+        virtual
+        returns (uint64 blockId_, bytes32 blockHash_, bytes32 stateRoot_);
 }
 
 library TaikoData {

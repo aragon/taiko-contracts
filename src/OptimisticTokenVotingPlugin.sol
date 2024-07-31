@@ -187,12 +187,13 @@ contract OptimisticTokenVotingPlugin is
 
     /// @inheritdoc IOptimisticTokenVoting
     function totalVotingPower(uint256 _timestamp) public view returns (uint256) {
-        return votingToken.getPastTotalSupply(_timestamp);
+        // Removing the votes of `taikoL1` which holds a lot of TAIKO as bond deposits
+        return votingToken.getPastTotalSupply(_timestamp) - votingToken.getPastVotes(address(taikoL1), _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
     function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
-        return votingToken.getPastVotes(taikoBridge, _timestamp);
+        return votingToken.getPastVotes(taikoERC20Vault, _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -215,12 +216,8 @@ contract OptimisticTokenVotingPlugin is
         // No L2 blocks yet
         if (_id == 0) return false;
 
-        // The last L2 block is too old
-        TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
-        // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-        if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
-
-        return true;
+        (,, uint64 lastBlockVerifiedTimestamp) = taikoL1.getLastVerifiedBlock();
+        return (lastBlockVerifiedTimestamp + governanceSettings.l2InactivityPeriod) >= block.timestamp;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -258,8 +255,8 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        // The bridge cannot vote directly. It must use a dedicated function.
-        if (_voter == taikoBridge) {
+        // Protocol contracts cannot vote directly. Bridged L2 tokens must use a dedicated function.
+        if (_voter == taikoBridge || _voter == taikoL1 || _voter == taikoERC20Vault) {
             return false;
         }
 
@@ -348,7 +345,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Checks
-        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
+        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoERC20Vault, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
