@@ -225,6 +225,8 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         // Create the proposal
         Proposal storage proposal_ = proposals[proposalId];
         proposal_.metadataURI = _metadataURI;
+
+        // Q(danielw): shall we validate `_destinationPlugin`?
         proposal_.destinationPlugin = _destinationPlugin;
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
@@ -233,6 +235,8 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
 
         for (uint256 i; i < _destinationActions.length;) {
             proposal_.destinationActions.push(_destinationActions[i]);
+
+            // Q(danielw): With the new solidity version, using `++i` in the for loop is good enough.
             unchecked {
                 ++i;
             }
@@ -415,5 +419,6 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @dev This empty reserved space is put in place to allow future versions to add new
     /// variables without shifting down storage in the inheritance chain.
     /// https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    /// Q(danielw): will `multisigSettings` and `lastMultisigSettingsChange` share the same slot?
     uint256[47] private __gap;
 }
