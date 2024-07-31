@@ -4,6 +4,8 @@ This reposity contains the codebase of the Taiko DAO, along with its 3 plugins a
 
 The DAO contract is an [Aragon DAO](https://github.com/aragon/osx), on which an **Optimistic Token Voting plugin** has the permission to execute proposals. Proposals on this plugin can only be created by two distinct multisig plugins, belonging to Taiko's Security Council.
 
+![Taiko DAO Overview](./img/overview.png)
+
 The Security Council operates a standard multisig plugin and an emergency variant. The standard Multisig is designed to be the place where DAO proposals start their journey. Any signer can submit a new proposal to the Security Council. After a certain approval ratio is reached, the proposal will be forwarded to the Optimistic voting plugin, where the community will need to ratify it.
 
 The Emergency Multisig, is meant to only be used under exceptional circumstances, i.e. when a critical vulnerability needs to be addressed immediately. Any signer can submit proposals as well, but these proposals will need to be approved by a super majority before they can be executed directly on the DAO. 
@@ -31,17 +33,20 @@ The governance settings need to be defined when the plugin is installed but the 
 - The DAO can update the plugin settings
 - The DAO can upgrade the plugin
 
-## Multisig (standard)
+## Multisig (standard flow)
 
 It allows the Security Council members to create and approve proposals. After a certain minimum of approvals is met, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) only.
 
 The ability to relay proposals to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) is restricted by a [permission condition](src/conditions/StandardProposalCondition.sol), which ensures that a minimum veto period is defined as part of the parameters. 
+
+![Standard proposal flow](./img/std-proposal-flow.png)
 
 ### Permissions
 
 - Only members can create proposals
 - Only members can approve
 - The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
+- The DAO can update the plugin settings
 
 ## Emergency Multisig
 
@@ -53,9 +58,20 @@ There are two key differences with the standard Multisig:
 1. The proposal's metadata and the actions to execute are encrypted, only the Security Council members have the means to decrypt them
 2. When the proposal is executed, the metadata and the actions become publicly visible on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin). There is an integrity check to prevent any changes to the originally approved content.
 
-### Public Key Registry
+![Emergency proposal flow](./img/emergency-proposal-flow.png)
 
-This is a helper contract that allows Security Council members to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions. 
+### Permissions
+
+The Emergency Multisig settings are the same as for the standard Multisig. 
+
+- Only members can create proposals
+- Only members can approve
+- The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
+- The DAO can update the plugin settings
+
+## Public Key Registry
+
+This is a helper contract that allows Security Council members to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions. Refer to the UI repository for the encryption details.
 
 NOTE: A published public key cannot be changed once published. 
 
