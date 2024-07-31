@@ -62,6 +62,7 @@ contract OptimisticTokenVotingPlugin is
         bytes metadataURI;
         IDAO.Action[] actions;
         uint256 allowFailureMap;
+        // Q(danielw): I believe the code to upgrade `aggregatedL2Balance` is missing.
         uint256 aggregatedL2Balance;
     }
 
@@ -184,13 +185,18 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
+
     function totalVotingPower(uint256 _timestamp) public view returns (uint256) {
         return votingToken.getPastTotalSupply(_timestamp);
+        // Q(danielw): we should probably need to remove votes of `taikoL1` which holds a lot of TAIKO as bond deposits.
+        // return votingToken.getPastTotalSupply(_timestamp) - votingToken.getPastVotes(address(taikoL1), _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
     function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
+         // Q(danielw): I think we should use `taikoERC20Vault`, not `taikoBridge`.
         return votingToken.getPastVotes(taikoBridge, _timestamp);
+        // return votingToken.getPastVotes(taikoERC20Vault, _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -203,6 +209,8 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice Determines whether L2 votes are currently usable for voting
+    // Q(daniel): not sure if we should use the last L2 block or the last verified L2 block...
+    // See https://github.com/taikoxyz/taiko-mono/pull/17868/files
     function isL2Available() public view returns (bool) {
         // Actively disabled L2 voting?
         if (governanceSettings.skipL2) return false;
@@ -219,6 +227,11 @@ contract OptimisticTokenVotingPlugin is
         if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
 
         return true;
+
+
+        // new impl suggested by Daniel W
+        // (,, uint64 lastBlockVerifiedTimestamp) = taikoL1.getLastVerifiedBlock();
+        // return _block.proposedAt + governanceSettings.l2InactivityPeriod >= block.timestamp;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -257,6 +270,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // The bridge cannot vote directly. It must use a dedicated function.
+        // Q(danielw): better to exclude taikoL1 and taikoERC20Vault as well.
         if (_voter == taikoBridge) {
             return false;
         }
@@ -345,6 +359,7 @@ contract OptimisticTokenVotingPlugin is
             snapshotTimestamp = block.timestamp - 1; // The snapshot timestamp must in the past to protect the transaction against backrunning transactions causing census changes.
         }
 
+        // Q(danielw): taikoBridge => taikoERC20Vault
         // Checks
         bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
@@ -542,6 +557,7 @@ contract OptimisticTokenVotingPlugin is
 
         // No more L2 vetoes can be registered
         // return false if no L2 votes have been aggregated until now
+        // Q(danielw): what if the aggregated L2 votes is actually zero? Maybe use another boolean var to track?
         return proposal_.aggregatedL2Balance > 0;
     }
 

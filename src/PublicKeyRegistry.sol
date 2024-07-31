@@ -17,6 +17,8 @@ contract PublicKeyRegistry {
     /// @notice Raised when the public key of the given user has already been set
     error AlreadySet();
 
+
+    /// Q(danielw): it seems if an incorrect pubkey is set, then there is no way to correct it.
     function setPublicKey(bytes32 _publicKey) public {
         if (publicKeys[msg.sender] != 0) revert AlreadySet();
 
