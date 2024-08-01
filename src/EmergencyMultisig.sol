@@ -59,6 +59,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
+        // Q(danielw): here Addresslist is used, but in Multisig.sol, the list of signers is managed differently. Why?
         Addresslist addresslistSource;
     }
 
