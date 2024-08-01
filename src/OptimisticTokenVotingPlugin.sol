@@ -89,7 +89,7 @@ contract OptimisticTokenVotingPlugin is
     IVotesUpgradeable public votingToken;
 
     /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
-    address public taikoBridge;
+    address public taikoERC20Vault;
 
     /// @notice Taiko L1 contract to check the status from.
     TaikoL1 public taikoL1;
@@ -155,18 +155,20 @@ contract OptimisticTokenVotingPlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
+    /// @param _taikoL1 The address of the contract where the status of the L2 blocks can be checked
+    /// @param _taikoERC20Vault The address where the tokens bridged to the L2 are stored
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
         address _taikoL1,
-        address _taikoBridge
+        address _taikoERC20Vault
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         votingToken = _token;
         taikoL1 = TaikoL1(_taikoL1);
-        taikoBridge = _taikoBridge;
+        taikoERC20Vault = _taikoERC20Vault;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
@@ -256,7 +258,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Protocol contracts cannot vote directly. Bridged L2 tokens must use a dedicated function.
-        if (_voter == taikoBridge || _voter == taikoL1 || _voter == taikoERC20Vault) {
+        if (_voter == address(taikoL1) || _voter == taikoERC20Vault) {
             return false;
         }
 
