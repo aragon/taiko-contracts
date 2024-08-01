@@ -29,6 +29,7 @@ contract TaikoDaoFactory {
         address taikoBridgeAddress;
         uint64 l2InactivityPeriod;
         uint64 l2AggregationGracePeriod;
+        bool skipL2;
         // Voting settings
         uint32 minVetoRatio;
         uint64 minStdProposalDelay;
@@ -227,7 +228,8 @@ contract TaikoDaoFactory {
                 settings.minVetoRatio,
                 0, // minDuration (the condition contract will enforce it)
                 settings.l2InactivityPeriod,
-                settings.l2AggregationGracePeriod
+                settings.l2AggregationGracePeriod,
+                settings.skipL2
             );
 
             OptimisticTokenVotingPluginSetup.TokenSettings memory existingTokenSettings =

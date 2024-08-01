@@ -37,11 +37,13 @@ contract OptimisticTokenVotingPlugin is
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
     /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
+    /// @param skipL2 Defines wether the plugin should ignore the voting power bridged to the L2, in terms of the token supply and L2 votes accepted. NOTE: Ongoing proposals will keep the value of the setting at the time of creation.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
         uint64 minDuration;
         uint64 l2InactivityPeriod;
         uint64 l2AggregationGracePeriod;
+        bool skipL2;
     }
 
     /// @notice A container for proposal-related information.
@@ -107,8 +109,9 @@ contract OptimisticTokenVotingPlugin is
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
     /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
+    /// @param skipL2 Defines wether the plugin should ignore the voting power bridged to the L2, in terms of the token supply and L2 votes accepted.
     event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod
+        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
     );
 
     /// @notice Emitted when a veto is cast by a voter.
@@ -201,9 +204,12 @@ contract OptimisticTokenVotingPlugin is
         return _totalVotingPower;
     }
 
-    /// @notice Determines whether the L2 is currently available
+    /// @notice Determines whether L2 votes are currently usable for voting
     function isL2Available() public view returns (bool) {
-        if (taikoL1.paused()) return false;
+        // Actively disabled L2 voting?
+        if (governanceSettings.skipL2) return false;
+        // Is the L1 bridge paused?
+        else if (taikoL1.paused()) return false;
 
         uint64 _id = taikoL1.slotB().numBlocks;
         // No L2 blocks yet
@@ -342,7 +348,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Checks
-        bool _enableL2 = votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0 && isL2Available();
+        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
@@ -509,7 +515,8 @@ contract OptimisticTokenVotingPlugin is
             minVetoRatio: _governanceSettings.minVetoRatio,
             minDuration: _governanceSettings.minDuration,
             l2AggregationGracePeriod: _governanceSettings.l2AggregationGracePeriod,
-            l2InactivityPeriod: _governanceSettings.l2InactivityPeriod
+            l2InactivityPeriod: _governanceSettings.l2InactivityPeriod,
+            skipL2: _governanceSettings.skipL2
         });
     }
 

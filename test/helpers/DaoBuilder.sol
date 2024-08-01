@@ -42,6 +42,7 @@ contract DaoBuilder is Test {
     uint64 public minDuration = 4 days;
     uint64 public l2InactivityPeriod = 10 minutes;
     uint64 public l2AggregationGracePeriod = 2 days;
+    bool public skipL2 = false;
 
     bool public onlyListed = true;
     uint16 public minApprovals = 1;
@@ -95,6 +96,16 @@ contract DaoBuilder is Test {
 
     function withL2AggregationGracePeriod(uint64 newL2AggregationGracePeriod) public returns (DaoBuilder) {
         l2AggregationGracePeriod = newL2AggregationGracePeriod;
+        return this;
+    }
+
+    function withSkipL2() public returns (DaoBuilder) {
+        skipL2 = true;
+        return this;
+    }
+
+    function withoutSkipL2() public returns (DaoBuilder) {
+        skipL2 = false;
         return this;
     }
 
@@ -177,7 +188,8 @@ contract DaoBuilder is Test {
                 minVetoRatio: minVetoRatio,
                 minDuration: minDuration,
                 l2InactivityPeriod: l2InactivityPeriod,
-                l2AggregationGracePeriod: l2AggregationGracePeriod
+                l2AggregationGracePeriod: l2AggregationGracePeriod,
+                skipL2: skipL2
             });
 
             optimisticPlugin = OptimisticTokenVotingPlugin(
