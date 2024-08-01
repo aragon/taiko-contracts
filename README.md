@@ -176,26 +176,26 @@ $ forge test
 ### Deploying the DAO
 
 1. Edit `script/multisig-members.json` with the list of addresses to set as signers
-2. Run `forge build`
+2. Run `forge build && forge test`
 3. Copy `.env.example` into `.env` and define the settings
 4. Run `source .env` to load them
 5. Set the RPC URL and run the deployment script
 
 ```shell
 RPC_URL="https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --via-ir
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify
 ```
 
 If you get the error `Failed to get EIP-1559 fees`, add `--legacy` to the last command:
 
 ```shell
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --via-ir --legacy
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --legacy
 ```
 
 If a some contracts fail to verify on Etherscan, retry with this command:
 
 ```shell
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --verify --via-ir --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
+forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --verify --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
 ```
 
 ### Formatting the code

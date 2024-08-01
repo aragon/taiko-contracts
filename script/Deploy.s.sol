@@ -94,7 +94,7 @@ contract Deploy is Script {
             skipL2: bool(vm.envBool("SKIP_L2")),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
-            minStdProposalDelay: uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY")),
+            minStdProposalDuration: uint64(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
@@ -131,7 +131,7 @@ contract Deploy is Script {
             skipL2: bool(vm.envBool("SKIP_L2")),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
-            minStdProposalDelay: uint64(vm.envUint("MIN_STD_PROPOSAL_DELAY")),
+            minStdProposalDuration: uint64(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts

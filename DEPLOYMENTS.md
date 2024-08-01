@@ -4,6 +4,37 @@
 
 ## Holesly
 
+### July 29th 2024
+
+Deployment for internal testing, with L2 voting disabled and using a test voting token.
+
+```
+  Chain ID: 17000
+  Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
+  Using internal testing settings
+  Minting test tokens for the multisig members and the bridge
+  
+  Factory: 0xF9Be929F990F9C8bF9ed355Ddd29Af7bd9995890
+  
+  DAO: 0xeB4586617089270Fe042F69Bf799590AF224807a
+  Voting token: 0x12b2574840dB17C2278d9725a2679E97FE266075
+  Taiko Bridge: 0x0000000000000000000000000000001234567890
+  
+  Plugins
+  - Multisig plugin: 0xd8Fe1194Cf90eF38b54A110EcfeAE8F2AA5Dfe86
+  - Emergency multisig plugin: 0xeCBa720A8645B198b2637f6559B9155E4bc3B566
+  - Optimistic token voting plugin: 0xd9F6A2533efab98bA016Cb1D3001b6Ec1C246485
+  
+  Plugin repositories
+  - Multisig plugin repository: 0xa51B2d7b7847cFB666919301e03f48b596A15871
+  - Emergency multisig plugin repository: 0x2ce4e91D1a00c42736730B494Ab9BFfbfEDdF2ac
+  - Optimistic token voting plugin repository: 0xC8f84E6E05b9C7b631A4dFD092605b8884207868
+
+  Helpers
+  - Public key registry 0x9695520e32F85eF403f6B18b8a94e44A90D5cBF0
+  - Delegation wall 0x15B379C5c9115e645Cdf1EF9fA03389586AfEa2A
+```
+
 ### July 25th 2024
 
 Deployment for internal testing, targeting test dependencies.

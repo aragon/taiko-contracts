@@ -89,7 +89,7 @@ contract OptimisticTokenVotingPlugin is
     IVotesUpgradeable public votingToken;
 
     /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
-    address public taikoBridge;
+    address public taikoERC20Vault;
 
     /// @notice Taiko L1 contract to check the status from.
     TaikoL1 public taikoL1;
@@ -155,18 +155,20 @@ contract OptimisticTokenVotingPlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
+    /// @param _taikoL1 The address of the contract where the status of the L2 blocks can be checked
+    /// @param _taikoERC20Vault The address where the tokens bridged to the L2 are stored
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
         address _taikoL1,
-        address _taikoBridge
+        address _taikoERC20Vault
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         votingToken = _token;
         taikoL1 = TaikoL1(_taikoL1);
-        taikoBridge = _taikoBridge;
+        taikoERC20Vault = _taikoERC20Vault;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
@@ -187,12 +189,13 @@ contract OptimisticTokenVotingPlugin is
 
     /// @inheritdoc IOptimisticTokenVoting
     function totalVotingPower(uint256 _timestamp) public view returns (uint256) {
-        return votingToken.getPastTotalSupply(_timestamp);
+        // Removing the votes of `taikoL1` which holds a lot of TAIKO as bond deposits
+        return votingToken.getPastTotalSupply(_timestamp) - votingToken.getPastVotes(address(taikoL1), _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
     function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
-        return votingToken.getPastVotes(taikoBridge, _timestamp);
+        return votingToken.getPastVotes(taikoERC20Vault, _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -215,12 +218,8 @@ contract OptimisticTokenVotingPlugin is
         // No L2 blocks yet
         if (_id == 0) return false;
 
-        // The last L2 block is too old
-        TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
-        // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-        if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
-
-        return true;
+        (,, uint64 lastBlockVerifiedTimestamp) = taikoL1.getLastVerifiedBlock();
+        return (lastBlockVerifiedTimestamp + governanceSettings.l2InactivityPeriod) >= block.timestamp;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -258,8 +257,8 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        // The bridge cannot vote directly. It must use a dedicated function.
-        if (_voter == taikoBridge) {
+        // Protocol contracts cannot vote directly. Bridged L2 tokens must use a dedicated function.
+        if (_voter == address(taikoL1) || _voter == taikoERC20Vault) {
             return false;
         }
 
@@ -348,7 +347,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Checks
-        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
+        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoERC20Vault, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
