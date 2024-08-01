@@ -4,6 +4,67 @@
 
 ## Holesly
 
+### August 1st 2024
+
+Deployment for internal testing, with L2 voting disabled and using a pre-release voting token.
+
+```
+  Chain ID: 17000
+  Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
+  Using production settings
+  
+  Factory: 0x7B29Ab702e25fD9Ff49dceE7359a2F20679C7fAe
+  
+  DAO: 0xFA90A362ef917B93c6069041f23911E6A5BAf8E6
+  Voting token: 0x7dbcF74e44EFc5eC635f40c962d90F2EeD81069a
+  Taiko Bridge: 0xA098b76a3Dd499D3F6D58D8AcCaFC8efBFd06807
+  
+  Plugins
+  - Multisig plugin: 0xC494da7b36Bd4f6E11FE68A884571811ad7A0925
+  - Emergency multisig plugin: 0x48BDC52A825e285CDC615313B8614037497DbE97
+  - Optimistic token voting plugin: 0x8C649199ac046daD2e4a24C36f82493A4d39BE80
+  
+  Plugin repositories
+  - Multisig plugin repository: 0x5E3Ee6a41c1185FEfFdb49F8e9930dCF6627D04f
+  - Emergency multisig plugin repository: 0xF7cf00690f412D4F2C2943bd7bEb7C98Ae9EE655
+  - Optimistic token voting plugin repository: 0x557d7502823e84629eEd562667CB000D125e7483
+  
+  Helpers
+  - Public key registry 0x9695520e32F85eF403f6B18b8a94e44A90D5cBF0
+  - Delegation wall 0x15B379C5c9115e645Cdf1EF9fA03389586AfEa2A
+```
+
+### July 29th 2024
+
+Deployment for internal testing, with L2 voting disabled and using a test voting token.
+
+```
+  Chain ID: 17000
+  Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
+  Using internal testing settings
+  Minting test tokens for the multisig members and the bridge
+  
+  Factory: 0xF9Be929F990F9C8bF9ed355Ddd29Af7bd9995890
+  
+  DAO: 0xeB4586617089270Fe042F69Bf799590AF224807a
+  Voting token: 0x12b2574840dB17C2278d9725a2679E97FE266075
+  Taiko Bridge: 0x0000000000000000000000000000001234567890
+  
+  Plugins
+  - Multisig plugin: 0xd8Fe1194Cf90eF38b54A110EcfeAE8F2AA5Dfe86
+  - Emergency multisig plugin: 0xeCBa720A8645B198b2637f6559B9155E4bc3B566
+  - Optimistic token voting plugin: 0xd9F6A2533efab98bA016Cb1D3001b6Ec1C246485
+  
+  Plugin repositories
+  - Multisig plugin repository: 0xa51B2d7b7847cFB666919301e03f48b596A15871
+  - Emergency multisig plugin repository: 0x2ce4e91D1a00c42736730B494Ab9BFfbfEDdF2ac
+  - Optimistic token voting plugin repository: 0xC8f84E6E05b9C7b631A4dFD092605b8884207868
+
+  Helpers
+  - Public key registry 0x9695520e32F85eF403f6B18b8a94e44A90D5cBF0
+  - Delegation wall 0x15B379C5c9115e645Cdf1EF9fA03389586AfEa2A
+```
+
 ### July 25th 2024
 
 Deployment for internal testing, targeting test dependencies.
