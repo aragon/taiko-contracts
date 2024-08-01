@@ -13,21 +13,21 @@ Deployment for internal testing, with L2 voting disabled and using a pre-release
   Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
   Using production settings
   
-  Factory: 0x7B29Ab702e25fD9Ff49dceE7359a2F20679C7fAe
+  Factory: 0xE645DEE69FF382EE3e7Df0cfA68FE390FCe63096
   
-  DAO: 0xFA90A362ef917B93c6069041f23911E6A5BAf8E6
+  DAO: 0x8a864aCD46700C28343E19FeCCFdb35E1BeCddf0
   Voting token: 0x7dbcF74e44EFc5eC635f40c962d90F2EeD81069a
   Taiko Bridge: 0xA098b76a3Dd499D3F6D58D8AcCaFC8efBFd06807
   
   Plugins
-  - Multisig plugin: 0xC494da7b36Bd4f6E11FE68A884571811ad7A0925
-  - Emergency multisig plugin: 0x48BDC52A825e285CDC615313B8614037497DbE97
-  - Optimistic token voting plugin: 0x8C649199ac046daD2e4a24C36f82493A4d39BE80
+  - Multisig plugin: 0x2AF95627Fe48D2D0E7EEeA89C9c01a7E58173961
+  - Emergency multisig plugin: 0xa3B58148f48E9FecA49AbfaAd423ea991565a9d7
+  - Optimistic token voting plugin: 0x9B508E7B3F7f267643fFF9770049ECC603D658f4
   
   Plugin repositories
-  - Multisig plugin repository: 0x5E3Ee6a41c1185FEfFdb49F8e9930dCF6627D04f
-  - Emergency multisig plugin repository: 0xF7cf00690f412D4F2C2943bd7bEb7C98Ae9EE655
-  - Optimistic token voting plugin repository: 0x557d7502823e84629eEd562667CB000D125e7483
+  - Multisig plugin repository: 0xb9F016301724d3E5eABDC62360Fcc9b03aCf12bF
+  - Emergency multisig plugin repository: 0x7bd5B828F56D419a05FD247F9d3da5F22C0Ab1ba
+  - Optimistic token voting plugin repository: 0xA4CA46Af2F186c446259aBF913DA699A259bD0e7
   
   Helpers
   - Public key registry 0x9695520e32F85eF403f6B18b8a94e44A90D5cBF0
