@@ -11,10 +11,13 @@ import {TaikoL1Mock} from "../mocks/TaikoL1Mock.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepoRegistry} from "@aragon/osx/framework/plugin/repo/PluginRepoRegistry.sol";
+import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
+import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {MultisigPluginSetup} from "../../src/setup/MultisigPluginSetup.sol";
 import {EmergencyMultisigPluginSetup} from "../../src/setup/EmergencyMultisigPluginSetup.sol";
@@ -150,7 +153,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
-        address[] memory multisigMembers = new address[](20);
+        address[] memory multisigMembers = new address[](15);
 
         MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
         EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
@@ -269,7 +272,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
     }
 
-    function test_StandardDeployment() public {
+    function test_StandardDeployment_1() public {
         DAO tempMgmtDao = DAO(
             payable(
                 createProxyAndCall(
@@ -282,11 +285,17 @@ contract TaikoDaoFactoryTest is AragonTest {
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
         address[] memory multisigMembers = new address[](13);
+        for (uint256 i = 0; i < 13; i++) {
+            multisigMembers[i] = address(uint160(i + 1));
+        }
 
         MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
         EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
-        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup =
-            new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(0)), GovernanceWrappedERC20(address(0)));
+        GovernanceERC20.MintSettings memory mintSettings =
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
+        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
+            new GovernanceERC20(tempMgmtDao, "", "", mintSettings), new GovernanceWrappedERC20(tokenAddress, "", "")
+        );
 
         PluginRepoFactory pRefoFactory;
         MockPluginSetupProcessor psp;
@@ -295,9 +304,478 @@ contract TaikoDaoFactoryTest is AragonTest {
             pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));
 
             address[] memory setups = new address[](3);
-            setups[0] = address(multisigPluginSetup);
+            // adding in reverse order (stack)
+            setups[2] = address(multisigPluginSetup);
             setups[1] = address(emergencyMultisigPluginSetup);
-            setups[2] = address(optimisticTokenVotingPluginSetup);
+            setups[0] = address(optimisticTokenVotingPluginSetup);
+            psp = new MockPluginSetupProcessor(setups);
+        }
+        MockDaoFactory daoFactory = new MockDaoFactory(psp);
+
+        TaikoDaoFactory.DeploymentSettings memory creationSettings = TaikoDaoFactory.DeploymentSettings({
+            // Taiko contract settings
+            tokenAddress: tokenAddress,
+            taikoL1ContractAddress: address(taikoL1ContractAddress), // address
+            taikoBridgeAddress: taikoBridgeAddress, // address
+            l2InactivityPeriod: 10 minutes, // uint64
+            l2AggregationGracePeriod: 2 days, // uint64
+            skipL2: false,
+            // Voting settings
+            minVetoRatio: 200_000, // uint32
+            minStdProposalDuration: 10 days, // uint64
+            minStdApprovals: 7, // uint16
+            minEmergencyApprovals: 11, // uint16
+            // OSx contracts
+            osxDaoFactory: address(daoFactory),
+            pluginSetupProcessor: PluginSetupProcessor(address(psp)), // PluginSetupProcessor
+            pluginRepoFactory: PluginRepoFactory(address(pRefoFactory)), // PluginRepoFactory
+            // Plugin setup's
+            multisigPluginSetup: multisigPluginSetup,
+            emergencyMultisigPluginSetup: emergencyMultisigPluginSetup,
+            optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
+            // Multisig
+            multisigMembers: multisigMembers, // address[]
+            // ENS
+            stdMultisigEnsDomain: "multisig", // string
+            emergencyMultisigEnsDomain: "eMultisig", // string
+            optimisticTokenVotingEnsDomain: "optimistic" // string
+        });
+
+        // Deploy
+        TaikoDaoFactory factory = new TaikoDaoFactory(creationSettings);
+
+        factory.deployOnce();
+        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+
+        vm.roll(block.number + 1); // mint one block
+
+        // DAO checks
+
+        assertNotEq(address(deployment.dao), address(0), "Empty DAO field");
+        assertEq(deployment.dao.daoURI(), "", "DAO URI should be empty");
+        assertEq(address(deployment.dao.signatureValidator()), address(0), "signatureValidator should be empty");
+        assertEq(address(deployment.dao.getTrustedForwarder()), address(0), "trustedForwarder should be empty");
+        assertEq(
+            deployment.dao.hasPermission(
+                address(deployment.dao), address(deployment.dao), deployment.dao.ROOT_PERMISSION_ID(), bytes("")
+            ),
+            true,
+            "The DAO should be ROOT on itself"
+        );
+        assertEq(
+            deployment.dao.hasPermission(
+                address(deployment.dao), address(deployment.dao), deployment.dao.UPGRADE_DAO_PERMISSION_ID(), bytes("")
+            ),
+            true,
+            "The DAO should have UPGRADE_DAO_PERMISSION on itself"
+        );
+        assertEq(
+            deployment.dao.hasPermission(
+                address(deployment.dao),
+                address(deployment.dao),
+                deployment.dao.REGISTER_STANDARD_CALLBACK_PERMISSION_ID(),
+                bytes("")
+            ),
+            true,
+            "The DAO should have REGISTER_STANDARD_CALLBACK_PERMISSION_ID on itself"
+        );
+
+        // Multisig plugin
+
+        assertNotEq(address(deployment.multisigPlugin), address(0), "Empty multisig field");
+        assertEq(
+            deployment.multisigPlugin.lastMultisigSettingsChange(),
+            block.number - 1,
+            "Invalid lastMultisigSettingsChange"
+        );
+        assertEq(deployment.multisigPlugin.proposalCount(), 0, "Invalid proposal count");
+        assertEq(deployment.multisigPlugin.addresslistLength(), 13, "Invalid addresslistLength");
+        for (uint256 i = 0; i < 13; i++) {
+            assertEq(deployment.multisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
+        }
+        for (uint256 i = 14; i < 50; i++) {
+            assertEq(deployment.multisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
+        }
+        {
+            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration) =
+                deployment.multisigPlugin.multisigSettings();
+
+            assertEq(onlyListed, true, "Invalid onlyListed");
+            assertEq(minApprovals, 7, "Invalid minApprovals");
+            assertEq(destinationProposalDuration, 10 days, "Invalid destinationProposalDuration");
+        }
+
+        // Emergency Multisig plugin
+
+        assertNotEq(address(deployment.emergencyMultisigPlugin), address(0), "Empty emergencyMultisig field");
+        assertEq(
+            deployment.emergencyMultisigPlugin.lastMultisigSettingsChange(),
+            block.number - 1,
+            "Invalid lastMultisigSettingsChange"
+        );
+        assertEq(deployment.emergencyMultisigPlugin.proposalCount(), 0, "Invalid proposal count");
+        for (uint256 i = 0; i < 13; i++) {
+            assertEq(deployment.emergencyMultisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
+        }
+        for (uint256 i = 14; i < 50; i++) {
+            assertEq(deployment.emergencyMultisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
+        }
+        {
+            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource) =
+                deployment.emergencyMultisigPlugin.multisigSettings();
+
+            assertEq(onlyListed, true, "Invalid onlyListed");
+            assertEq(minApprovals, 11, "Invalid minApprovals");
+            assertEq(address(addresslistSource), address(deployment.multisigPlugin), "Invalid addresslistSource");
+        }
+
+        // Optimistic token voting plugin checks
+
+        assertNotEq(
+            address(deployment.optimisticTokenVotingPlugin), address(0), "Empty optimisticTokenVotingPlugin field"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.votingToken()), address(tokenAddress), "Invalid votingToken"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.taikoL1()),
+            address(taikoL1ContractAddress),
+            "Invalid taikoL1"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.taikoBridge()),
+            address(taikoBridgeAddress),
+            "Invalid taikoBridge"
+        );
+        assertEq(deployment.optimisticTokenVotingPlugin.proposalCount(), 0, "Invalid proposal count");
+        {
+            (
+                uint32 minVetoRatio,
+                uint64 minDuration,
+                uint64 l2InactivityPeriod,
+                uint64 l2AggregationGracePeriod,
+                bool skipL2
+            ) = deployment.optimisticTokenVotingPlugin.governanceSettings();
+
+            assertEq(minVetoRatio, 200_000, "Invalid minVetoRatio");
+            assertEq(minDuration, 0, "Invalid minDuration"); // 10 days is enforced on the condition contract
+            assertEq(l2InactivityPeriod, 10 minutes, "Invalid l2InactivityPeriod");
+            assertEq(l2AggregationGracePeriod, 2 days, "Invalid l2AggregationGracePeriod");
+            assertEq(skipL2, false, "Invalid skipL2");
+        }
+
+        // PLUGIN REPO's
+
+        PluginRepo.Version memory version;
+
+        // Multisig repo
+        assertNotEq(address(deployment.multisigPluginRepo), address(0), "Empty multisigPluginRepo field");
+        assertEq(deployment.multisigPluginRepo.latestRelease(), 1, "Invalid latestRelease");
+        assertEq(deployment.multisigPluginRepo.buildCount(1), 1, "Invalid buildCount");
+        version = deployment.multisigPluginRepo.getLatestVersion(1);
+        assertEq(address(version.pluginSetup), address(multisigPluginSetup), "Invalid multisigPluginSetup");
+
+        // Emergency multisig repo
+        assertNotEq(
+            address(deployment.emergencyMultisigPluginRepo), address(0), "Empty emergencyMultisigPluginRepo field"
+        );
+        assertEq(deployment.emergencyMultisigPluginRepo.latestRelease(), 1, "Invalid latestRelease");
+        assertEq(deployment.emergencyMultisigPluginRepo.buildCount(1), 1, "Invalid buildCount");
+        version = deployment.emergencyMultisigPluginRepo.getLatestVersion(1);
+        assertEq(
+            address(version.pluginSetup), address(emergencyMultisigPluginSetup), "Invalid emergencyMultisigPluginSetup"
+        );
+
+        // Optimistic repo
+        assertNotEq(
+            address(deployment.optimisticTokenVotingPluginRepo),
+            address(0),
+            "Empty optimisticTokenVotingPluginRepo field"
+        );
+        assertEq(deployment.optimisticTokenVotingPluginRepo.latestRelease(), 1, "Invalid latestRelease");
+        assertEq(deployment.optimisticTokenVotingPluginRepo.buildCount(1), 1, "Invalid buildCount");
+        version = deployment.optimisticTokenVotingPluginRepo.getLatestVersion(1);
+        assertEq(
+            address(version.pluginSetup),
+            address(optimisticTokenVotingPluginSetup),
+            "Invalid optimisticTokenVotingPluginSetup"
+        );
+
+        // PUBLIC KEY REGISTRY
+        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
+        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+    }
+
+    function test_StandardDeployment_2() public {
+        DAO tempMgmtDao = DAO(
+            payable(
+                createProxyAndCall(
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", address(this), address(0x0), ""))
+                )
+            )
+        );
+
+        GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
+        TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
+        address taikoBridgeAddress = address(0x5678);
+        address[] memory multisigMembers = new address[](16);
+        for (uint256 i = 0; i < 16; i++) {
+            multisigMembers[i] = address(uint160(i + 1));
+        }
+
+        MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
+        EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
+        GovernanceERC20.MintSettings memory mintSettings =
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
+        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
+            new GovernanceERC20(tempMgmtDao, "", "", mintSettings), new GovernanceWrappedERC20(tokenAddress, "", "")
+        );
+
+        PluginRepoFactory pRefoFactory;
+        MockPluginSetupProcessor psp;
+        {
+            MockPluginRepoRegistry pRepoRegistry = new MockPluginRepoRegistry();
+            pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));
+
+            address[] memory setups = new address[](3);
+            // adding in reverse order (stack)
+            setups[2] = address(multisigPluginSetup);
+            setups[1] = address(emergencyMultisigPluginSetup);
+            setups[0] = address(optimisticTokenVotingPluginSetup);
+            psp = new MockPluginSetupProcessor(setups);
+        }
+        MockDaoFactory daoFactory = new MockDaoFactory(psp);
+
+        TaikoDaoFactory.DeploymentSettings memory creationSettings = TaikoDaoFactory.DeploymentSettings({
+            // Taiko contract settings
+            tokenAddress: tokenAddress,
+            taikoL1ContractAddress: address(taikoL1ContractAddress), // address
+            taikoBridgeAddress: taikoBridgeAddress, // address
+            l2InactivityPeriod: 27 minutes, // uint64
+            l2AggregationGracePeriod: 3 days, // uint64
+            skipL2: true,
+            // Voting settings
+            minVetoRatio: 456_000, // uint32
+            minStdProposalDuration: 21 days, // uint64
+            minStdApprovals: 9, // uint16
+            minEmergencyApprovals: 15, // uint16
+            // OSx contracts
+            osxDaoFactory: address(daoFactory),
+            pluginSetupProcessor: PluginSetupProcessor(address(psp)), // PluginSetupProcessor
+            pluginRepoFactory: PluginRepoFactory(address(pRefoFactory)), // PluginRepoFactory
+            // Plugin setup's
+            multisigPluginSetup: multisigPluginSetup,
+            emergencyMultisigPluginSetup: emergencyMultisigPluginSetup,
+            optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
+            // Multisig
+            multisigMembers: multisigMembers, // address[]
+            // ENS
+            stdMultisigEnsDomain: "multisig", // string
+            emergencyMultisigEnsDomain: "eMultisig", // string
+            optimisticTokenVotingEnsDomain: "optimistic" // string
+        });
+
+        // Deploy
+        TaikoDaoFactory factory = new TaikoDaoFactory(creationSettings);
+
+        factory.deployOnce();
+        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+
+        vm.roll(block.number + 1); // mint one block
+
+        // DAO checks
+
+        assertNotEq(address(deployment.dao), address(0), "Empty DAO field");
+        assertEq(deployment.dao.daoURI(), "", "DAO URI should be empty");
+        assertEq(address(deployment.dao.signatureValidator()), address(0), "signatureValidator should be empty");
+        assertEq(address(deployment.dao.getTrustedForwarder()), address(0), "trustedForwarder should be empty");
+        assertEq(
+            deployment.dao.hasPermission(
+                address(deployment.dao), address(deployment.dao), deployment.dao.ROOT_PERMISSION_ID(), bytes("")
+            ),
+            true,
+            "The DAO should be ROOT on itself"
+        );
+        assertEq(
+            deployment.dao.hasPermission(
+                address(deployment.dao), address(deployment.dao), deployment.dao.UPGRADE_DAO_PERMISSION_ID(), bytes("")
+            ),
+            true,
+            "The DAO should have UPGRADE_DAO_PERMISSION on itself"
+        );
+        assertEq(
+            deployment.dao.hasPermission(
+                address(deployment.dao),
+                address(deployment.dao),
+                deployment.dao.REGISTER_STANDARD_CALLBACK_PERMISSION_ID(),
+                bytes("")
+            ),
+            true,
+            "The DAO should have REGISTER_STANDARD_CALLBACK_PERMISSION_ID on itself"
+        );
+
+        // Multisig plugin
+
+        assertNotEq(address(deployment.multisigPlugin), address(0), "Empty multisig field");
+        assertEq(
+            deployment.multisigPlugin.lastMultisigSettingsChange(),
+            block.number - 1,
+            "Invalid lastMultisigSettingsChange"
+        );
+        assertEq(deployment.multisigPlugin.proposalCount(), 0, "Invalid proposal count");
+        assertEq(deployment.multisigPlugin.addresslistLength(), 16, "Invalid addresslistLength");
+        for (uint256 i = 0; i < 16; i++) {
+            assertEq(deployment.multisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
+        }
+        for (uint256 i = 17; i < 50; i++) {
+            assertEq(deployment.multisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
+        }
+        {
+            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration) =
+                deployment.multisigPlugin.multisigSettings();
+
+            assertEq(onlyListed, true, "Invalid onlyListed");
+            assertEq(minApprovals, 9, "Invalid minApprovals");
+            assertEq(destinationProposalDuration, 21 days, "Invalid destinationProposalDuration");
+        }
+
+        // Emergency Multisig plugin
+
+        assertNotEq(address(deployment.emergencyMultisigPlugin), address(0), "Empty emergencyMultisig field");
+        assertEq(
+            deployment.emergencyMultisigPlugin.lastMultisigSettingsChange(),
+            block.number - 1,
+            "Invalid lastMultisigSettingsChange"
+        );
+        assertEq(deployment.emergencyMultisigPlugin.proposalCount(), 0, "Invalid proposal count");
+        for (uint256 i = 0; i < 16; i++) {
+            assertEq(deployment.emergencyMultisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
+        }
+        for (uint256 i = 17; i < 50; i++) {
+            assertEq(deployment.emergencyMultisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
+        }
+        {
+            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource) =
+                deployment.emergencyMultisigPlugin.multisigSettings();
+
+            assertEq(onlyListed, true, "Invalid onlyListed");
+            assertEq(minApprovals, 15, "Invalid minApprovals");
+            assertEq(address(addresslistSource), address(deployment.multisigPlugin), "Invalid addresslistSource");
+        }
+
+        // Optimistic token voting plugin checks
+
+        assertNotEq(
+            address(deployment.optimisticTokenVotingPlugin), address(0), "Empty optimisticTokenVotingPlugin field"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.votingToken()), address(tokenAddress), "Invalid votingToken"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.taikoL1()),
+            address(taikoL1ContractAddress),
+            "Invalid taikoL1"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.taikoBridge()),
+            address(taikoBridgeAddress),
+            "Invalid taikoBridge"
+        );
+        assertEq(deployment.optimisticTokenVotingPlugin.proposalCount(), 0, "Invalid proposal count");
+        {
+            (
+                uint32 minVetoRatio,
+                uint64 minDuration,
+                uint64 l2InactivityPeriod,
+                uint64 l2AggregationGracePeriod,
+                bool skipL2
+            ) = deployment.optimisticTokenVotingPlugin.governanceSettings();
+
+            assertEq(minVetoRatio, 456_000, "Invalid minVetoRatio");
+            assertEq(minDuration, 0, "Invalid minDuration"); // 10 days is enforced on the condition contract
+            assertEq(l2InactivityPeriod, 27 minutes, "Invalid l2InactivityPeriod");
+            assertEq(l2AggregationGracePeriod, 3 days, "Invalid l2AggregationGracePeriod");
+            assertEq(skipL2, true, "Invalid skipL2");
+        }
+
+        // PLUGIN REPO's
+
+        PluginRepo.Version memory version;
+
+        // Multisig repo
+        assertNotEq(address(deployment.multisigPluginRepo), address(0), "Empty multisigPluginRepo field");
+        assertEq(deployment.multisigPluginRepo.latestRelease(), 1, "Invalid latestRelease");
+        assertEq(deployment.multisigPluginRepo.buildCount(1), 1, "Invalid buildCount");
+        version = deployment.multisigPluginRepo.getLatestVersion(1);
+        assertEq(address(version.pluginSetup), address(multisigPluginSetup), "Invalid multisigPluginSetup");
+
+        // Emergency multisig repo
+        assertNotEq(
+            address(deployment.emergencyMultisigPluginRepo), address(0), "Empty emergencyMultisigPluginRepo field"
+        );
+        assertEq(deployment.emergencyMultisigPluginRepo.latestRelease(), 1, "Invalid latestRelease");
+        assertEq(deployment.emergencyMultisigPluginRepo.buildCount(1), 1, "Invalid buildCount");
+        version = deployment.emergencyMultisigPluginRepo.getLatestVersion(1);
+        assertEq(
+            address(version.pluginSetup), address(emergencyMultisigPluginSetup), "Invalid emergencyMultisigPluginSetup"
+        );
+
+        // Optimistic repo
+        assertNotEq(
+            address(deployment.optimisticTokenVotingPluginRepo),
+            address(0),
+            "Empty optimisticTokenVotingPluginRepo field"
+        );
+        assertEq(deployment.optimisticTokenVotingPluginRepo.latestRelease(), 1, "Invalid latestRelease");
+        assertEq(deployment.optimisticTokenVotingPluginRepo.buildCount(1), 1, "Invalid buildCount");
+        version = deployment.optimisticTokenVotingPluginRepo.getLatestVersion(1);
+        assertEq(
+            address(version.pluginSetup),
+            address(optimisticTokenVotingPluginSetup),
+            "Invalid optimisticTokenVotingPluginSetup"
+        );
+
+        // PUBLIC KEY REGISTRY
+        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
+        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+    }
+
+    function test_MultipleDeploysDoNothing() public {
+        DAO tempMgmtDao = DAO(
+            payable(
+                createProxyAndCall(
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", address(this), address(0x0), ""))
+                )
+            )
+        );
+
+        GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
+        TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
+        address taikoBridgeAddress = address(0x1234);
+        address[] memory multisigMembers = new address[](13);
+        for (uint256 i = 0; i < 13; i++) {
+            multisigMembers[i] = address(uint160(i + 1));
+        }
+
+        MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
+        EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
+        GovernanceERC20.MintSettings memory mintSettings =
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
+        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
+            new GovernanceERC20(tempMgmtDao, "", "", mintSettings), new GovernanceWrappedERC20(tokenAddress, "", "")
+        );
+
+        PluginRepoFactory pRefoFactory;
+        MockPluginSetupProcessor psp;
+        {
+            MockPluginRepoRegistry pRepoRegistry = new MockPluginRepoRegistry();
+            pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));
+
+            address[] memory setups = new address[](3);
+            // adding in reverse order (stack)
+            setups[2] = address(multisigPluginSetup);
+            setups[1] = address(emergencyMultisigPluginSetup);
+            setups[0] = address(optimisticTokenVotingPluginSetup);
             psp = new MockPluginSetupProcessor(setups);
         }
         MockDaoFactory daoFactory = new MockDaoFactory(psp);
@@ -332,10 +810,13 @@ contract TaikoDaoFactoryTest is AragonTest {
         });
 
         TaikoDaoFactory factory = new TaikoDaoFactory(creationSettings);
+        // ok
         factory.deployOnce();
 
-        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+        vm.expectRevert(abi.encodeWithSelector(TaikoDaoFactory.AlreadyDeployed.selector));
+        factory.deployOnce();
 
-        // TODO:
+        vm.expectRevert(abi.encodeWithSelector(TaikoDaoFactory.AlreadyDeployed.selector));
+        factory.deployOnce();
     }
 }
