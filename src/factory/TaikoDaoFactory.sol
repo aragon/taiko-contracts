@@ -20,6 +20,7 @@ import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol"
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
 import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 
 contract TaikoDaoFactory {
     struct DeploymentSettings {
@@ -141,7 +142,7 @@ contract TaikoDaoFactory {
                         DAO.initialize,
                         (
                             "", // Metadata URI
-                            address(this),
+                            address(this), // initialOwner
                             address(0x0), // Trusted forwarder
                             "" // DAO URI
                         )
@@ -149,6 +150,19 @@ contract TaikoDaoFactory {
                 )
             )
         );
+
+        // Grant DAO all the needed permissions on itself
+        PermissionLib.SingleTargetPermission[] memory items = new PermissionLib.SingleTargetPermission[](3);
+        items[0] =
+            PermissionLib.SingleTargetPermission(PermissionLib.Operation.Grant, address(dao), dao.ROOT_PERMISSION_ID());
+        items[1] = PermissionLib.SingleTargetPermission(
+            PermissionLib.Operation.Grant, address(dao), dao.UPGRADE_DAO_PERMISSION_ID()
+        );
+        items[2] = PermissionLib.SingleTargetPermission(
+            PermissionLib.Operation.Grant, address(dao), dao.REGISTER_STANDARD_CALLBACK_PERMISSION_ID()
+        );
+
+        dao.applySingleTargetPermissions(address(dao), items);
     }
 
     function prepareMultisig(DAO dao) internal returns (Multisig, PluginRepo, IPluginSetup.PreparedSetupData memory) {
