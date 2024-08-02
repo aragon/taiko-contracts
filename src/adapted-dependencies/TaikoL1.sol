@@ -19,7 +19,7 @@ abstract contract TaikoL1 {
         public
         view
         virtual
-        returns (uint64 blockId_, bytes32 blockHash_, bytes32 stateRoot_);
+        returns (uint64 blockId_, bytes32 blockHash_, bytes32 stateRoot_, uint64 verifiedAt_);
 }
 
 library TaikoData {

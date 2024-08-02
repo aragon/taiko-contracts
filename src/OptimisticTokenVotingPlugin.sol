@@ -218,7 +218,7 @@ contract OptimisticTokenVotingPlugin is
         // No L2 blocks yet
         if (_id == 0) return false;
 
-        (,, uint64 lastBlockVerifiedTimestamp) = taikoL1.getLastVerifiedBlock();
+        (,,, uint64 lastBlockVerifiedTimestamp) = taikoL1.getLastVerifiedBlock();
         return (lastBlockVerifiedTimestamp + governanceSettings.l2InactivityPeriod) >= block.timestamp;
     }
 
