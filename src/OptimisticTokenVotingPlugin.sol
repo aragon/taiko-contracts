@@ -542,6 +542,9 @@ contract OptimisticTokenVotingPlugin is
             return true;
         }
 
+        // Q(danielw): what if the aggregated L2 votes is actually zero?
+        // This topic will be resolved when L2 voting is fully implemented on the upcoming version.
+
         // No more L2 vetoes can be registered
         // return false if no L2 votes have been aggregated until now
         return proposal_.aggregatedL2Balance > 0;
