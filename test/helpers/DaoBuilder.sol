@@ -8,7 +8,7 @@ import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
-import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
+import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock, TaikoL1Incompatible} from "../mocks/TaikoL1Mock.sol";
 import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
 import {ALICE_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
@@ -22,7 +22,8 @@ contract DaoBuilder is Test {
     enum TaikoL1Status {
         Standard,
         Paused,
-        OutOfSync
+        OutOfSync,
+        Incompatible
     }
 
     struct MintEntry {
@@ -65,6 +66,11 @@ contract DaoBuilder is Test {
 
     function withOutOfSyncTaikoL1() public returns (DaoBuilder) {
         taikoL1Status = TaikoL1Status.OutOfSync;
+        return this;
+    }
+
+    function withIncompatibleTaikoL1() public returns (DaoBuilder) {
+        taikoL1Status = TaikoL1Status.Incompatible;
         return this;
     }
 
@@ -178,8 +184,10 @@ contract DaoBuilder is Test {
             taikoL1 = new TaikoL1Mock();
         } else if (taikoL1Status == TaikoL1Status.Paused) {
             taikoL1 = new TaikoL1PausedMock();
-        } else {
+        } else if (taikoL1Status == TaikoL1Status.OutOfSync) {
             taikoL1 = new TaikoL1WithOldLastBlock();
+        } else {
+            taikoL1 = TaikoL1(address(new TaikoL1Incompatible()));
         }
 
         {

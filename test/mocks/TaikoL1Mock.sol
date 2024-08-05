@@ -43,3 +43,5 @@ contract TaikoL1WithOldLastBlock is TaikoL1 {
         result.proposedAt = 1;
     }
 }
+
+contract TaikoL1Incompatible {}

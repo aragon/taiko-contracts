@@ -1788,6 +1788,9 @@ contract EmergencyMultisigTest is AragonTest {
         (executed,,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
 
+        assertEq(bob.balance, 1 ether, "Incorrect balance");
+        assertEq(address(dao).balance, 3 ether, "Incorrect balance");
+
         // 2
         vm.startPrank(alice);
 
@@ -1820,6 +1823,48 @@ contract EmergencyMultisigTest is AragonTest {
 
         (executed,,,,,,) = eMultisig.getProposal(pid);
         assertEq(executed, true, "Should be executed");
+
+        assertEq(carol.balance, 3 ether, "Incorrect balance");
+        assertEq(address(dao).balance, 0, "Incorrect balance");
+    }
+
+    function test_ExecutesSuccessfullyDespiteIncompatibleTaikoL1() public {
+        // executes even if the TaikoL1 contract reverts
+        (dao, optimisticPlugin,, eMultisig,,) = builder.withIncompatibleTaikoL1().build();
+
+        vm.deal(address(dao), 4 ether);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        bytes32 metadataUriHash = keccak256("ipfs://");
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid = eMultisig.createProposal("", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // Alice
+        eMultisig.approve(pid);
+        (bool executed,,,,,,) = eMultisig.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Bob
+        vm.startPrank(bob);
+        eMultisig.approve(pid);
+        (executed,,,,,,) = eMultisig.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        // Carol
+        vm.startPrank(carol);
+        eMultisig.approve(pid);
+        (executed,,,,,,) = eMultisig.getProposal(pid);
+        assertEq(executed, false, "Should not be executed");
+
+        vm.startPrank(randomWallet);
+        eMultisig.execute(pid, "ipfs://", actions);
+        (executed,,,,,,) = eMultisig.getProposal(pid);
+        assertEq(executed, true, "Should be executed");
+
+        assertEq(bob.balance, 1 ether, "Incorrect balance");
+        assertEq(address(dao).balance, 3 ether, "Incorrect balance");
     }
 
     function test_GetProposalReturnsTheRightValues() public {
