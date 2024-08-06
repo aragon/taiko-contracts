@@ -164,6 +164,8 @@ contract OptimisticTokenVotingPlugin is
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
+        if(_taikoL1 == address(0)) revert();
+
         votingToken = _token;
         taikoL1 = TaikoL1(_taikoL1);
         taikoBridge = _taikoBridge;
