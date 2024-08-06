@@ -767,6 +767,18 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(_open, true, "Incorrect open status");
     }
 
+    function test_CreateProposalStartsDespiteRevertingTaikoL1() public {
+        (dao, optimisticPlugin,,,,) = builder.withIncompatibleTaikoL1().build();
+
+        vm.warp(2 days);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 4 days);
+
+        (bool _open,,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(_open, true, "Incorrect open status");
+    }
+
     function test_CreateProposalEndsAfterMinDurationOnlyL1Tokens() public {
         vm.warp(50 days - 1);
 

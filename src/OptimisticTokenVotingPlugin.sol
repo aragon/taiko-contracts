@@ -164,6 +164,8 @@ contract OptimisticTokenVotingPlugin is
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
+        if(_taikoL1 == address(0)) revert();
+
         votingToken = _token;
         taikoL1 = TaikoL1(_taikoL1);
         taikoBridge = _taikoBridge;
@@ -208,18 +210,27 @@ contract OptimisticTokenVotingPlugin is
     function isL2Available() public view returns (bool) {
         // Actively disabled L2 voting?
         if (governanceSettings.skipL2) return false;
+
         // Is the L1 bridge paused?
-        else if (taikoL1.paused()) return false;
+        try taikoL1.paused() returns (bool paused) {
+            if (paused) return false;
+        } catch {
+            // Assume that L2 is not available if we can't read properly
+            return false;
+        }
 
-        uint64 _id = taikoL1.slotB().numBlocks;
-        // No L2 blocks yet
-        if (_id == 0) return false;
+        try taikoL1.slotB() returns (TaikoData.SlotB memory _slot) {
+            // No L2 blocks yet
+            if (_slot.numBlocks == 0) return false;
 
-        // The last L2 block is too old
-        TaikoData.Block memory _block = taikoL1.getBlock(_id - 1);
-        // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-        if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
-
+            // The last L2 block is too old
+            TaikoData.Block memory _block = taikoL1.getBlock(_slot.numBlocks - 1);
+            // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
+            if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
+        } catch {
+            // Assume that L2 is not available if we can't read properly
+            return false;
+        }
         return true;
     }
 
