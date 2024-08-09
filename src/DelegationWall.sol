@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 
 /// @title DelegationWall - Release 1, Build 1
 /// @author Aragon Association - 2024
-/// @notice A smart contract where any wallet can register its own libsodium public key for encryption purposes
+/// @notice A smart contract where any wallet can publish a delegate profile
 contract DelegationWall {
     struct Candidate {
         bytes contentUrl;
