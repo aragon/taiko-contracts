@@ -1303,29 +1303,6 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.veto(randomProposalId);
     }
 
-    function test_VetoRevertsWhenAProposalHasNotStarted() public {
-        // Not applicable, since the start date is immediate
-        vm.skip(true);
-
-        uint64 startDate = 50;
-        vm.warp(startDate - 1);
-
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
-
-        // Unstarted
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, alice)
-        );
-        optimisticPlugin.veto(proposalId);
-        assertEq(optimisticPlugin.hasVetoed(proposalId, alice), false, "Alice should not have vetoed");
-
-        // Started
-        vm.warp(startDate + 1);
-        optimisticPlugin.veto(proposalId);
-        assertEq(optimisticPlugin.hasVetoed(proposalId, alice), true, "Alice should have vetoed");
-    }
-
     function test_VetoRevertsWhenAVoterAlreadyVetoed() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
@@ -2097,52 +2074,6 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             skipL2: false
         });
         vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, RATIO_BASE, uint32(RATIO_BASE + 1)));
-        optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
-    }
-
-    function test_UpdateOptimisticGovernanceSettingsRevertsWhenTheMinDurationIsLessThanFourDays() public {
-        // This test is not applicable, since the minimum boundary is intentionally left open
-        vm.skip(true);
-
-        dao.grant(
-            address(optimisticPlugin), alice, optimisticPlugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
-        );
-
-        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
-            .OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 4 days - 1,
-            l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days,
-            skipL2: false
-        });
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 4 days - 1)
-        );
-        optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
-
-        // 2
-        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 10 hours,
-            l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days,
-            skipL2: false
-        });
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 10 hours)
-        );
-        optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
-
-        // 3
-        newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
-            minVetoRatio: uint32(RATIO_BASE / 10),
-            minDuration: 0 ether,
-            l2InactivityPeriod: 10 minutes,
-            l2AggregationGracePeriod: 2 days,
-            skipL2: false
-        });
-        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.MinDurationOutOfBounds.selector, 4 days, 0));
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
     }
 

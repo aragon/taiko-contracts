@@ -15,7 +15,6 @@ import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeab
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {TaikoL1, TaikoData} from "./adapted-dependencies/TaikoL1.sol";
-// import {EssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -155,6 +154,8 @@ contract OptimisticTokenVotingPlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
+    /// @param _taikoL1 The address of the contract where the protocol status can be checked.
+    /// @param _taikoBridge The address of the contract that can bridge voting vetoes back.
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,

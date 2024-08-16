@@ -14,7 +14,7 @@ interface IOptimisticTokenVoting {
     /// @return The token used for voting.
     function votingToken() external view returns (IVotesUpgradeable);
 
-    /// @notice Returns the total voting power checkpointed for a specific block number.
+    /// @notice Returns the total voting power checkpointed for a specific timestamp.
     /// @param _timestamp The target timestamp.
     /// @return The total voting power.
     function totalVotingPower(uint256 _timestamp) external view returns (uint256);
