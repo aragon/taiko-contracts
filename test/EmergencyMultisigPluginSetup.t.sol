@@ -46,8 +46,12 @@ contract EmergencyMultisigPluginSetupTest is Test {
         stdMembers[1] = bob;
         stdMembers[2] = carol;
         stdMembers[3] = dave;
-        Multisig.MultisigSettings memory stdSettings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 10 days});
+        Multisig.MultisigSettings memory stdSettings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 10 days,
+            proposalExpirationPeriod: 15 days
+        });
         stdMultisig = Multisig(
             createProxyAndCall(
                 stdMultisigBase, abi.encodeCall(Multisig.initialize, (IDAO(dao), stdMembers, stdSettings))
@@ -55,8 +59,12 @@ contract EmergencyMultisigPluginSetupTest is Test {
         );
 
         // Default params
-        eMultisigSettings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 3, addresslistSource: stdMultisig});
+        eMultisigSettings = EmergencyMultisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            addresslistSource: stdMultisig,
+            proposalExpirationPeriod: 15 days
+        });
     }
 
     function test_ShouldEncodeInstallationParameters_1() public view {
@@ -64,7 +72,7 @@ contract EmergencyMultisigPluginSetupTest is Test {
         bytes memory output = pluginSetup.encodeInstallationParameters(eMultisigSettings);
 
         bytes memory expected =
-            hex"000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000030000000000000000000000005991a2df15a8f6a256d3ec51e99254cd3fb576a9";
+            hex"000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000030000000000000000000000005991a2df15a8f6a256d3ec51e99254cd3fb576a9000000000000000000000000000000000000000000000000000000000013c680";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
@@ -73,20 +81,28 @@ contract EmergencyMultisigPluginSetupTest is Test {
         stdMembers = new address[](2);
         stdMembers[0] = alice;
         stdMembers[1] = bob;
-        Multisig.MultisigSettings memory stdSettings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 10 days});
+        Multisig.MultisigSettings memory stdSettings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 10 days,
+            proposalExpirationPeriod: 17 days
+        });
         stdMultisig = Multisig(
             createProxyAndCall(
                 stdMultisigBase, abi.encodeCall(Multisig.initialize, (IDAO(dao), stdMembers, stdSettings))
             )
         );
 
-        eMultisigSettings =
-            EmergencyMultisig.MultisigSettings({onlyListed: true, minApprovals: 1, addresslistSource: stdMultisig});
+        eMultisigSettings = EmergencyMultisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            addresslistSource: stdMultisig,
+            proposalExpirationPeriod: 17 days
+        });
 
         bytes memory output = pluginSetup.encodeInstallationParameters(eMultisigSettings);
         bytes memory expected =
-            hex"00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c7183455a4c133ae270771860664b6b7ec320bb1";
+            hex"00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c7183455a4c133ae270771860664b6b7ec320bb10000000000000000000000000000000000000000000000000000000000166980";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
@@ -113,15 +129,23 @@ contract EmergencyMultisigPluginSetupTest is Test {
         stdMembers = new address[](2);
         stdMembers[0] = alice;
         stdMembers[1] = bob;
-        Multisig.MultisigSettings memory stdSettings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 10 days});
+        Multisig.MultisigSettings memory stdSettings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 10 days,
+            proposalExpirationPeriod: 5 days
+        });
         stdMultisig = Multisig(
             createProxyAndCall(
                 stdMultisigBase, abi.encodeCall(Multisig.initialize, (IDAO(dao), stdMembers, stdSettings))
             )
         );
-        eMultisigSettings =
-            EmergencyMultisig.MultisigSettings({onlyListed: false, minApprovals: 1, addresslistSource: stdMultisig});
+        eMultisigSettings = EmergencyMultisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 1,
+            addresslistSource: stdMultisig,
+            proposalExpirationPeriod: 5 days
+        });
 
         bytes memory installationParams = pluginSetup.encodeInstallationParameters(eMultisigSettings);
 

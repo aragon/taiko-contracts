@@ -14,8 +14,6 @@ import {IEmergencyMultisig} from "./interfaces/IEmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-uint64 constant EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 8 days;
-
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
@@ -55,11 +53,13 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @notice A container for the plugin settings.
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
-    /// @param addresslistSource The contract where the list of signers is defined
+    /// @param addresslistSource The contract where the list of signers is defined.
+    /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
         Addresslist addresslistSource;
+        uint64 proposalExpirationPeriod;
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -127,7 +127,10 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
     /// @param addresslistSource The address of the contract holding the address list to use.
-    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, Addresslist addresslistSource);
+    /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
+    event MultisigSettingsUpdated(
+        bool onlyListed, uint16 indexed minApprovals, Addresslist addresslistSource, uint64 proposalExpirationPeriod
+    );
 
     /// @notice Initializes Release 1, Build 1.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
@@ -199,7 +202,7 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         proposal_.destinationPlugin = _destinationPlugin;
 
         proposal_.parameters.snapshotBlock = snapshotBlock;
-        proposal_.parameters.expirationDate = block.timestamp.toUint64() + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
+        proposal_.parameters.expirationDate = block.timestamp.toUint64() + multisigSettings.proposalExpirationPeriod;
         proposal_.parameters.minApprovals = multisigSettings.minApprovals;
 
         proposal_.publicMetadataUriHash = _publicMetadataUriHash;
@@ -402,7 +405,8 @@ contract EmergencyMultisig is IEmergencyMultisig, IMembership, PluginUUPSUpgrade
         emit MultisigSettingsUpdated({
             onlyListed: _multisigSettings.onlyListed,
             minApprovals: _multisigSettings.minApprovals,
-            addresslistSource: _multisigSettings.addresslistSource
+            addresslistSource: _multisigSettings.addresslistSource,
+            proposalExpirationPeriod: _multisigSettings.proposalExpirationPeriod
         });
     }
 

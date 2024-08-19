@@ -64,6 +64,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
             // Multisig
             multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 9 days,
             // ENS
             stdMultisigEnsDomain: "multisig", // string
             emergencyMultisigEnsDomain: "eMultisig", // string
@@ -134,6 +135,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Incorrect multisigMembers.length"
         );
         assertEq(
+            actualSettings.multisigExpirationPeriod,
+            creationSettings.multisigExpirationPeriod,
+            "Incorrect multisigExpirationPeriod"
+        );
+        assertEq(
             actualSettings.stdMultisigEnsDomain, creationSettings.stdMultisigEnsDomain, "Incorrect stdMultisigEnsDomain"
         );
         assertEq(
@@ -188,6 +194,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
             // Multisig
             multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 4 days,
             // ENS
             stdMultisigEnsDomain: "multisig-1234", // string
             emergencyMultisigEnsDomain: "eMultisig-1234", // string
@@ -256,6 +263,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             actualSettings.multisigMembers.length,
             creationSettings.multisigMembers.length,
             "Incorrect multisigMembers.length"
+        );
+        assertEq(
+            actualSettings.multisigExpirationPeriod,
+            creationSettings.multisigExpirationPeriod,
+            "Incorrect multisigExpirationPeriod"
         );
         assertEq(
             actualSettings.stdMultisigEnsDomain, creationSettings.stdMultisigEnsDomain, "Incorrect stdMultisigEnsDomain"
@@ -335,6 +347,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
             // Multisig
             multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 15 days,
             // ENS
             stdMultisigEnsDomain: "multisig", // string
             emergencyMultisigEnsDomain: "eMultisig", // string
@@ -397,12 +410,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             assertEq(deployment.multisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
         }
         {
-            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration) =
+            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expirationPeriod) =
                 deployment.multisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 7, "Invalid minApprovals");
             assertEq(destinationProposalDuration, 10 days, "Invalid destinationProposalDuration");
+            assertEq(expirationPeriod, 15 days, "Invalid expirationPeriod");
         }
 
         // Emergency Multisig plugin
@@ -421,12 +435,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             assertEq(deployment.emergencyMultisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
         }
         {
-            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource) =
+            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource, uint64 expirationPeriod) =
                 deployment.emergencyMultisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 11, "Invalid minApprovals");
             assertEq(address(addresslistSource), address(deployment.multisigPlugin), "Invalid addresslistSource");
+            assertEq(expirationPeriod, 15 days, "Invalid expirationPeriod");
         }
 
         // Optimistic token voting plugin checks
@@ -569,6 +584,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
             // Multisig
             multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 22 days,
             // ENS
             stdMultisigEnsDomain: "multisig", // string
             emergencyMultisigEnsDomain: "eMultisig", // string
@@ -631,12 +647,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             assertEq(deployment.multisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
         }
         {
-            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration) =
+            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expirationPeriod) =
                 deployment.multisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 9, "Invalid minApprovals");
             assertEq(destinationProposalDuration, 21 days, "Invalid destinationProposalDuration");
+            assertEq(expirationPeriod, 22 days, "Invalid expirationPeriod");
         }
 
         // Emergency Multisig plugin
@@ -655,12 +672,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             assertEq(deployment.emergencyMultisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
         }
         {
-            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource) =
+            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource, uint64 expirationPeriod) =
                 deployment.emergencyMultisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 15, "Invalid minApprovals");
             assertEq(address(addresslistSource), address(deployment.multisigPlugin), "Invalid addresslistSource");
+            assertEq(expirationPeriod, 22 days, "Invalid expirationPeriod");
         }
 
         // Optimistic token voting plugin checks
@@ -803,6 +821,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
             // Multisig
             multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 10 days,
             // ENS
             stdMultisigEnsDomain: "multisig", // string
             emergencyMultisigEnsDomain: "eMultisig", // string

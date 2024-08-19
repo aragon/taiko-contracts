@@ -46,6 +46,7 @@ contract TaikoDaoFactory {
         OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup;
         // Multisig
         address[] multisigMembers;
+        uint64 multisigExpirationPeriod;
         // ENS
         string stdMultisigEnsDomain;
         string emergencyMultisigEnsDomain;
@@ -176,7 +177,8 @@ contract TaikoDaoFactory {
             Multisig.MultisigSettings(
                 true, // onlyListed
                 settings.minStdApprovals,
-                settings.minStdProposalDuration // destination minDuration
+                settings.minStdProposalDuration, // destination minDuration
+                settings.multisigExpirationPeriod
             )
         );
 
@@ -205,7 +207,8 @@ contract TaikoDaoFactory {
             EmergencyMultisig.MultisigSettings(
                 true, // onlyListed
                 settings.minEmergencyApprovals, // minAppovals
-                Addresslist(multisigPlugin)
+                Addresslist(multisigPlugin),
+                settings.multisigExpirationPeriod
             )
         );
 

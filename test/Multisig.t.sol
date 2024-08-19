@@ -18,6 +18,8 @@ import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
+uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
+
 contract MultisigTest is AragonTest {
     DaoBuilder builder;
 
@@ -26,7 +28,12 @@ contract MultisigTest is AragonTest {
     OptimisticTokenVotingPlugin optimisticPlugin;
 
     // Events/errors to be tested here (duplicate)
-    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, uint64 destinationProposalDuration);
+    event MultisigSettingsUpdated(
+        bool onlyListed,
+        uint16 indexed minApprovals,
+        uint64 destinationProposalDuration,
+        uint64 proposalExpirationPeriod
+    );
     event MembersAdded(address[] members);
     event MembersRemoved(address[] members);
 
@@ -57,8 +64,12 @@ contract MultisigTest is AragonTest {
 
     function test_RevertsIfTryingToReinitialize() public {
         // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -76,8 +87,12 @@ contract MultisigTest is AragonTest {
 
     function test_InitializeAddsInitialAddresses() public {
         // Deploy with 4 signers
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -118,8 +133,12 @@ contract MultisigTest is AragonTest {
 
     function test_InitializeSetsMinApprovals() public {
         // 2
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 2,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -130,7 +149,7 @@ contract MultisigTest is AragonTest {
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
 
-        (, uint16 minApprovals,) = multisig.multisigSettings();
+        (, uint16 minApprovals,,) = multisig.multisigSettings();
         assertEq(minApprovals, uint16(2), "Incorrect minApprovals");
 
         // Redeploy with 1
@@ -140,14 +159,18 @@ contract MultisigTest is AragonTest {
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
 
-        (, minApprovals,) = multisig.multisigSettings();
+        (, minApprovals,,) = multisig.multisigSettings();
         assertEq(minApprovals, uint16(1), "Incorrect minApprovals");
     }
 
     function test_InitializeSetsOnlyListed() public {
         // Deploy with true
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -158,7 +181,7 @@ contract MultisigTest is AragonTest {
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
 
-        (bool onlyListed,,) = multisig.multisigSettings();
+        (bool onlyListed,,,) = multisig.multisigSettings();
         assertEq(onlyListed, true, "Incorrect onlyListed");
 
         // Redeploy with false
@@ -168,14 +191,18 @@ contract MultisigTest is AragonTest {
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
 
-        (onlyListed,,) = multisig.multisigSettings();
+        (onlyListed,,,) = multisig.multisigSettings();
         assertEq(onlyListed, false, "Incorrect onlyListed");
     }
 
     function test_InitializeSetsDestinationProposalDuration() public {
         // Deploy with 5 days
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 5 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 5 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -186,7 +213,7 @@ contract MultisigTest is AragonTest {
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
 
-        (,, uint64 minDuration) = multisig.multisigSettings();
+        (,, uint64 minDuration,) = multisig.multisigSettings();
         assertEq(minDuration, 5 days, "Incorrect minDuration");
 
         // Redeploy with 3 days
@@ -196,14 +223,50 @@ contract MultisigTest is AragonTest {
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
         );
 
-        (,, minDuration) = multisig.multisigSettings();
+        (,, minDuration,) = multisig.multisigSettings();
         assertEq(minDuration, 3 days, "Incorrect minDuration");
+    }
+
+    function test_InitializeSetsProposalExpiration() public {
+        // Deploy with 15 days
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 5 days,
+            proposalExpirationPeriod: 15 days
+        });
+        address[] memory signers = new address[](4);
+        signers[0] = alice;
+        signers[1] = bob;
+        signers[2] = carol;
+        signers[3] = david;
+
+        multisig = Multisig(
+            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        );
+
+        (,,, uint64 expirationPeriod) = multisig.multisigSettings();
+        assertEq(expirationPeriod, 15 days, "Incorrect expirationPeriod");
+
+        // Redeploy with 3 days
+        settings.proposalExpirationPeriod = 3 days;
+
+        multisig = Multisig(
+            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
+        );
+
+        (,,, expirationPeriod) = multisig.multisigSettings();
+        assertEq(expirationPeriod, 3 days, "Incorrect expirationPeriod");
     }
 
     function test_InitializeEmitsMultisigSettingsUpdatedOnInstall1() public {
         // Deploy with true/3/2
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: 6 days
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -211,7 +274,7 @@ contract MultisigTest is AragonTest {
         signers[3] = david;
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, uint16(3), 4 days);
+        emit MultisigSettingsUpdated(true, uint16(3), 4 days, 6 days);
 
         multisig = Multisig(
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
@@ -220,8 +283,12 @@ contract MultisigTest is AragonTest {
 
     function test_InitializeEmitsMultisigSettingsUpdatedOnInstall2() public {
         // Deploy with false/2/7
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationProposalDuration: 7 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 2,
+            destinationProposalDuration: 7 days,
+            proposalExpirationPeriod: 8 days
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -229,7 +296,7 @@ contract MultisigTest is AragonTest {
         signers[3] = david;
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, uint16(2), 7 days);
+        emit MultisigSettingsUpdated(false, uint16(2), 7 days, 8 days);
 
         multisig = Multisig(
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
@@ -237,8 +304,12 @@ contract MultisigTest is AragonTest {
     }
 
     function test_InitializeRevertsIfMembersListIsTooLong() public {
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 3, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](65537);
 
         vm.expectRevert(abi.encodeWithSelector(Multisig.AddresslistLengthOutOfBounds.selector, 65535, 65537));
@@ -290,7 +361,8 @@ contract MultisigTest is AragonTest {
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 5,
-            destinationProposalDuration: 4 days // Greater than 4 members below
+            destinationProposalDuration: 4 days, // Greater than 4 members below
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         address[] memory signers = new address[](4);
         signers[0] = alice;
@@ -308,7 +380,8 @@ contract MultisigTest is AragonTest {
         settings = Multisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 6,
-            destinationProposalDuration: 4 days // Greater than 4 members below
+            destinationProposalDuration: 4 days, // Greater than 4 members below
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 6));
         multisig = Multisig(
@@ -317,8 +390,12 @@ contract MultisigTest is AragonTest {
     }
 
     function test_ShouldNotAllowMinApprovalsZero() public {
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 0, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 0,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -332,7 +409,12 @@ contract MultisigTest is AragonTest {
         );
 
         // Retry with onlyListed false
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 0, destinationProposalDuration: 4 days});
+        settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 0,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
         multisig = Multisig(
             createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
@@ -343,38 +425,61 @@ contract MultisigTest is AragonTest {
         dao.grant(address(multisig), address(alice), multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         // 1
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: 2 days
+        });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 1, 4 days);
+        emit MultisigSettingsUpdated(true, 1, 4 days, 2 days);
         multisig.updateMultisigSettings(settings);
 
         // 2
-        settings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 2, destinationProposalDuration: 5 days});
+        settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 2,
+            destinationProposalDuration: 5 days,
+            proposalExpirationPeriod: 9 days
+        });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 2, 5 days);
+        emit MultisigSettingsUpdated(true, 2, 5 days, 9 days);
         multisig.updateMultisigSettings(settings);
 
         // 3
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 3, destinationProposalDuration: 0});
+        settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 3,
+            destinationProposalDuration: 0,
+            proposalExpirationPeriod: 7 days
+        });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 3, 0);
+        emit MultisigSettingsUpdated(false, 3, 0, 7 days);
         multisig.updateMultisigSettings(settings);
 
         // 4
-        settings = Multisig.MultisigSettings({onlyListed: false, minApprovals: 4, destinationProposalDuration: 1 days});
+        settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 4,
+            destinationProposalDuration: 1 days,
+            proposalExpirationPeriod: 0
+        });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 4, 1 days);
+        emit MultisigSettingsUpdated(false, 4, 1 days, 0);
         multisig.updateMultisigSettings(settings);
     }
 
     function test_onlyWalletWithPermissionsCanUpdateSettings() public {
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 3 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 3 days,
+            proposalExpirationPeriod: 5 days
+        });
         vm.expectRevert(
             abi.encodeWithSelector(
                 DaoUnauthorized.selector,
@@ -386,17 +491,29 @@ contract MultisigTest is AragonTest {
         );
         multisig.updateMultisigSettings(settings);
 
+        // Nothing changed
+        (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expiration) =
+            multisig.multisigSettings();
+        assertEq(onlyListed, true);
+        assertEq(minApprovals, 3);
+        assertEq(destinationProposalDuration, 10 days);
+        assertEq(expiration, 10 days);
+
         // Retry with the permission
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 1, 3 days);
+        emit MultisigSettingsUpdated(true, 1, 3 days, 5 days);
         multisig.updateMultisigSettings(settings);
     }
 
     function test_IsMemberShouldReturnWhenApropriate() public {
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](1);
         signers[0] = alice;
 
@@ -410,7 +527,12 @@ contract MultisigTest is AragonTest {
         assertEq(multisig.isMember(david), false, "Should not be a member");
 
         // More members
-        settings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         signers = new address[](3);
         signers[0] = bob;
         signers[1] = carol;
@@ -427,8 +549,12 @@ contract MultisigTest is AragonTest {
     }
 
     function test_IsMemberIsListedShouldReturnTheSameValue() public {
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](1);
         signers[0] = alice;
 
@@ -442,7 +568,12 @@ contract MultisigTest is AragonTest {
         assertEq(multisig.isListed(david), multisig.isMember(david), "isMember isListed should be equal");
 
         // More members
-        settings = Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         signers = new address[](3);
         signers[0] = bob;
         signers[1] = carol;
@@ -459,8 +590,12 @@ contract MultisigTest is AragonTest {
     }
 
     function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public {
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](1); // 0x0... would be a member but the chance is negligible
 
         multisig = Multisig(
@@ -512,8 +647,12 @@ contract MultisigTest is AragonTest {
 
     function test_RemovesMembersAndEmits() public {
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         multisig.updateMultisigSettings(settings);
 
         // Before
@@ -576,8 +715,12 @@ contract MultisigTest is AragonTest {
 
     function test_ShouldRevertIfEmptySignersList() public {
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         multisig.updateMultisigSettings(settings);
 
         // Before
@@ -687,7 +830,8 @@ contract MultisigTest is AragonTest {
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 5,
-            destinationProposalDuration: 4 days // More than 4
+            destinationProposalDuration: 4 days, // More than 4
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 5));
         multisig.updateMultisigSettings(settings);
@@ -705,7 +849,8 @@ contract MultisigTest is AragonTest {
         settings = Multisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 6,
-            destinationProposalDuration: 4 days // More than 5
+            destinationProposalDuration: 4 days, // More than 5
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 5, 6));
         multisig.updateMultisigSettings(settings);
@@ -859,29 +1004,40 @@ contract MultisigTest is AragonTest {
     function testFuzz_PermissionedUpdateSettings(address randomAccount) public {
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
-        (bool onlyListed, uint16 minApprovals, uint64 destMinDuration) = multisig.multisigSettings();
+        (bool onlyListed, uint16 minApprovals, uint64 destMinDuration, uint64 expiration) = multisig.multisigSettings();
         assertEq(minApprovals, 3, "Should be 3");
         assertEq(onlyListed, true, "Should be true");
         assertEq(destMinDuration, 10 days, "Incorrect destMinDuration A");
+        assertEq(expiration, 10 days, "Incorrect expiration A");
 
         // in
-        Multisig.MultisigSettings memory newSettings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationProposalDuration: 5 days});
+        Multisig.MultisigSettings memory newSettings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 2,
+            destinationProposalDuration: 5 days,
+            proposalExpirationPeriod: 6 days
+        });
         multisig.updateMultisigSettings(newSettings);
 
-        (onlyListed, minApprovals, destMinDuration) = multisig.multisigSettings();
+        (onlyListed, minApprovals, destMinDuration, expiration) = multisig.multisigSettings();
         assertEq(minApprovals, 2, "Should be 2");
         assertEq(onlyListed, false, "Should be false");
         assertEq(destMinDuration, 5 days, "Incorrect destMinDuration B");
+        assertEq(expiration, 6 days, "Incorrect expiration B");
 
         // out
-        newSettings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 6 days});
+        newSettings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 6 days,
+            proposalExpirationPeriod: 9 days
+        });
         multisig.updateMultisigSettings(newSettings);
-        (onlyListed, minApprovals, destMinDuration) = multisig.multisigSettings();
+        (onlyListed, minApprovals, destMinDuration, expiration) = multisig.multisigSettings();
         assertEq(minApprovals, 1, "Should be 1");
         assertEq(onlyListed, true, "Should be true");
         assertEq(destMinDuration, 6 days, "Incorrect destMinDuration C");
+        assertEq(expiration, 9 days, "Incorrect expiration C");
 
         vm.roll(block.number + 1);
 
@@ -889,8 +1045,12 @@ contract MultisigTest is AragonTest {
         if (randomAccount != alice) {
             vm.startPrank(randomAccount);
 
-            newSettings =
-                Multisig.MultisigSettings({onlyListed: false, minApprovals: 4, destinationProposalDuration: 4 days});
+            newSettings = Multisig.MultisigSettings({
+                onlyListed: false,
+                minApprovals: 4,
+                destinationProposalDuration: 4 days,
+                proposalExpirationPeriod: 1 days
+            });
 
             vm.expectRevert(
                 abi.encodeWithSelector(
@@ -903,10 +1063,11 @@ contract MultisigTest is AragonTest {
             );
             multisig.updateMultisigSettings(newSettings);
 
-            (onlyListed, minApprovals, destMinDuration) = multisig.multisigSettings();
+            (onlyListed, minApprovals, destMinDuration, expiration) = multisig.multisigSettings();
             assertEq(minApprovals, 1, "Should still be 1");
             assertEq(onlyListed, true, "Should still be true");
             assertEq(destMinDuration, 6 days, "Should still be 6 days");
+            assertEq(expiration, 9 days, "Should still be 9 days");
         }
 
         vm.startPrank(alice);
@@ -993,8 +1154,12 @@ contract MultisigTest is AragonTest {
         // reverts if the multisig settings have changed in the same block
 
         // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 3, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -1041,8 +1206,12 @@ contract MultisigTest is AragonTest {
         // reverts if `_msgSender` is not listed although she was listed in the last block
 
         // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 1,
+            destinationProposalDuration: 4 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         address[] memory addrs = new address[](1);
         addrs[0] = alice;
 
@@ -1126,8 +1295,12 @@ contract MultisigTest is AragonTest {
 
         {
             // Deploy a new multisig instance (more efficient than the builder for fuzz testing)
-            Multisig.MultisigSettings memory settings =
-                Multisig.MultisigSettings({onlyListed: true, minApprovals: 1, destinationProposalDuration: 4 days});
+            Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+                onlyListed: true,
+                minApprovals: 1,
+                destinationProposalDuration: 4 days,
+                proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+            });
             address[] memory signers = new address[](1);
             signers[0] = alice;
 
@@ -1198,14 +1371,14 @@ contract MultisigTest is AragonTest {
         uint256 pid = multisig.createProposal("", actions, optimisticPlugin, false);
 
         (,, Multisig.ProposalParameters memory parameters,,,) = multisig.getProposal(pid);
-        assertEq(parameters.expirationDate, startDate + 10 days, "Incorrect expiration");
+        assertEq(parameters.expirationDate, startDate + MULTISIG_PROPOSAL_EXPIRATION_PERIOD, "Incorrect expiration");
 
         assertEq(multisig.canApprove(pid, alice), true, "Should be true");
 
-        vm.warp(startDate + 10 days - 1); // multisig expiration time - 1
+        vm.warp(startDate + MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // multisig expiration time - 1
         assertEq(multisig.canApprove(pid, alice), true, "Should be true");
 
-        vm.warp(startDate + 10 days); // multisig expiration time
+        vm.warp(startDate + MULTISIG_PROPOSAL_EXPIRATION_PERIOD); // multisig expiration time
         assertEq(multisig.canApprove(pid, alice), false, "Should be false");
 
         // Start later
@@ -1215,7 +1388,7 @@ contract MultisigTest is AragonTest {
 
         assertEq(multisig.canApprove(pid, alice), true, "Should be true");
 
-        vm.warp(block.timestamp + 10 days - 1); // expiration time - 1
+        vm.warp(block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1); // expiration time - 1
         assertEq(multisig.canApprove(pid, alice), true, "Should be true");
 
         vm.warp(block.timestamp + 1); // expiration time
@@ -2491,8 +2664,12 @@ contract MultisigTest is AragonTest {
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
         address _newImplementation = address(new Multisig());
 
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationProposalDuration: 14 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 2,
+            destinationProposalDuration: 14 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -2530,8 +2707,12 @@ contract MultisigTest is AragonTest {
         vm.expectEmit();
         emit Upgraded(_newImplementation);
 
-        Multisig.MultisigSettings memory settings =
-            Multisig.MultisigSettings({onlyListed: false, minApprovals: 2, destinationProposalDuration: 14 days});
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 2,
+            destinationProposalDuration: 14 days,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
         multisig.upgradeToAndCall(_newImplementation, abi.encodeCall(Multisig.updateMultisigSettings, (settings)));
 
         assertEq(multisig.implementation(), address(_newImplementation));
