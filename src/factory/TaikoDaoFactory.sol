@@ -23,6 +23,28 @@ import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 
 contract TaikoDaoFactory {
+    /// @notice The struct containing all the parameters to deploy the DAO
+    /// @param tokenAddress The address of the IVotes compatible ERC20 token contract to use for the voting power
+    /// @param taikoL1ContractAddress The contract where the status of the L1 can be retrieved
+    /// @param taikoBridgeAddress The address of the bridge. NOTE: will be using the vault instead
+    /// @param l2InactivityPeriod How many seconds until the lack of L2 blocks is considered as an inactive L2
+    /// @param l2AggregationGracePeriod How many additional seconds will be allowed for L2 sourced vetoes to be relayed
+    /// @param skipL2 Whether L2 votes should be ignored for vetoing
+    /// @param minVetoRatio The minimum percentage of the effective token supply required to defeat a proposal
+    /// @param minStdProposalDuration The amount of seconds that an optimistic proposal will last before it can (eventually) be executed
+    /// @param minStdApprovals The number of approvals needed for a multisig proposal to be relayed to the optimistic voting phase
+    /// @param minEmergencyApprovals The amount of approvals required for the super majority to be able to execute an emergency proposal on the DAO
+    /// @param osxDaoFactory The address of the OSx DAO factory contract, used to retrieve the DAO implementation address
+    /// @param pluginSetupProcessor The address of the OSx PluginSetupProcessor contract on the target chain
+    /// @param pluginRepoFactory The address of the OSx PluginRepoFactory contract on the target chain
+    /// @param multisigPluginSetup The address of the already deployed plugin setup for the standard multisig
+    /// @param emergencyMultisigPluginSetup The address of the already deployed plugin setup for the emergency multisig
+    /// @param optimisticTokenVotingPluginSetup The address of the already deployed plugin setup for the optimistic voting plugin
+    /// @param multisigMembers The list of addresses to be defined as the initial multisig signers
+    /// @param multisigExpirationPeriod How many seconds until a pending multisig proposal expires
+    /// @param stdMultisigEnsDomain The subdomain to use as the ENS for the standard mulsitig plugin setup. Note: it must be unique and available.
+    /// @param emergencyMultisigEnsDomain The subdomain to use as the ENS for the emergency multisig plugin setup. Note: it must be unique and available.
+    /// @param optimisticTokenVotingEnsDomain The subdomain to use as the ENS for the optimistic voting plugin setup. Note: it must be unique and available.
     struct DeploymentSettings {
         // Taiko contract settings
         IVotesUpgradeable tokenAddress;
