@@ -69,12 +69,12 @@ contract OptimisticTokenVotingPlugin is
     /// @param vetoEndDate The end date of the proposal vote.
     /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
-    /// @param skipL2 True if the L2 was unavailable when the proposal was created.
+    /// @param unavailableL2 True if the L2 was unavailable when the proposal was created.
     struct ProposalParameters {
         uint64 vetoEndDate;
         uint64 snapshotTimestamp;
         uint32 minVetoRatio;
-        bool skipL2;
+        bool unavailableL2;
     }
 
     /// @notice The ID of the permission required to create a proposal.
@@ -165,7 +165,7 @@ contract OptimisticTokenVotingPlugin is
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
-        if(_taikoL1 == address(0)) revert();
+        if (_taikoL1 == address(0)) revert();
 
         votingToken = _token;
         taikoL1 = TaikoL1(_taikoL1);
@@ -393,7 +393,7 @@ contract OptimisticTokenVotingPlugin is
         // We skip the L2 bridging grace period if the L2 was down on creation or if
         // an emergency multisig proposal is passed (_duration == 0)
         if (!_enableL2 || _duration == 0) {
-            proposal_.parameters.skipL2 = true;
+            proposal_.parameters.unavailableL2 = true;
         }
         if (_allowFailureMap != 0) {
             proposal_.allowFailureMap = _allowFailureMap;
@@ -564,7 +564,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal may still receive L2 bridged votes, false otherwise.
     function _proposalL2VetoAggregationOpen(Proposal storage proposal_) internal view virtual returns (bool) {
-        if (proposal_.parameters.skipL2) {
+        if (proposal_.parameters.unavailableL2) {
             return false;
         }
 

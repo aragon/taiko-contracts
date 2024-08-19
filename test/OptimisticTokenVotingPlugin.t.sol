@@ -1018,7 +1018,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 2 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, true, "L2 should be disabled"); // no bridge balance
+        assertEq(parameters.unavailableL2, true, "L2 should be disabled"); // no bridge balance
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
@@ -1035,7 +1035,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 2 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, true, "L2 should be disabled"); // no bridge balance
+        assertEq(parameters.unavailableL2, true, "L2 should be disabled"); // no bridge balance
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualActions[0].to, actions[0].to, "Incorrect to");
@@ -1066,7 +1066,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, false, "Incorrect skipL2");
+        assertEq(parameters.unavailableL2, false, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
@@ -1083,7 +1083,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, false, "Incorrect skipL2");
+        assertEq(parameters.unavailableL2, false, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualActions[0].to, actions[0].to, "Incorrect to");
@@ -1113,7 +1113,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, true, "Incorrect skipL2");
+        assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
@@ -1130,7 +1130,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, true, "Incorrect skipL2");
+        assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualActions[0].to, actions[0].to, "Incorrect to");
@@ -1154,7 +1154,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, true, "Incorrect skipL2");
+        assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
@@ -1171,7 +1171,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
         assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
-        assertEq(parameters.skipL2, true, "Incorrect skipL2");
+        assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
         assertEq(actualActions.length, 1, "Actions should have one item");
         assertEq(actualActions[0].to, actions[0].to, "Incorrect to");
@@ -1566,7 +1566,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, true, "Open should be true");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
         // Ended
         vm.warp(block.timestamp + 4 days);
@@ -1576,7 +1576,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
         // Grace period almost over
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
@@ -1590,7 +1590,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
     }
 
     function test_CanExecuteReturnsFalseWhenSkipL2AndEnded() public {
@@ -1607,7 +1607,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, true, "Open should be true");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, true, "SkipL2 should be true");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
 
         // Ended
@@ -1618,7 +1618,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, true, "SkipL2 should be true");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
 
         // Grace period almost over
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
@@ -1632,7 +1632,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, true, "SkipL2 should be true");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
     }
 
     function test_CanExecuteReturnsTrueOtherwise() public {
@@ -1695,7 +1695,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
         (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
             optimisticPlugin.getProposal(proposalId);
-        assertEq(parameters.skipL2, false, "L2 should not be active");
+        assertEq(parameters.unavailableL2, false, "L2 should not be active");
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
         optimisticPlugin.veto(proposalId); // Alice
@@ -1716,7 +1716,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
 
-        assertEq(parameters.skipL2, true, "L2 should be skipped");
+        assertEq(parameters.unavailableL2, true, "L2 should be skipped");
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
         optimisticPlugin.veto(proposalId); // Alice
@@ -1736,7 +1736,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
-        assertEq(parameters.skipL2, true, "L2 should be skipped");
+        assertEq(parameters.unavailableL2, true, "L2 should be skipped");
 
         assertEq(optimisticPlugin.isMinVetoRatioReached(proposalId), false, "The veto threshold shouldn't be met");
         optimisticPlugin.veto(proposalId); // Alice
@@ -1835,7 +1835,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
-        assertEq(parameters.skipL2, false, "Should not skip the L2 census");
+        assertEq(parameters.unavailableL2, false, "Should not skip the L2 census");
 
         optimisticPlugin.veto(proposalId); // 33%
         vm.startPrank(bob);
@@ -1859,7 +1859,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
-        assertEq(parameters.skipL2, true, "Should skip the L2 census");
+        assertEq(parameters.unavailableL2, true, "Should skip the L2 census");
 
         optimisticPlugin.veto(proposalId); // 50%
         vm.startPrank(bob);
@@ -1885,7 +1885,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
-        assertEq(parameters.skipL2, true, "Should skip the L2 census");
+        assertEq(parameters.unavailableL2, true, "Should skip the L2 census");
 
         optimisticPlugin.veto(proposalId); // 50%
         vm.startPrank(bob);
@@ -1938,7 +1938,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, true, "Open should be true");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
         // ended
         vm.warp(block.timestamp + 4 days);
@@ -1951,7 +1951,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
         // Grace period almost over
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
@@ -1964,7 +1964,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
         // Grace period over
         vm.warp(block.timestamp + 1);
@@ -1974,7 +1974,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, true, "Executed should be true");
-        assertEq(parameters.skipL2, false, "SkipL2 should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
     }
 
     function test_ExecuteSucceedsOtherwise() public {
