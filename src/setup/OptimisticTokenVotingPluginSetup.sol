@@ -19,7 +19,6 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {TaikoL1} from "../adapted-dependencies/TaikoL1.sol";
-// import {EssentialContract as TaikoEssentialContract} from "@taikoxyz/taiko-mono/common/EssentialContract.sol";
 
 /// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023

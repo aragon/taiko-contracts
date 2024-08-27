@@ -48,6 +48,7 @@ contract DaoBuilder is Test {
     bool public onlyListed = true;
     uint16 public minApprovals = 1;
     uint64 public stdProposalDuration = 10 days;
+    uint64 multisigProposalExpirationPeriod = 10 days;
 
     function withDaoOwner(address newOwner) public returns (DaoBuilder) {
         owner = newOwner;
@@ -92,6 +93,11 @@ contract DaoBuilder is Test {
 
     function withDuration(uint32 newDuration) public returns (DaoBuilder) {
         stdProposalDuration = newDuration;
+        return this;
+    }
+
+    function withExpiration(uint64 newExpirationPeriod) public returns (DaoBuilder) {
+        multisigProposalExpirationPeriod = newExpirationPeriod;
         return this;
     }
 
@@ -216,7 +222,8 @@ contract DaoBuilder is Test {
             Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
                 onlyListed: onlyListed,
                 minApprovals: minApprovals,
-                destinationProposalDuration: stdProposalDuration
+                destinationProposalDuration: stdProposalDuration,
+                proposalExpirationPeriod: multisigProposalExpirationPeriod
             });
 
             address[] memory signers;
@@ -239,7 +246,8 @@ contract DaoBuilder is Test {
             EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
                 onlyListed: onlyListed,
                 minApprovals: minApprovals,
-                addresslistSource: multisig
+                addresslistSource: multisig,
+                proposalExpirationPeriod: multisigProposalExpirationPeriod
             });
 
             emergencyMultisig = EmergencyMultisig(

@@ -107,6 +107,7 @@ contract Deploy is Script {
             optimisticTokenVotingPluginSetup: OptimisticTokenVotingPluginSetup(optimisticTokenVotingPluginSetup),
             // Multisig members
             multisigMembers: readMultisigMembers(),
+            multisigExpirationPeriod: uint64(vm.envUint("MULTISIG_PROPOSAL_EXPIRATION_PERIOD")),
             // ENS
             stdMultisigEnsDomain: vm.envString("STD_MULTISIG_ENS_DOMAIN"),
             emergencyMultisigEnsDomain: vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN"),
@@ -144,6 +145,7 @@ contract Deploy is Script {
             optimisticTokenVotingPluginSetup: OptimisticTokenVotingPluginSetup(optimisticTokenVotingPluginSetup),
             // Multisig members
             multisigMembers: multisigMembers,
+            multisigExpirationPeriod: uint64(vm.envUint("MULTISIG_PROPOSAL_EXPIRATION_PERIOD")),
             // ENS
             stdMultisigEnsDomain: vm.envString("STD_MULTISIG_ENS_DOMAIN"),
             emergencyMultisigEnsDomain: vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN"),

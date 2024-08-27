@@ -13,8 +13,6 @@ import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IMultisig} from "./interfaces/IMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 
-uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
-
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
@@ -53,10 +51,12 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
     /// @param destinationProposalDuration The minimum duration that the destination plugin will enforce.
+    /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
         uint64 destinationProposalDuration;
+        uint64 proposalExpirationPeriod;
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -111,9 +111,15 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
     /// @param destinationProposalDuration The minimum duration (in seconds) that will be required on the destination plugin
-    event MultisigSettingsUpdated(bool onlyListed, uint16 indexed minApprovals, uint64 destinationProposalDuration);
+    /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
+    event MultisigSettingsUpdated(
+        bool onlyListed,
+        uint16 indexed minApprovals,
+        uint64 destinationProposalDuration,
+        uint64 proposalExpirationPeriod
+    );
 
-    /// @notice Initializes Release 1, Build 2.
+    /// @notice Initializes Release 1, Build 1.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _members The addresses of the initial members to be added.
@@ -212,7 +218,7 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
             revert ProposalCreationForbidden(msg.sender);
         }
 
-        uint64 _expirationDate = block.timestamp.toUint64() + MULTISIG_PROPOSAL_EXPIRATION_PERIOD;
+        uint64 _expirationDate = block.timestamp.toUint64() + multisigSettings.proposalExpirationPeriod;
         proposalId = _createProposal({
             _creator: msg.sender,
             _metadata: _metadataURI,
@@ -408,7 +414,8 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         emit MultisigSettingsUpdated({
             onlyListed: _multisigSettings.onlyListed,
             minApprovals: _multisigSettings.minApprovals,
-            destinationProposalDuration: _multisigSettings.destinationProposalDuration
+            destinationProposalDuration: _multisigSettings.destinationProposalDuration,
+            proposalExpirationPeriod: _multisigSettings.proposalExpirationPeriod
         });
     }
 
