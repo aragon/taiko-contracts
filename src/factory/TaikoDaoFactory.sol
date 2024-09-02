@@ -303,7 +303,7 @@ contract TaikoDaoFactory {
     }
 
     function deployPublicKeyRegistry() internal returns (PublicKeyRegistry) {
-        return new PublicKeyRegistry();
+        return new PublicKeyRegistry(deployment.multisigPlugin);
     }
 
     function applyPluginInstallation(
