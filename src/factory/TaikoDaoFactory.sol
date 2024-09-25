@@ -191,7 +191,7 @@ contract TaikoDaoFactory {
     function prepareMultisig(DAO dao) internal returns (Multisig, PluginRepo, IPluginSetup.PreparedSetupData memory) {
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.stdMultisigEnsDomain, address(settings.multisigPluginSetup), msg.sender, " ", " "
+            settings.stdMultisigEnsDomain, address(settings.multisigPluginSetup), address(dao), " ", " "
         );
 
         bytes memory settingsData = settings.multisigPluginSetup.encodeInstallationParameters(
@@ -222,7 +222,7 @@ contract TaikoDaoFactory {
     {
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
-            settings.emergencyMultisigEnsDomain, address(settings.emergencyMultisigPluginSetup), msg.sender, " ", " "
+            settings.emergencyMultisigEnsDomain, address(settings.emergencyMultisigPluginSetup), address(dao), " ", " "
         );
 
         bytes memory settingsData = settings.emergencyMultisigPluginSetup.encodeInstallationParameters(
@@ -254,7 +254,7 @@ contract TaikoDaoFactory {
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
             settings.optimisticTokenVotingEnsDomain,
             address(settings.optimisticTokenVotingPluginSetup),
-            msg.sender,
+            address(dao),
             " ",
             " "
         );
