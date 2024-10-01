@@ -3,4 +3,3 @@
 @aragon/osx/=lib/osx/packages/contracts/src/
 @ensdomains/ens-contracts/=lib/ens-contracts/
 forge-std/=lib/forge-std/src/
-@taikoxyz/taiko-mono=lib/taiko-mono/packages/protocol/contracts/
