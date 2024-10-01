@@ -220,12 +220,12 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        try taikoL1.slotB() returns (TaikoData.SlotB memory _slot) {
+        try taikoL1.getStateVariables() returns (TaikoData.SlotA memory, TaikoData.SlotB memory _slotB) {
             // No L2 blocks yet
-            if (_slot.numBlocks == 0) return false;
+            if (_slotB.numBlocks == 0) return false;
 
             // The last L2 block is too old
-            TaikoData.Block memory _block = taikoL1.getBlock(_slot.numBlocks - 1);
+            TaikoData.BlockV2 memory _block = taikoL1.getBlockV2(_slotB.numBlocks - 1);
             // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
             if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
         } catch {

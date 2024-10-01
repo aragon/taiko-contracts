@@ -5,42 +5,61 @@ import {TaikoL1, TaikoData} from "../../src/adapted-dependencies/TaikoL1.sol";
 
 /// @dev Returns an unpaused TaikoL1 with any given block proposed 1 second ago
 contract TaikoL1Mock is TaikoL1 {
-    function paused() external pure override returns (bool) {
+    function paused() public pure override returns (bool) {
         return false;
     }
 
-    function slotB() public pure override returns (TaikoData.SlotB memory result) {
-        result.numBlocks = 90;
+    function getStateVariables()
+        public
+        pure
+        override
+        returns (TaikoData.SlotA memory slotA, TaikoData.SlotB memory slotB)
+    {
+        slotA;
+        slotB.numBlocks = 90;
     }
 
-    function getBlock(uint64 _blockId) public view override returns (TaikoData.Block memory result) {
-        _blockId;
-        result.proposedAt = uint64(block.timestamp) - 1;
+    function getBlockV2(uint64) public view override returns (TaikoData.BlockV2 memory blk) {
+        blk.proposedAt = uint64(block.timestamp) - 1;
     }
 }
 
 /// @dev Returns a paused TaikoL1
 contract TaikoL1PausedMock is TaikoL1 {
-    function paused() external pure override returns (bool) {
+    function paused() public pure override returns (bool) {
         return true;
     }
 
-    function slotB() public view override returns (TaikoData.SlotB memory result) {}
-    function getBlock(uint64 _blockId) public view override returns (TaikoData.Block memory) {}
+    function getStateVariables()
+        public
+        pure
+        override
+        returns (TaikoData.SlotA memory slotA, TaikoData.SlotB memory slotB)
+    {
+        slotA;
+        slotB.numBlocks = 1;
+    }
+
+    function getBlockV2(uint64) public view override returns (TaikoData.BlockV2 memory) {}
 }
 
 contract TaikoL1WithOldLastBlock is TaikoL1 {
-    function paused() external pure override returns (bool) {
+    function paused() public pure override returns (bool) {
         return false;
     }
 
-    function slotB() public pure override returns (TaikoData.SlotB memory result) {
-        result.numBlocks = 1;
+    function getStateVariables()
+        public
+        pure
+        override
+        returns (TaikoData.SlotA memory slotA, TaikoData.SlotB memory slotB)
+    {
+        slotA;
+        slotB.numBlocks = 1;
     }
 
-    function getBlock(uint64 _blockId) public pure override returns (TaikoData.Block memory result) {
-        _blockId;
-        result.proposedAt = 1;
+    function getBlockV2(uint64) public pure override returns (TaikoData.BlockV2 memory blk) {
+        blk.proposedAt = 1;
     }
 }
 
