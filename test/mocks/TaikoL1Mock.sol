@@ -15,9 +15,9 @@ contract TaikoL1Mock is TaikoL1 {
         override
         returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot, uint64 verifiedAt)
     {
-        blockId = 0; // irrelevant
-        blockHash = bytes32(0); // irrelevant
-        stateRoot = bytes32(0); // irrelevant
+        blockId;
+        blockHash;
+        stateRoot;
         verifiedAt = uint64(block.timestamp) - 1;
     }
 }
@@ -34,9 +34,9 @@ contract TaikoL1PausedMock is TaikoL1 {
         override
         returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot, uint64 verifiedAt)
     {
-        blockId = 0; // irrelevant
-        blockHash = bytes32(0); // irrelevant
-        stateRoot = bytes32(0); // irrelevant
+        blockId;
+        blockHash;
+        stateRoot;
         verifiedAt = 0;
     }
 }
@@ -52,9 +52,9 @@ contract TaikoL1WithOldLastBlock is TaikoL1 {
         override
         returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot, uint64 verifiedAt)
     {
-        blockId = 0; // irrelevant
-        blockHash = bytes32(0); // irrelevant
-        stateRoot = bytes32(0); // irrelevant
+        blockId;
+        blockHash;
+        stateRoot;
         verifiedAt = 1;
     }
 }
