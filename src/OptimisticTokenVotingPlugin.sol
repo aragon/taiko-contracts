@@ -14,7 +14,7 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {TaikoL1, TaikoData} from "./adapted-dependencies/TaikoL1.sol";
+import {TaikoL1} from "./adapted-dependencies/TaikoL1.sol";
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -220,14 +220,9 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        try taikoL1.getStateVariables() returns (TaikoData.SlotA memory, TaikoData.SlotB memory _slotB) {
-            // No L2 blocks yet
-            if (_slotB.numBlocks == 0) return false;
-
-            // The last L2 block is too old
-            TaikoData.BlockV2 memory _block = taikoL1.getBlockV2(_slotB.numBlocks - 1);
-            // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-            if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
+        try taikoL1.getLastVerifiedBlock() returns (uint64, bytes32, bytes32, uint64 verifiedAt) {
+            // verifiedAt < (block.timestamp - l2InactivityPeriod), written as a sum
+            if ((verifiedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
         } catch {
             // Assume that L2 is not available if we can't read properly
             return false;

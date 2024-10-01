@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.17 <0.9.0;
 
-import {TaikoL1, TaikoData} from "../../src/adapted-dependencies/TaikoL1.sol";
+import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
 
 /// @dev Returns an unpaused TaikoL1 with any given block proposed 1 second ago
 contract TaikoL1Mock is TaikoL1 {
@@ -9,18 +9,16 @@ contract TaikoL1Mock is TaikoL1 {
         return false;
     }
 
-    function getStateVariables()
-        public
-        pure
+    function getLastVerifiedBlock()
+        external
+        view
         override
-        returns (TaikoData.SlotA memory slotA, TaikoData.SlotB memory slotB)
+        returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot, uint64 verifiedAt)
     {
-        slotA;
-        slotB.numBlocks = 90;
-    }
-
-    function getBlockV2(uint64) public view override returns (TaikoData.BlockV2 memory blk) {
-        blk.proposedAt = uint64(block.timestamp) - 1;
+        blockId = 0; // irrelevant
+        blockHash = bytes32(0); // irrelevant
+        stateRoot = bytes32(0); // irrelevant
+        verifiedAt = uint64(block.timestamp) - 1;
     }
 }
 
@@ -30,17 +28,17 @@ contract TaikoL1PausedMock is TaikoL1 {
         return true;
     }
 
-    function getStateVariables()
-        public
+    function getLastVerifiedBlock()
+        external
         pure
         override
-        returns (TaikoData.SlotA memory slotA, TaikoData.SlotB memory slotB)
+        returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot, uint64 verifiedAt)
     {
-        slotA;
-        slotB.numBlocks = 1;
+        blockId = 0; // irrelevant
+        blockHash = bytes32(0); // irrelevant
+        stateRoot = bytes32(0); // irrelevant
+        verifiedAt = 0;
     }
-
-    function getBlockV2(uint64) public view override returns (TaikoData.BlockV2 memory) {}
 }
 
 contract TaikoL1WithOldLastBlock is TaikoL1 {
@@ -48,18 +46,16 @@ contract TaikoL1WithOldLastBlock is TaikoL1 {
         return false;
     }
 
-    function getStateVariables()
-        public
+    function getLastVerifiedBlock()
+        external
         pure
         override
-        returns (TaikoData.SlotA memory slotA, TaikoData.SlotB memory slotB)
+        returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot, uint64 verifiedAt)
     {
-        slotA;
-        slotB.numBlocks = 1;
-    }
-
-    function getBlockV2(uint64) public pure override returns (TaikoData.BlockV2 memory blk) {
-        blk.proposedAt = 1;
+        blockId = 0; // irrelevant
+        blockHash = bytes32(0); // irrelevant
+        stateRoot = bytes32(0); // irrelevant
+        verifiedAt = 1;
     }
 }
 
