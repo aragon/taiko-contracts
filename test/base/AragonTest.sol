@@ -10,7 +10,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
-import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
 import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
 import {Test} from "forge-std/Test.sol";
 

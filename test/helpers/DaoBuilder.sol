@@ -9,7 +9,7 @@ import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock, TaikoL1Incompatible} from "../mocks/TaikoL1Mock.sol";
-import {TaikoL1} from "../../src/adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
 import {ALICE_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
 
@@ -162,7 +162,7 @@ contract DaoBuilder is Test {
             Multisig multisig,
             EmergencyMultisig emergencyMultisig,
             GovernanceERC20Mock votingToken,
-            TaikoL1 taikoL1
+            ITaikoL1 taikoL1
         )
     {
         // Deploy the DAO with `this` as root
@@ -193,7 +193,7 @@ contract DaoBuilder is Test {
         } else if (taikoL1Status == TaikoL1Status.OutOfSync) {
             taikoL1 = new TaikoL1WithOldLastBlock();
         } else {
-            taikoL1 = TaikoL1(address(new TaikoL1Incompatible()));
+            taikoL1 = ITaikoL1(address(new TaikoL1Incompatible()));
         }
 
         {

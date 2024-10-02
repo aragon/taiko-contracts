@@ -14,7 +14,7 @@ import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
-import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "../src/adapted-dependencies/ITaikoL1.sol";
 
 contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPluginSetup public pluginSetup;
@@ -27,7 +27,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPlugin.OptimisticGovernanceSettings votingSettings;
     OptimisticTokenVotingPluginSetup.TokenSettings tokenSettings;
     GovernanceERC20.MintSettings mintSettings;
-    TaikoL1 taikoL1;
+    ITaikoL1 taikoL1;
     address taikoBridge;
     uint64 stdProposalMinDuration;
     address stdProposer;
@@ -68,7 +68,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
             symbol: "wTK"
         });
         mintSettings = GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
-        taikoL1 = TaikoL1(address(0x66666666));
+        taikoL1 = ITaikoL1(address(0x66666666));
         taikoBridge = address(0x55555555);
         stdProposalMinDuration = 10 days;
         stdProposer = address(0x1234567890);

@@ -15,7 +15,7 @@ import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
-import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "../src/adapted-dependencies/ITaikoL1.sol";
 
 contract EmergencyMultisigPluginSetupTest is Test {
     EmergencyMultisigPluginSetup public pluginSetup;
