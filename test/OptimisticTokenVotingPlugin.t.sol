@@ -13,7 +13,7 @@ import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {RATIO_BASE, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {GovernanceERC20Mock} from "./mocks/GovernanceERC20Mock.sol";
-import {TaikoL1} from "../src/adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "../src/adapted-dependencies/ITaikoL1.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 import {IERC1822ProxiableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
@@ -25,7 +25,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     DAO dao;
     OptimisticTokenVotingPlugin optimisticPlugin;
     GovernanceERC20Mock votingToken;
-    TaikoL1 taikoL1;
+    ITaikoL1 taikoL1;
 
     // Events from external contracts
     event Initialized(uint8 version);
@@ -261,7 +261,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
 
         // Different taikoL1 contract
-        taikoL1 = TaikoL1(address(0x1234));
+        taikoL1 = ITaikoL1(address(0x1234));
         optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),

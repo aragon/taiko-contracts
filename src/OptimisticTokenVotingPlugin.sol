@@ -14,7 +14,7 @@ import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgr
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {TaikoL1, TaikoData} from "./adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "./adapted-dependencies/ITaikoL1.sol";
 
 /// @title OptimisticTokenVotingPlugin
 /// @author Aragon Association - 2023-2024
@@ -91,7 +91,7 @@ contract OptimisticTokenVotingPlugin is
     address public taikoBridge;
 
     /// @notice Taiko L1 contract to check the status from.
-    TaikoL1 public taikoL1;
+    ITaikoL1 public taikoL1;
 
     /// @notice The struct storing the governance settings.
     /// @dev Takes 1 storage slot (32+64+64+64)
@@ -168,7 +168,7 @@ contract OptimisticTokenVotingPlugin is
         if (_taikoL1 == address(0)) revert();
 
         votingToken = _token;
-        taikoL1 = TaikoL1(_taikoL1);
+        taikoL1 = ITaikoL1(_taikoL1);
         taikoBridge = _taikoBridge;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
@@ -220,14 +220,9 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        try taikoL1.slotB() returns (TaikoData.SlotB memory _slot) {
-            // No L2 blocks yet
-            if (_slot.numBlocks == 0) return false;
-
-            // The last L2 block is too old
-            TaikoData.Block memory _block = taikoL1.getBlock(_slot.numBlocks - 1);
-            // proposedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-            if ((_block.proposedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
+        try taikoL1.getLastVerifiedBlock() returns (uint64, bytes32, bytes32, uint64 verifiedAt) {
+            // verifiedAt < (block.timestamp - l2InactivityPeriod), written as a sum
+            if ((verifiedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
         } catch {
             // Assume that L2 is not available if we can't read properly
             return false;

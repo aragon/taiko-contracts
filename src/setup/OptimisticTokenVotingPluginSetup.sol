@@ -18,7 +18,7 @@ import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGover
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {TaikoL1} from "../adapted-dependencies/TaikoL1.sol";
+import {ITaikoL1} from "../adapted-dependencies/ITaikoL1.sol";
 
 /// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023
