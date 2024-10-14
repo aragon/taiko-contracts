@@ -968,7 +968,7 @@ contract EmergencyMultisigTest is AragonTest {
                 proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
             });
             address[] memory signers = new address[](1);
-            signers[0] = address(0x0);
+            signers[0] = alice;
 
             stdMultisig = Multisig(
                 createProxyAndCall(
@@ -994,12 +994,12 @@ contract EmergencyMultisigTest is AragonTest {
         uint256 pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // ko
-        if (randomWallet != address(0x0)) {
+        if (randomWallet != alice) {
             assertEq(eMultisig.canApprove(pid, randomWallet), false, "Should be false");
         }
 
         // static ok
-        assertEq(eMultisig.canApprove(pid, address(0)), true, "Should be true");
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
     }
 
     function test_CanApproveReturnsFalseIfApproved() public {
