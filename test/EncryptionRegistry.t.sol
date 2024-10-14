@@ -16,7 +16,8 @@ contract EncryptionRegistryTest is AragonTest {
     Multisig multisig;
 
     // Events/errors to be tested here (duplicate)
-    event PublicKeyRegistered(address wallet, bytes32 publicKey);
+    event PublicKeySet(address member, bytes32 publicKey);
+    event WalletAppointed(address member, address appointedWallet);
 
     function setUp() public {
         builder = new DaoBuilder();
@@ -145,7 +146,7 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function testFuzz_ShouldRegisterMemberPublicKeys(address appointedWallet) public {
-        if (appointedWallet == address(0)) return;
+        if (Address.isContract(appointedWallet)) return;
 
         address addrValue;
         bytes32 bytesValue;
@@ -431,7 +432,7 @@ contract EncryptionRegistryTest is AragonTest {
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
     }
 
-    function test_ShouldRevertIfNotAppointed(address appointedWallet) public {
+    function test_ShouldRevertOnSetPublicKeyIfNotAppointed(address appointedWallet) public {
         if (Address.isContract(appointedWallet)) return;
 
         address addrValue;
@@ -478,90 +479,170 @@ contract EncryptionRegistryTest is AragonTest {
         assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
     }
 
+    function test_ShouldRevertIfOwnerNotAppointed(address appointedWallet) public {
+        if (appointedWallet == address(0)) return;
+        else if (Address.isContract(appointedWallet)) return;
+
+        address addrValue;
+        bytes32 bytesValue;
+
+        // Alice
+        vm.startPrank(alice);
+        registry.appointWallet(appointedWallet);
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.OwnerNotAppointed.selector));
+        registry.setOwnPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
+
+        (addrValue, bytesValue) = registry.members(alice);
+        assertEq(addrValue, appointedWallet);
+        assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
+
+        // Appointed
+        registry.appointWallet(alice);
+        registry.setOwnPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
+
+        (addrValue, bytesValue) = registry.members(alice);
+        assertEq(addrValue, alice);
+        assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
+
+        // Bob
+        vm.startPrank(bob);
+        registry.appointWallet(appointedWallet);
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.OwnerNotAppointed.selector));
+        registry.setOwnPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
+
+        (addrValue, bytesValue) = registry.members(bob);
+        assertEq(addrValue, appointedWallet);
+        assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
+
+        // Appointed
+        registry.appointWallet(bob);
+        registry.setOwnPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
+
+        (addrValue, bytesValue) = registry.members(bob);
+        assertEq(addrValue, bob);
+        assertEq(bytesValue, 0x1234000000000000000000000000000000000000000000000000000000000000);
+    }
+
     function test_ShouldEmitPublicKeyDefinedEvents() public {
         // For itself
         vm.startPrank(alice);
         vm.expectEmit();
-        emit PublicKeyRegistered(alice, 0x000000000000cdef000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(alice, 0x000000000000cdef000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
 
         vm.startPrank(bob);
         vm.expectEmit();
-        emit PublicKeyRegistered(bob, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(bob, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         vm.startPrank(carol);
         vm.expectEmit();
-        emit PublicKeyRegistered(carol, 0x0000567800000000000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(carol, 0x0000567800000000000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
 
         vm.startPrank(david);
         vm.expectEmit();
-        emit PublicKeyRegistered(david, 0x1234000000000000000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(david, 0x1234000000000000000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
         // As the appointee
         vm.startPrank(alice);
         registry.appointWallet(alice); // Self
         vm.expectEmit();
-        emit PublicKeyRegistered(alice, 0x0000000000000000cdef00000000000000000000000000000000000000000000);
+        emit PublicKeySet(alice, 0x0000000000000000cdef00000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x0000000000000000cdef00000000000000000000000000000000000000000000);
 
         vm.startPrank(bob);
         registry.appointWallet(bob); // Self
         vm.expectEmit();
-        emit PublicKeyRegistered(bob, 0x00000000000090ab000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(bob, 0x00000000000090ab000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x00000000000090ab000000000000000000000000000000000000000000000000);
 
         vm.startPrank(carol);
         registry.appointWallet(carol); // Self
         vm.expectEmit();
-        emit PublicKeyRegistered(carol, 0x0000000056780000000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(carol, 0x0000000056780000000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x0000000056780000000000000000000000000000000000000000000000000000);
 
         vm.startPrank(david);
         registry.appointWallet(david); // Self
         vm.expectEmit();
-        emit PublicKeyRegistered(david, 0x0000123400000000000000000000000000000000000000000000000000000000);
+        emit PublicKeySet(david, 0x0000123400000000000000000000000000000000000000000000000000000000);
         registry.setOwnPublicKey(0x0000123400000000000000000000000000000000000000000000000000000000);
     }
 
     function test_ShouldCountRegisteredAddresses() public {
-        vm.skip(true);
         assertEq(registry.getRegisteredAddressesLength(), 0, "Incorrect count");
+
+        // Set public key first
 
         // Alice
         vm.startPrank(alice);
         registry.setOwnPublicKey(bytes32(uint256(1234)));
+        assertEq(registry.getRegisteredAddressesLength(), 1, "Incorrect count");
+        registry.appointWallet(address(0x1234));
         assertEq(registry.getRegisteredAddressesLength(), 1, "Incorrect count");
 
         // Bob
         vm.startPrank(bob);
         registry.setOwnPublicKey(bytes32(uint256(2345)));
         assertEq(registry.getRegisteredAddressesLength(), 2, "Incorrect count");
+        registry.appointWallet(address(0x5678));
+        assertEq(registry.getRegisteredAddressesLength(), 2, "Incorrect count");
+
+        // Appoint first
 
         // Carol
         vm.startPrank(carol);
-        registry.setOwnPublicKey(bytes32(uint256(3456)));
+        registry.appointWallet(address(0x90ab));
+        assertEq(registry.getRegisteredAddressesLength(), 3, "Incorrect count");
+        registry.appointWallet(carol);
+        registry.setPublicKey(carol, bytes32(uint256(3456)));
         assertEq(registry.getRegisteredAddressesLength(), 3, "Incorrect count");
 
         // David
         vm.startPrank(david);
-        registry.setOwnPublicKey(bytes32(uint256(4567)));
+        registry.appointWallet(address(0xcdef));
+        assertEq(registry.getRegisteredAddressesLength(), 4, "Incorrect count");
+        registry.appointWallet(david);
+        registry.setPublicKey(david, bytes32(uint256(4567)));
         assertEq(registry.getRegisteredAddressesLength(), 4, "Incorrect count");
     }
 
     function test_ShouldEnumerateRegisteredAddresses() public {
-        vm.skip(true);
-        // Register
+        // Set public key first
+
+        // Alice
         vm.startPrank(alice);
         registry.setOwnPublicKey(bytes32(uint256(1234)));
+        assertEq(registry.registeredAddresses(0), alice);
+        registry.appointWallet(address(0x1234));
+        assertEq(registry.registeredAddresses(0), alice);
+
+        // Bob
         vm.startPrank(bob);
         registry.setOwnPublicKey(bytes32(uint256(2345)));
+        assertEq(registry.registeredAddresses(1), bob);
+        registry.appointWallet(address(0x5678));
+        assertEq(registry.registeredAddresses(1), bob);
+
+        // Appoint first
+
+        // Carol
         vm.startPrank(carol);
-        registry.setOwnPublicKey(bytes32(uint256(3456)));
+        registry.appointWallet(address(0x90ab));
+        assertEq(registry.registeredAddresses(2), carol);
+        registry.appointWallet(carol);
+        registry.setPublicKey(carol, bytes32(uint256(3456)));
+        assertEq(registry.registeredAddresses(2), carol);
+
+        // David
         vm.startPrank(david);
-        registry.setOwnPublicKey(bytes32(uint256(4567)));
+        registry.appointWallet(address(0xcdef));
+        assertEq(registry.registeredAddresses(3), david);
+        registry.appointWallet(david);
+        registry.setPublicKey(david, bytes32(uint256(4567)));
+        assertEq(registry.registeredAddresses(3), david);
 
         assertEq(registry.getRegisteredAddressesLength(), 4, "Incorrect count");
 
@@ -572,15 +653,39 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function test_ShouldLoadTheRegisteredAddresses() public {
-        vm.skip(true);
+        // Set public key first
+
+        // Alice
         vm.startPrank(alice);
         registry.setOwnPublicKey(bytes32(uint256(1234)));
+        assertEq(registry.registeredAddresses(0), alice);
+        registry.appointWallet(address(0x1234));
+        assertEq(registry.registeredAddresses(0), alice);
+
+        // Bob
         vm.startPrank(bob);
         registry.setOwnPublicKey(bytes32(uint256(2345)));
+        assertEq(registry.registeredAddresses(1), bob);
+        registry.appointWallet(address(0x5678));
+        assertEq(registry.registeredAddresses(1), bob);
+
+        // Appoint first
+
+        // Carol
         vm.startPrank(carol);
-        registry.setOwnPublicKey(bytes32(uint256(3456)));
+        registry.appointWallet(address(0x90ab));
+        assertEq(registry.registeredAddresses(2), carol);
+        registry.appointWallet(carol);
+        registry.setPublicKey(carol, bytes32(uint256(3456)));
+        assertEq(registry.registeredAddresses(2), carol);
+
+        // David
         vm.startPrank(david);
-        registry.setOwnPublicKey(bytes32(uint256(4567)));
+        registry.appointWallet(address(0xcdef));
+        assertEq(registry.registeredAddresses(3), david);
+        registry.appointWallet(david);
+        registry.setPublicKey(david, bytes32(uint256(4567)));
+        assertEq(registry.registeredAddresses(3), david);
 
         address[] memory addresses = registry.getRegisteredAddresses();
         assertEq(addresses.length, 4);

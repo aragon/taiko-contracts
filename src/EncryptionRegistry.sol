@@ -36,7 +36,7 @@ contract EncryptionRegistry {
     error NotAppointed();
 
     /// @notice Raised when the member attempts to define the public key of the appointed wallet
-    error OnlyAppointed();
+    error OwnerNotAppointed();
 
     /// @notice Raised when the caller is not a multisig member
     error RegistrationForbidden();
@@ -76,7 +76,7 @@ contract EncryptionRegistry {
         } else if (
             members[msg.sender].appointedWallet != msg.sender && members[msg.sender].appointedWallet != address(0)
         ) {
-            revert OnlyAppointed();
+            revert OwnerNotAppointed();
         }
 
         _setPublicKey(msg.sender, _publicKey);
