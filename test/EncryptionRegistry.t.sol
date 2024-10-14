@@ -3,13 +3,13 @@ pragma solidity ^0.8.17;
 
 import {AragonTest} from "./base/AragonTest.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
-import {PublicKeyRegistry} from "../src/PublicKeyRegistry.sol";
+import {EncryptionRegistry} from "../src/EncryptionRegistry.sol";
 import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../src/Multisig.sol";
 
 contract EmergencyMultisigTest is AragonTest {
-    PublicKeyRegistry registry;
+    EncryptionRegistry registry;
     DaoBuilder builder;
     Multisig multisig;
 
@@ -21,7 +21,7 @@ contract EmergencyMultisigTest is AragonTest {
         (,, multisig,,,) = builder.withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(carol)
             .withMultisigMember(david).build();
 
-        registry = new PublicKeyRegistry(multisig);
+        registry = new EncryptionRegistry(multisig);
     }
 
     function test_ShouldRegisterAPublicKey() public {
@@ -61,7 +61,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ShouldRevertIfNotASigner() public {
         (,, multisig,,,) = new DaoBuilder().withMultisigMember(alice).build();
 
-        registry = new PublicKeyRegistry(multisig);
+        registry = new EncryptionRegistry(multisig);
 
         // OK
         assertEq(registry.publicKeys(alice), 0x0000000000000000000000000000000000000000000000000000000000000000);
@@ -77,7 +77,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.RegistrationForbidden.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.RegistrationForbidden.selector));
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
 
         assertEq(registry.publicKeys(alice), 0x5678000000000000000000000000000000000000000000000000000000000000);
@@ -85,7 +85,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Carol
         vm.startPrank(carol);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.RegistrationForbidden.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.RegistrationForbidden.selector));
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         assertEq(registry.publicKeys(alice), 0x5678000000000000000000000000000000000000000000000000000000000000);
@@ -94,7 +94,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // David
         vm.startPrank(david);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.RegistrationForbidden.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.RegistrationForbidden.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
 
         assertEq(registry.publicKeys(alice), 0x5678000000000000000000000000000000000000000000000000000000000000);
@@ -128,30 +128,30 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ShouldRevertIfReRegistering() public {
         vm.startPrank(alice);
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
         vm.startPrank(bob);
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
         vm.startPrank(carol);
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x1234000000000000000000000000000000000000000000000000000000000000);
 
         vm.startPrank(david);
         registry.setPublicKey(0x0000000090ab0000000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.AlreadySet.selector));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.AlreadySet.selector));
         registry.setPublicKey(0x000000000000cdef000000000000000000000000000000000000000000000000);
     }
 
@@ -218,12 +218,12 @@ contract EmergencyMultisigTest is AragonTest {
 
     function test_TheConstructorShouldRevertIfInvalidAddressList() public {
         // Fail
-        vm.expectRevert(abi.encodeWithSelector(PublicKeyRegistry.InvalidAddressList.selector));
-        new PublicKeyRegistry(Addresslist(address(this)));
+        vm.expectRevert(abi.encodeWithSelector(EncryptionRegistry.InvalidAddressList.selector));
+        new EncryptionRegistry(Addresslist(address(this)));
 
         // OK
         (,, multisig,,,) = new DaoBuilder().withMultisigMember(alice).build();
-        new PublicKeyRegistry(multisig);
+        new EncryptionRegistry(multisig);
     }
 
     /// @dev mock function for test_TheConstructorShouldRevertIfInvalidAddressList()

@@ -517,8 +517,8 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
 
         // PUBLIC KEY REGISTRY
-        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
-        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+        assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
+        assertEq(deployment.encryptionRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
     }
 
     function test_StandardDeployment_2() public {
@@ -754,8 +754,8 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
 
         // PUBLIC KEY REGISTRY
-        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
-        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+        assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
+        assertEq(deployment.encryptionRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
     }
 
     function test_MultipleDeploysDoNothing() public {

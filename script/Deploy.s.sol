@@ -25,7 +25,7 @@ contract Deploy is Script {
         vm.startBroadcast(vm.envUint("DEPLOYMENT_PRIVATE_KEY"));
 
         // NOTE: Deploying the plugin setup's separately because of the code size limit
-        //       PublicKeyRegistry and DelegationWall are deployed by the TaikoDaoFactory
+        //       EncryptionRegistry and DelegationWall are deployed by the TaikoDaoFactory
 
         // Deploy the plugin setup's
         multisigPluginSetup = new MultisigPluginSetup();
@@ -77,7 +77,7 @@ contract Deploy is Script {
         console.log("");
 
         console.log("Helpers");
-        console.log("- Public key registry", address(daoDeployment.publicKeyRegistry));
+        console.log("- Public key registry", address(daoDeployment.encryptionRegistry));
         console.log("- Delegation wall", address(delegationWall));
     }
 

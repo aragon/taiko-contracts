@@ -5,10 +5,10 @@ pragma solidity ^0.8.17;
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-/// @title PublicKeyRegistry - Release 1, Build 1
+/// @title EncryptionRegistry - Release 1, Build 1
 /// @author Aragon Association - 2024
 /// @notice A smart contract where any wallet can register its own libsodium public key for encryption purposes
-contract PublicKeyRegistry {
+contract EncryptionRegistry {
     mapping(address => bytes32) public publicKeys;
 
     /// @dev Allows to enumerate the wallets that have a public key registered
