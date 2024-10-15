@@ -84,6 +84,9 @@ contract OptimisticTokenVotingPlugin is
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
+    /// @notice The time gap between a proposal passing and execution being unlocked
+    uint64 public constant EXIT_WINDOW = 7 days;
+
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
@@ -94,7 +97,7 @@ contract OptimisticTokenVotingPlugin is
     ITaikoL1 public taikoL1;
 
     /// @notice The struct storing the governance settings.
-    /// @dev Takes 1 storage slot (32+64+64+64)
+    /// @dev Takes 1 storage slot (32+64+64+64+8 < 256)
     OptimisticGovernanceSettings public governanceSettings;
 
     /// @notice A mapping between proposal IDs and proposal information.
@@ -292,6 +295,10 @@ contract OptimisticTokenVotingPlugin is
         }
         // Check that not enough voters have vetoed the proposal
         else if (isMinVetoRatioReached(_proposalId)) {
+            return false;
+        }
+        // Check that the proposal has completed the exit window period
+        else if (_proposalInExitWindow(proposal_)) {
             return false;
         }
 
@@ -565,6 +572,19 @@ contract OptimisticTokenVotingPlugin is
 
         return
             block.timestamp.toUint64() < proposal_.parameters.vetoEndDate + governanceSettings.l2AggregationGracePeriod;
+    }
+
+    /// @notice Internal function to check if a passed proposal is on the exit window perios.
+    /// @param proposal_ The proposal struct.
+    /// @return True if the proposal cannot be executed because the exit window hasn't elapsed yet
+    function _proposalInExitWindow(Proposal storage proposal_) internal view virtual returns (bool) {
+        uint64 exitWindowTimestamp = proposal_.parameters.vetoEndDate + EXIT_WINDOW;
+
+        if (!proposal_.parameters.unavailableL2) {
+            exitWindowTimestamp += governanceSettings.l2AggregationGracePeriod;
+        }
+
+        return block.timestamp.toUint64() < exitWindowTimestamp;
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).

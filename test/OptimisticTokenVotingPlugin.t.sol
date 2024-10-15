@@ -1470,7 +1470,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
     }
 
-    function test_CanExecuteReturnsFalseWhenDefeatedOnlyL1Tokens() public {
+    function test_CanExecuteReturnsFalseWhenDefeated_OnlyL1Tokens() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1484,7 +1484,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
     }
 
-    function test_CanExecuteReturnsFalseWhenDefeatedWithL1L2Tokens() public {
+    function test_CanExecuteReturnsFalseWhenDefeated_WithL1L2Tokens() public {
         vm.skip(true); // L2 aggregation still not available
 
         // 70% min veto ratio
@@ -1545,6 +1545,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
         assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
 
         optimisticPlugin.execute(proposalId);
@@ -1582,18 +1583,102 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
 
-        // Grace period over
-        vm.warp(block.timestamp + 1);
-        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
-
         (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
 
         assertEq(open, false, "Open should be false");
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
+
+        // Grace period over, but EXIT_WINDOW still unmet
+        vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
     }
 
-    function test_CanExecuteReturnsFalseWhenSkipL2AndEnded() public {
+    function test_CanExecuteReturnsFalseUntilExitWindow_L1Only() public {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+
+        vm.warp(block.timestamp + 4 days);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+
+        vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+    }
+
+    function test_CanExecuteReturnsFalseUntilExitWindow_L1L2Tokens() public {
+        vm.skip(true); // L2 aggregation still not available
+
+        // 70% min veto ratio
+        // 2 vetoes required when L1 only
+        // 3 vetoes required when L1+L2
+
+        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
+            .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        optimisticPlugin.veto(proposalId); // 33%
+        vm.startPrank(bob);
+        optimisticPlugin.veto(proposalId); // 66% (below 70%)
+        // bridge supply counts but doesn't veto
+
+        vm.warp(block.timestamp + 4 days); // end
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+        vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+        vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+
+        // L2 paused, less token supply
+        // Alice and Bob are now 100%
+
+        (, optimisticPlugin,,, votingToken,) = builder.withPausedTaikoL1().build();
+
+        proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        optimisticPlugin.veto(proposalId); // 50%
+        vm.startPrank(bob);
+        optimisticPlugin.veto(proposalId); // 100% (above 70%)
+
+        vm.warp(block.timestamp + 4 days); // end
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+        vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+        vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+
+        // L2 out of sync, less token supply
+        // Alice and Bob are now 100%
+
+        (, optimisticPlugin,,, votingToken,) = builder.withOutOfSyncTaikoL1().build();
+
+        proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        optimisticPlugin.veto(proposalId); // 50%
+        vm.startPrank(bob);
+        optimisticPlugin.veto(proposalId); // 100% (above 70%)
+
+        vm.warp(block.timestamp + 4 days); // end
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+        vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
+        vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+    }
+
+    function test_CanExecuteReturnsTrueWhenSkipL2AndFullyEnded() public {
         // An ended proposal with L2 skipped
 
         (, optimisticPlugin,,,,) =
@@ -1608,11 +1693,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(open, true, "Open should be true");
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
 
-        // Ended
+        // Ended - Need to wait EXIT_WINDOW
+        // L2 aggregation period is not relevant
         vm.warp(block.timestamp + 4 days);
-        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
 
         (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
 
@@ -1620,11 +1707,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
 
-        // Grace period almost over
-        vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
-        assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
+        // Exit window almost over
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable");
 
-        // Grace period over
+        // Exit window over
         vm.warp(block.timestamp + 1);
         assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
 
@@ -1641,16 +1728,22 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
 
-        vm.warp(block.timestamp + 3 days);
-
+        vm.warp(block.timestamp + 4 days - 1) ;
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
 
-        vm.warp(block.timestamp + 1 days - 1);
-
-        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
-
+        // Ended
         vm.warp(block.timestamp + 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
 
+        // No L2 votes available, so no L2 aggregation period
+        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
+
+        // Exit window over
+        vm.warp(block.timestamp + 1);
         assertEq(optimisticPlugin.canExecute(proposalId), true, "The proposal should be executable");
     }
 
