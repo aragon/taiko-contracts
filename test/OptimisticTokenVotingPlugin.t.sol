@@ -1722,6 +1722,24 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
     }
 
+    function test_CanExecuteReturnsTrueOnDurationZero_WithoutL2GracePeriodOrExitWindow() public {
+        (, optimisticPlugin,,,,) = builder.withMinDuration(0).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 0 days);
+
+        assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal should not be executable");
+
+        // Emergency: already executed
+
+        (bool open, bool executed, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
+            optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, true, "Executed should be true");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+    }
+
     function test_CanExecuteReturnsTrueOtherwise() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);

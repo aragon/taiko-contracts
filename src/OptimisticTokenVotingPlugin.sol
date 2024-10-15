@@ -371,7 +371,7 @@ contract OptimisticTokenVotingPlugin is
             revert DurationOutOfBounds({limit: governanceSettings.minDuration, actual: _duration});
         }
         uint64 _now = block.timestamp.toUint64();
-        uint64 _vetoEndDate = _now + _duration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
+        uint64 _vetoEndDate = _now + _duration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`.
 
         proposalId = _createProposal({
             _creator: _msgSender(),
@@ -408,9 +408,11 @@ contract OptimisticTokenVotingPlugin is
             }
         }
 
-        // For emergency multisig: execute if already possible
-        if (canExecute(proposalId)) {
-            execute(proposalId);
+        // Emergency proposal shortcut: Execute right away.
+        // Bypass the veto phase, the L2 grace period and the Exit Window
+        if (_duration == 0) {
+            proposals[proposalId].executed = true;
+            _executeProposal(dao(), proposalId, proposals[proposalId].actions, proposals[proposalId].allowFailureMap);
         }
     }
 
