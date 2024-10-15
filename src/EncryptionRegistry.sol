@@ -15,7 +15,7 @@ contract EncryptionRegistry {
         bytes32 publicKey;
     }
 
-    /// @dev Allows to enumerate the addresses that have a public key registered
+    /// @dev Allows to enumerate the addresses that have a encryption registered
     address[] public registeredAddresses;
 
     mapping(address => RegistryEntry) public members;

@@ -77,7 +77,7 @@ contract Deploy is Script {
         console.log("");
 
         console.log("Helpers");
-        console.log("- Public key registry", address(daoDeployment.encryptionRegistry));
+        console.log("- Encryption registry", address(daoDeployment.encryptionRegistry));
         console.log("- Delegation wall", address(delegationWall));
     }
 

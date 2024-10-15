@@ -69,15 +69,13 @@ The Emergency Multisig settings are the same as for the standard Multisig.
 - The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
 - The DAO can update the plugin settings
 
-## Public Key Registry
+## Encryption Registry
 
-This is a helper contract that allows Security Council members to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions. Refer to the UI repository for the encryption details.
+This is a helper contract that allows Security Council members to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions.
 
-NOTE: A published public key cannot be changed once published. 
+Given that smart contracts cannot possibly sign or decrypt data, the encryption registry allows to appoint an EOA as the end target for encryption purposes. This is useful for organizations not wanting to rely on just a single wallet.
 
-- A wallet can only generate one derived key pair. 
-- Public key registration is an automated process. No human error should be possible.
-- Altering an encryption key is a strange edge case of which the rest of signers should be aware of. 
+Refer to the UI repository for the encryption details.
 
 ## Delegation Wall
 
