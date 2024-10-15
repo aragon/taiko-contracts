@@ -1868,7 +1868,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
     }
 
-    function test_ExecuteRevertsWhenNotEnded() public {
+    function test_ExecuteRevertsBeforeEndedAndExitWindow() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1880,14 +1880,35 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         (, bool executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
+        // End
         vm.warp(block.timestamp + 4 days);
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
+        );
+        optimisticPlugin.execute(proposalId);
+
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(executed, false, "The proposal should not be executed");
+
+        // Almost exit window
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
+        );
+        optimisticPlugin.execute(proposalId);
+
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(executed, false, "The proposal should not be executed");
+
+        // Done
+        vm.warp(block.timestamp + 1);
         optimisticPlugin.execute(proposalId);
 
         (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, true, "The proposal should be executed");
     }
 
-    function test_ExecuteRevertsWhenDefeatedOnlyL1Tokens() public {
+    function test_ExecuteRevertsWhenDefeated_L1Only() public {
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1902,6 +1923,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
 
         vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
 
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
@@ -1912,7 +1934,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
     }
 
-    function test_ExecuteRevertsWhenDefeatedWithL1L2Tokens() public {
+    function test_ExecuteRevertsWhenDefeated_L1L2Tokens() public {
         vm.skip(true); // L2 aggregation still not available
 
         OptimisticTokenVotingPlugin.ProposalParameters memory parameters;
@@ -1936,11 +1958,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // bridge supply counts but doesn't veto
 
         vm.warp(block.timestamp + 4 days); // end
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
         optimisticPlugin.execute(proposalId);
-        // ok
+
+        // ok case
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
         optimisticPlugin.execute(proposalId);
 
@@ -1959,6 +1983,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.veto(proposalId); // 100% (above 70%)
 
         vm.warp(block.timestamp + 4 days); // end
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
@@ -1991,6 +2016,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.execute(proposalId);
 
         vm.warp(block.timestamp + builder.l2AggregationGracePeriod()); // grace period over
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
@@ -2002,6 +2028,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
 
         optimisticPlugin.execute(proposalId);
 
@@ -2017,7 +2044,57 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, true, "The proposal should be executed");
     }
 
-    function test_ExecuteRevertsWhenEndedButL2GracePeriodUnmet() public {
+    function test_ExecuteRevertsWhenEndedBeforeExitWindow_L1Only() public {
+        // An ended proposal with L1 only
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        (bool open, bool executed, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
+            optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, true, "Open should be true");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+
+        // ended
+        vm.warp(block.timestamp + 4 days);
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
+        );
+        optimisticPlugin.execute(proposalId);
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+
+        // Exit window almost over
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
+        );
+        optimisticPlugin.execute(proposalId);
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+
+        // Exit window done
+        vm.warp(block.timestamp + 1);
+        optimisticPlugin.execute(proposalId);
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, true, "Executed should be true");
+        assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
+    }
+
+    function test_ExecuteRevertsWhenEndedBeforeGracePeriodOrExitWindow_L1L2Tokens() public {
         // An ended proposal with L2 enabled has an additional grace period
 
         (, optimisticPlugin,,,,) =
@@ -2061,6 +2138,32 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // Grace period over
         vm.warp(block.timestamp + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
+        );
+        optimisticPlugin.execute(proposalId);
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
+
+        // Exit window almost over
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
+        );
+        optimisticPlugin.execute(proposalId);
+
+        (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+
+        assertEq(open, false, "Open should be false");
+        assertEq(executed, false, "Executed should be false");
+        assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
+
+        // Exit window done
+        vm.warp(block.timestamp + 1);
         optimisticPlugin.execute(proposalId);
 
         (open, executed, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
@@ -2075,6 +2178,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
 
         optimisticPlugin.execute(proposalId);
     }
@@ -2091,6 +2195,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
         assertEq(executed, false, "The proposal should not be executed");
 
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
+
+        (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(executed, false, "The proposal should not be executed");
+
         optimisticPlugin.execute(proposalId);
 
         (, executed,,,,,) = optimisticPlugin.getProposal(proposalId);
@@ -2102,6 +2211,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
         vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW());
 
         vm.expectEmit();
         emit ProposalExecuted(proposalId);
