@@ -516,7 +516,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid optimisticTokenVotingPluginSetup"
         );
 
-        // PUBLIC KEY REGISTRY
+        // ENCRYPTION REGISTRY
         assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
         assertEq(
             deployment.encryptionRegistry.getRegisteredAddressesLength(), 0, "Invalid getRegisteredAddressesLength"
@@ -755,7 +755,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid optimisticTokenVotingPluginSetup"
         );
 
-        // PUBLIC KEY REGISTRY
+        // ENCRYPTION REGISTRY
         assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
         assertEq(
             deployment.encryptionRegistry.getRegisteredAddressesLength(), 0, "Invalid getRegisteredAddressesLength"
