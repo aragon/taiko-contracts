@@ -43,7 +43,7 @@ interface IOptimisticTokenVoting {
     /// @param _metadata The metadata of the proposal.
     /// @param _actions The actions that will be executed after the proposal passes.
     /// @param _allowFailureMap Allows proposal to succeed even if an action reverts. Uses bitmap representation. If the bit at index `x` is 1, the tx succeeds even if the action at `x` failed. Passing 0 will be treated as atomic execution.
-    /// @param _duration The amount of seconds to allow token holders to veto.
+    /// @param _duration The amount of seconds to allow for token holders to veto. NOTE: If the supplied value is zero, the proposal will be treated as an emergency one.
     /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _metadata,

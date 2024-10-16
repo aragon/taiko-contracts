@@ -1320,9 +1320,6 @@ contract MultisigTest is AragonTest {
             assertEq(multisig.canApprove(pid, randomWallet), false, "Should be false");
         }
 
-        // static ko
-        assertEq(multisig.canApprove(pid, randomWallet), false, "Should be false");
-
         // static ok
         assertEq(multisig.canApprove(pid, alice), true, "Should be true");
     }
