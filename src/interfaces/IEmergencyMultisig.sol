@@ -8,6 +8,14 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 /// @author Aragon Association - 2023
 /// @notice An interface for an on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
 interface IEmergencyMultisig {
+    /// @notice Adds new members to the address list. Previously, it checks if the new address list length would be greater than `type(uint16).max`, the maximal number of approvals.
+    /// @param _members The addresses of the members to be added.
+    function addAddresses(address[] calldata _members) external;
+
+    /// @notice Removes existing members from the address list. Previously, it checks if the new address list length is at least as long as the minimum approvals parameter requires. Note that `minApprovals` is must be at least 1 so the address list cannot become empty.
+    /// @param _members The addresses of the members to be removed.
+    function removeAddresses(address[] calldata _members) external;
+
     /// @notice Approves and, optionally, executes the proposal.
     /// @param _proposalId The ID of the proposal.
     function approve(uint256 _proposalId) external;

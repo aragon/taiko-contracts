@@ -26,11 +26,12 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
         // Decode `_data` to extract the parameters needed for deploying and initializing `EmergencyMultisig` plugin.
-        (EmergencyMultisig.MultisigSettings memory multisigSettings) = decodeInstallationParameters(_data);
+        (address[] memory members, EmergencyMultisig.MultisigSettings memory multisigSettings) =
+            decodeInstallationParameters(_data);
 
         // Prepare and Deploy the plugin proxy.
         plugin = createERC1967Proxy(
-            address(multisigBase), abi.encodeCall(EmergencyMultisig.initialize, (IDAO(_dao), multisigSettings))
+            address(multisigBase), abi.encodeCall(EmergencyMultisig.initialize, (IDAO(_dao), members, multisigSettings))
         );
 
         // Prepare permissions
@@ -98,20 +99,19 @@ contract EmergencyMultisigPluginSetup is PluginSetup {
     }
 
     /// @notice Encodes the given installation parameters into a byte array
-    function encodeInstallationParameters(EmergencyMultisig.MultisigSettings memory _multisigSettings)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return abi.encode(_multisigSettings);
+    function encodeInstallationParameters(
+        address[] memory _members,
+        EmergencyMultisig.MultisigSettings memory _multisigSettings
+    ) external pure returns (bytes memory) {
+        return abi.encode(_members, _multisigSettings);
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
     function decodeInstallationParameters(bytes memory _data)
         public
         pure
-        returns (EmergencyMultisig.MultisigSettings memory _multisigSettings)
+        returns (address[] memory _members, EmergencyMultisig.MultisigSettings memory _multisigSettings)
     {
-        (_multisigSettings) = abi.decode(_data, (EmergencyMultisig.MultisigSettings));
+        (_members, _multisigSettings) = abi.decode(_data, (address[], EmergencyMultisig.MultisigSettings));
     }
 }

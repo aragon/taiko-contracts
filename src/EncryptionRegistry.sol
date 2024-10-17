@@ -6,10 +6,27 @@ import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
+interface IAppointer {
+    /// @notice Raised when attempting to register a contract instead of a wallet
+    error CannotAppointContracts();
+
+    /// @notice Raised when a non appointed wallet tried to define the public key
+    error NotAppointed();
+
+    /// @notice Raised when the member attempts to define the public key of the appointed wallet
+    error OwnerNotAppointed();
+
+    /// @notice Registers the externally owned wallet's address to use for encryption. This allows smart contracts to appoint an EOA that can decrypt data.
+    function appointWallet(address _newAddress) external;
+
+    /// @notice Returns the address of the wallet appointed for encryption purposes
+    function getAppointedAddress(address member) external returns (address);
+}
+
 /// @title EncryptionRegistry - Release 1, Build 1
 /// @author Aragon Association - 2024
 /// @notice A smart contract where addresses can register their libsodium public key for encryption purposes, as well as appointing an EOA
-contract EncryptionRegistry {
+contract EncryptionRegistry is IAppointer {
     struct RegistryEntry {
         address appointedWallet;
         bytes32 publicKey;
@@ -29,15 +46,6 @@ contract EncryptionRegistry {
     /// @notice Emitted when an externally owned wallet is appointed
     event WalletAppointed(address member, address appointedWallet);
 
-    /// @notice Raised when attempting to register a contract instead of a wallet
-    error CannotAppointContracts();
-
-    /// @notice Raised when a non appointed wallet tried to define the public key
-    error NotAppointed();
-
-    /// @notice Raised when the member attempts to define the public key of the appointed wallet
-    error OwnerNotAppointed();
-
     /// @notice Raised when the caller is not a multisig member
     error RegistrationForbidden();
 
@@ -52,10 +60,13 @@ contract EncryptionRegistry {
         addresslistSource = _addresslistSource;
     }
 
-    /// @notice Registers the externally owned wallet's address to use for encryption. This allows smart contracts to appoint an EOA that can decrypt data.
+    /// @inheritdoc IAppointer
     function appointWallet(address _newAddress) public {
-        if (!addresslistSource.isListed(msg.sender)) revert RegistrationForbidden();
-        else if (Address.isContract(_newAddress)) revert CannotAppointContracts();
+        if (!addresslistSource.isListed(msg.sender)) {
+            revert RegistrationForbidden();
+        } else if (Address.isContract(_newAddress)) {
+            revert CannotAppointContracts();
+        }
 
         if (members[msg.sender].appointedWallet == address(0) && members[msg.sender].publicKey == bytes32(0)) {
             registeredAddresses.push(msg.sender);
@@ -84,19 +95,13 @@ contract EncryptionRegistry {
 
     /// @notice Registers the given public key as the member's target for decrypting messages. Only if the sender is appointed.
     function setPublicKey(address _memberAddress, bytes32 _publicKey) public {
-        if (!addresslistSource.isListed(_memberAddress)) revert RegistrationForbidden();
-        else if (members[_memberAddress].appointedWallet != msg.sender) revert NotAppointed();
-
-        _setPublicKey(_memberAddress, _publicKey);
-    }
-
-    function _setPublicKey(address _memberAddress, bytes32 _publicKey) internal {
-        if (members[_memberAddress].appointedWallet == address(0) && members[_memberAddress].publicKey == bytes32(0)) {
-            registeredAddresses.push(_memberAddress);
+        if (!addresslistSource.isListed(_memberAddress)) {
+            revert RegistrationForbidden();
+        } else if (members[_memberAddress].appointedWallet != msg.sender) {
+            revert NotAppointed();
         }
 
-        members[_memberAddress].publicKey = _publicKey;
-        emit PublicKeySet(_memberAddress, _publicKey);
+        _setPublicKey(_memberAddress, _publicKey);
     }
 
     /// @notice Returns the list of addresses on the registry
@@ -108,5 +113,24 @@ contract EncryptionRegistry {
     /// @notice Returns the number of addresses registered
     function getRegisteredAddressesLength() public view returns (uint256) {
         return registeredAddresses.length;
+    }
+
+    /// @inheritdoc IAppointer
+    function getAppointedAddress(address _member) public view returns (address) {
+        if (members[_member].appointedWallet != address(0)) {
+            return members[_member].appointedWallet;
+        }
+        return _member;
+    }
+
+    // Internal helpers
+
+    function _setPublicKey(address _memberAddress, bytes32 _publicKey) internal {
+        if (members[_memberAddress].appointedWallet == address(0) && members[_memberAddress].publicKey == bytes32(0)) {
+            registeredAddresses.push(_memberAddress);
+        }
+
+        members[_memberAddress].publicKey = _publicKey;
+        emit PublicKeySet(_memberAddress, _publicKey);
     }
 }
