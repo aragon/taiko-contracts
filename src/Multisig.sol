@@ -9,15 +9,16 @@ import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
-import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IMultisig} from "./interfaces/IMultisig.sol";
+import {SignerList} from "./SignerList.sol";
+import {ISignerList} from "./interfaces/ISignerList.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
-contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgradeable {
+contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     using SafeCastUpgradeable for uint256;
 
     /// @notice A container for proposal-related information.
@@ -53,12 +54,13 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
     /// @param addresslistSource The contract where the list of signers is defined.
     /// @param destinationProposalDuration The minimum duration that the destination plugin will enforce.
+    /// @param signerList The contract defining who is a member and/or who is appointed as a decryption wallet
     /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
-        Addresslist addresslistSource;
         uint64 destinationProposalDuration;
+        SignerList signerList;
         uint64 proposalExpirationPeriod;
     }
 
@@ -91,6 +93,10 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @param proposalId The ID of the proposal.
     error ProposalExecutionForbidden(uint256 proposalId);
 
+    /// @notice Thrown if the SignerList contract is not compatible.
+    /// @param signerList The given address
+    error InvalidSignerList(SignerList signerList);
+
     /// @notice Thrown if the minimal approvals value is out of bounds (less than 1 or greater than the number of members in the address list).
     /// @param limit The maximal value.
     /// @param actual The actual value.
@@ -112,13 +118,13 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @notice Emitted when the plugin settings are set.
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
-    /// @param addresslistSource The address of the contract holding the address list to use.
+    /// @param signerList The contract defining who is a member and/or who is appointed as a decryption wallet
     /// @param destinationProposalDuration The minimum duration (in seconds) that will be required on the destination plugin
     /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     event MultisigSettingsUpdated(
         bool onlyListed,
         uint16 indexed minApprovals,
-        Addresslist addresslistSource,
+        SignerList signerList,
         uint64 destinationProposalDuration,
         uint64 proposalExpirationPeriod
     );
@@ -168,8 +174,13 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal
     ) external returns (uint256 proposalId) {
-        if (multisigSettings.onlyListed && !multisigSettings.addresslistSource.isListed(msg.sender)) {
-            revert ProposalCreationForbidden(msg.sender);
+        if (multisigSettings.onlyListed) {
+            (bool ownerIsListed,) = multisigSettings.signerList.resolveEncryptionAccountStatus(msg.sender);
+
+            // Only the account or its appointed address may create proposals
+            if (!ownerIsListed) {
+                revert ProposalCreationForbidden(msg.sender);
+            }
         }
 
         uint64 snapshotBlock;
@@ -217,9 +228,9 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
 
     /// @inheritdoc IMultisig
     function approve(uint256 _proposalId, bool _tryExecution) public {
-        address approver = msg.sender;
-        if (!_canApprove(_proposalId, approver)) {
-            revert ApprovalCastForbidden(_proposalId, approver);
+        address _sender = msg.sender;
+        if (!_canApprove(_proposalId, _sender)) {
+            revert ApprovalCastForbidden(_proposalId, _sender);
         }
 
         Proposal storage proposal_ = proposals[_proposalId];
@@ -230,9 +241,11 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
             proposal_.approvals += 1;
         }
 
-        proposal_.approvers[approver] = true;
+        // Register the approval as being made by the owner, the one who isListed() relates to
+        address _owner = multisigSettings.signerList.resolveEncryptionOwner(_sender);
+        proposal_.approvers[_owner] = true;
 
-        emit Approved({proposalId: _proposalId, approver: approver});
+        emit Approved({proposalId: _proposalId, approver: _owner});
 
         if (_tryExecution && _canExecute(_proposalId)) {
             _execute(_proposalId);
@@ -281,7 +294,9 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
 
     /// @inheritdoc IMultisig
     function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
-        return proposals[_proposalId].approvers[_account];
+        address _owner = multisigSettings.signerList.resolveEncryptionOwner(_account);
+
+        return proposals[_proposalId].approvers[_owner];
     }
 
     /// @inheritdoc IMultisig
@@ -291,11 +306,6 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         }
 
         _execute(_proposalId);
-    }
-
-    /// @inheritdoc IMembership
-    function isMember(address _account) external view returns (bool) {
-        return multisigSettings.addresslistSource.isListed(_account);
     }
 
     /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
@@ -316,9 +326,9 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
 
     /// @notice Internal function to check if an account can approve. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
-    /// @param _account The account to check.
+    /// @param _approver The account to check.
     /// @return Returns `true` if the given account can approve on a certain proposal and `false` otherwise.
-    function _canApprove(uint256 _proposalId, address _account) internal view returns (bool) {
+    function _canApprove(uint256 _proposalId, address _approver) internal view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         if (!_isProposalOpen(proposal_)) {
@@ -326,13 +336,25 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
             return false;
         }
 
-        if (!multisigSettings.addresslistSource.isListedAtBlock(_account, proposal_.parameters.snapshotBlock)) {
-            // The approver has no voting power.
+        (address _owner, address _appointedWallet) = multisigSettings.signerList.resolveEncryptionAccount(_approver);
+
+        if (_owner == address(0)) {
+            // Not resolved
+            return false;
+        } else if (!multisigSettings.signerList.isListedAtBlock(_owner, proposal_.parameters.snapshotBlock)) {
+            // The owner account had no voting power
             return false;
         }
+        // If there is an appointed wallet, only that wallet can approve
+        else if (_appointedWallet != address(0)) {
+            // Someone else is appointed
+            if (_approver != _appointedWallet) return false;
+        }
 
-        if (proposal_.approvers[_account]) {
-            // The approver has already approved
+        // If _appointedWallet == address(0), then _owner == _approver. No need to check.
+
+        if (proposal_.approvers[_owner]) {
+            // The account already approved
             return false;
         }
 
@@ -364,19 +386,15 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
     /// @notice Internal function to update the plugin settings.
     /// @param _multisigSettings The new settings.
     function _updateMultisigSettings(MultisigSettings calldata _multisigSettings) internal {
-        if (!IERC165(address(_multisigSettings.addresslistSource)).supportsInterface(type(Addresslist).interfaceId)) {
-            revert InvalidAddressListSource(address(_multisigSettings.addresslistSource));
-        } else if (_multisigSettings.minApprovals < 1) {
-            revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
+        if (!IERC165(address(_multisigSettings.signerList)).supportsInterface(type(ISignerList).interfaceId)) {
+            revert InvalidSignerList(_multisigSettings.signerList);
         }
 
-        uint16 addresslistLength_ = uint16(_multisigSettings.addresslistSource.addresslistLength());
+        uint16 addresslistLength_ = uint16(_multisigSettings.signerList.addresslistLength());
 
         if (_multisigSettings.minApprovals > addresslistLength_) {
             revert MinApprovalsOutOfBounds({limit: addresslistLength_, actual: _multisigSettings.minApprovals});
-        }
-
-        if (_multisigSettings.minApprovals < 1) {
+        } else if (_multisigSettings.minApprovals < 1) {
             revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
         }
 
@@ -386,7 +404,7 @@ contract Multisig is IMultisig, IMembership, PluginUUPSUpgradeable, ProposalUpgr
         emit MultisigSettingsUpdated({
             onlyListed: _multisigSettings.onlyListed,
             minApprovals: _multisigSettings.minApprovals,
-            addresslistSource: _multisigSettings.addresslistSource,
+            signerList: _multisigSettings.signerList,
             destinationProposalDuration: _multisigSettings.destinationProposalDuration,
             proposalExpirationPeriod: _multisigSettings.proposalExpirationPeriod
         });

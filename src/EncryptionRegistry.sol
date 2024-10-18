@@ -5,132 +5,119 @@ pragma solidity ^0.8.17;
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-
-interface IAppointer {
-    /// @notice Raised when attempting to register a contract instead of a wallet
-    error CannotAppointContracts();
-
-    /// @notice Raised when a non appointed wallet tried to define the public key
-    error NotAppointed();
-
-    /// @notice Raised when the member attempts to define the public key of the appointed wallet
-    error OwnerNotAppointed();
-
-    /// @notice Registers the externally owned wallet's address to use for encryption. This allows smart contracts to appoint an EOA that can decrypt data.
-    function appointWallet(address _newAddress) external;
-
-    /// @notice Returns the address of the wallet appointed for encryption purposes
-    function getAppointedAddress(address member) external returns (address);
-}
+import {IEncryptionRegistry} from "./interfaces/IEncryptionRegistry.sol";
 
 /// @title EncryptionRegistry - Release 1, Build 1
 /// @author Aragon Association - 2024
-/// @notice A smart contract where addresses can register their libsodium public key for encryption purposes, as well as appointing an EOA
-contract EncryptionRegistry is IAppointer {
-    struct RegistryEntry {
+/// @notice A smart contract where accounts can register their libsodium public key for encryption purposes, as well as appointing an EOA
+contract EncryptionRegistry is IEncryptionRegistry {
+    struct AccountEntry {
         address appointedWallet;
         bytes32 publicKey;
     }
 
-    /// @dev Allows to enumerate the addresses that have a encryption registered
-    address[] public registeredAddresses;
+    /// @notice Allows to enumerate the addresses on the registry
+    address[] public registeredAccounts;
 
-    mapping(address => RegistryEntry) public members;
+    /// @notice The database of appointed wallets and their public key
+    mapping(address => AccountEntry) public accounts;
+
+    /// @notice A reference to the account that appointed each wallet
+    mapping(address => address) public appointedBy;
 
     /// @dev The contract to check whether the caller is a multisig member
-    Addresslist addresslistSource;
+    Addresslist addresslist;
 
-    /// @notice Emitted when a public key is defined
-    event PublicKeySet(address member, bytes32 publicKey);
-
-    /// @notice Emitted when an externally owned wallet is appointed
-    event WalletAppointed(address member, address appointedWallet);
-
-    /// @notice Raised when the caller is not a multisig member
-    error RegistrationForbidden();
-
-    /// @notice Raised when the caller is not a multisig member
-    error InvalidAddressList();
-
-    constructor(Addresslist _addresslistSource) {
-        if (!IERC165(address(_addresslistSource)).supportsInterface(type(Addresslist).interfaceId)) {
+    constructor(Addresslist _addresslist) {
+        if (!IERC165(address(_addresslist)).supportsInterface(type(Addresslist).interfaceId)) {
             revert InvalidAddressList();
         }
 
-        addresslistSource = _addresslistSource;
+        addresslist = _addresslist;
     }
 
-    /// @inheritdoc IAppointer
-    function appointWallet(address _newAddress) public {
-        if (!addresslistSource.isListed(msg.sender)) {
-            revert RegistrationForbidden();
-        } else if (Address.isContract(_newAddress)) {
+    /// @inheritdoc IEncryptionRegistry
+    function appointWallet(address _newWallet) public {
+        if (!addresslist.isListed(msg.sender)) {
+            revert MustBeListed();
+        } else if (Address.isContract(_newWallet)) {
             revert CannotAppointContracts();
+        } else if (appointedBy[_newWallet] != address(0)) {
+            revert AlreadyAppointed();
         }
 
-        if (members[msg.sender].appointedWallet == address(0) && members[msg.sender].publicKey == bytes32(0)) {
-            registeredAddresses.push(msg.sender);
+        // New account?
+        if (accounts[msg.sender].appointedWallet == address(0) && accounts[msg.sender].publicKey == bytes32(0)) {
+            registeredAccounts.push(msg.sender);
+        }
+        // Existing account
+        else {
+            // Clear the old appointedBy[], if needed
+            if (accounts[msg.sender].appointedWallet != address(0)) {
+                appointedBy[accounts[msg.sender].appointedWallet] = address(0);
+            }
+            // Clear the old public key, if needed
+            if (accounts[msg.sender].publicKey != bytes32(0)) {
+                // The old appointed wallet should no longer be able to see new content
+                accounts[msg.sender].publicKey = bytes32(0);
+            }
         }
 
-        if (members[msg.sender].publicKey != bytes32(0)) {
-            // The old member should no longer be able to see new content
-            members[msg.sender].publicKey = bytes32(0);
-        }
-        members[msg.sender].appointedWallet = _newAddress;
-        emit WalletAppointed(msg.sender, _newAddress);
+        accounts[msg.sender].appointedWallet = _newWallet;
+        appointedBy[_newWallet] = msg.sender;
+        emit WalletAppointed(msg.sender, _newWallet);
     }
 
-    /// @notice Registers the given public key as its own target for decrypting messages
+    /// @inheritdoc IEncryptionRegistry
     function setOwnPublicKey(bytes32 _publicKey) public {
-        if (!addresslistSource.isListed(msg.sender)) {
-            revert RegistrationForbidden();
-        } else if (
-            members[msg.sender].appointedWallet != msg.sender && members[msg.sender].appointedWallet != address(0)
+        if (!addresslist.isListed(msg.sender)) {
+            revert MustBeListed();
+        }
+        // If someone else if appointed, the public key cannot be overriden.
+        // The appointed value should be set to address(0) or msg.sender first.
+        else if (
+            accounts[msg.sender].appointedWallet != address(0) && accounts[msg.sender].appointedWallet != msg.sender
         ) {
-            revert OwnerNotAppointed();
+            revert CannotSetPubKeyForAppointedWallets();
         }
 
         _setPublicKey(msg.sender, _publicKey);
+        emit PublicKeySet(msg.sender, _publicKey);
     }
 
-    /// @notice Registers the given public key as the member's target for decrypting messages. Only if the sender is appointed.
-    function setPublicKey(address _memberAddress, bytes32 _publicKey) public {
-        if (!addresslistSource.isListed(_memberAddress)) {
-            revert RegistrationForbidden();
-        } else if (members[_memberAddress].appointedWallet != msg.sender) {
-            revert NotAppointed();
+    /// @inheritdoc IEncryptionRegistry
+    function setPublicKey(address _account, bytes32 _publicKey) public {
+        if (!addresslist.isListed(_account)) {
+            revert MustBeListed();
+        } else if (accounts[_account].appointedWallet != msg.sender) {
+            revert MustBeAppointed();
         }
 
-        _setPublicKey(_memberAddress, _publicKey);
+        _setPublicKey(_account, _publicKey);
+        emit PublicKeySet(_account, _publicKey);
     }
 
-    /// @notice Returns the list of addresses on the registry
-    /// @dev Use this function to get all addresses in a single call. You can still call registeredAddresses[idx] to resolve them one by one.
-    function getRegisteredAddresses() public view returns (address[] memory) {
-        return registeredAddresses;
+    /// @inheritdoc IEncryptionRegistry
+    function getRegisteredAccounts() public view returns (address[] memory) {
+        return registeredAccounts;
     }
 
-    /// @notice Returns the number of addresses registered
-    function getRegisteredAddressesLength() public view returns (uint256) {
-        return registeredAddresses.length;
-    }
-
-    /// @inheritdoc IAppointer
-    function getAppointedAddress(address _member) public view returns (address) {
-        if (members[_member].appointedWallet != address(0)) {
-            return members[_member].appointedWallet;
+    /// @inheritdoc IEncryptionRegistry
+    function getAppointedWallet(address _member) public view returns (address) {
+        if (accounts[_member].appointedWallet != address(0)) {
+            return accounts[_member].appointedWallet;
         }
         return _member;
     }
 
     // Internal helpers
 
-    function _setPublicKey(address _memberAddress, bytes32 _publicKey) internal {
-        if (members[_memberAddress].appointedWallet == address(0) && members[_memberAddress].publicKey == bytes32(0)) {
-            registeredAddresses.push(_memberAddress);
+    function _setPublicKey(address _account, bytes32 _publicKey) internal {
+        if (accounts[_account].appointedWallet == address(0) && accounts[_account].publicKey == bytes32(0)) {
+            // New member
+            registeredAccounts.push(_account);
         }
 
-        members[_memberAddress].publicKey = _publicKey;
-        emit PublicKeySet(_memberAddress, _publicKey);
+        accounts[_account].publicKey = _publicKey;
     }
 }
