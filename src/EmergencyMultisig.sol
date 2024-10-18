@@ -5,25 +5,19 @@ pragma solidity ^0.8.17;
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
-
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IEmergencyMultisig} from "./interfaces/IEmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
-import {IAppointer} from "./EncryptionRegistry.sol";
+import {SignerList} from "./SignerList.sol";
+import {ISignerList} from "./interfaces/ISignerList.sol";
 
 /// @title Multisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
-contract EmergencyMultisig is
-    IEmergencyMultisig,
-    IMembership,
-    PluginUUPSUpgradeable,
-    ProposalUpgradeable,
-    Addresslist
-{
+contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     using SafeCastUpgradeable for uint256;
 
     /// @notice A container for proposal-related information.
@@ -60,12 +54,12 @@ contract EmergencyMultisig is
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
     /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
-    /// @param encryptionRegistry The contract defining who is the appointed wallet for smart contract based accounts
+    /// @param signerList The contract defining who is a member and/or who is appointed as a decryption wallet
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
         uint64 proposalExpirationPeriod;
-        IAppointer encryptionRegistry;
+        SignerList signerList;
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -105,15 +99,14 @@ contract EmergencyMultisig is
     /// @param proposalId The ID of the proposal.
     error InvalidMetadataUri(uint256 proposalId);
 
+    /// @notice Thrown if the SignerList contract is not compatible.
+    /// @param signerList The given address
+    error InvalidSignerList(SignerList signerList);
+
     /// @notice Thrown if the minimal approvals value is out of bounds (less than 1 or greater than the number of members in the address list).
     /// @param limit The maximal value.
     /// @param actual The actual value.
     error MinApprovalsOutOfBounds(uint16 limit, uint16 actual);
-
-    /// @notice Thrown if the address list length is out of bounds.
-    /// @param limit The limit value.
-    /// @param actual The actual value.
-    error AddresslistLengthOutOfBounds(uint16 limit, uint256 actual);
 
     /// @notice Emitted when a proposal is created.
     /// @param proposalId The ID of the proposal.
@@ -133,29 +126,18 @@ contract EmergencyMultisig is
     /// @notice Emitted when the plugin settings are set.
     /// @param onlyListed Whether only listed addresses can create a proposal.
     /// @param minApprovals The minimum amount of approvals needed to pass a proposal.
-    /// @param encryptionRegistry The contract defining who is the appointed wallet for smart contract based accounts
+    /// @param signerList The contract defining who is a member and/or who is appointed as a decryption wallet
     /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     event MultisigSettingsUpdated(
-        bool onlyListed, uint16 indexed minApprovals, IAppointer encryptionRegistry, uint64 proposalExpirationPeriod
+        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint64 proposalExpirationPeriod
     );
 
     /// @notice Initializes Release 1, Build 1.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
-    /// @param _members The addresses of the initial members to be added.
     /// @param _multisigSettings The multisig settings.
-    function initialize(IDAO _dao, address[] calldata _members, MultisigSettings calldata _multisigSettings)
-        external
-        initializer
-    {
+    function initialize(IDAO _dao, MultisigSettings calldata _multisigSettings) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
-
-        if (_members.length > type(uint16).max) {
-            revert AddresslistLengthOutOfBounds({limit: type(uint16).max, actual: _members.length});
-        }
-
-        _addAddresses(_members);
-        emit MembersAdded({members: _members});
 
         _updateMultisigSettings(_multisigSettings);
     }
@@ -170,36 +152,7 @@ contract EmergencyMultisig is
         override(PluginUUPSUpgradeable, ProposalUpgradeable)
         returns (bool)
     {
-        return _interfaceId == type(IEmergencyMultisig).interfaceId || _interfaceId == type(Addresslist).interfaceId
-            || _interfaceId == type(IMembership).interfaceId || super.supportsInterface(_interfaceId);
-    }
-
-    /// @inheritdoc IEmergencyMultisig
-    function addAddresses(address[] calldata _members) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
-        uint256 newAddresslistLength = addresslistLength() + _members.length;
-
-        // Check if the new address list length would be greater than `type(uint16).max`, the maximal number of approvals.
-        if (newAddresslistLength > type(uint16).max) {
-            revert AddresslistLengthOutOfBounds({limit: type(uint16).max, actual: newAddresslistLength});
-        }
-
-        _addAddresses(_members);
-
-        emit MembersAdded({members: _members});
-    }
-
-    /// @inheritdoc IEmergencyMultisig
-    function removeAddresses(address[] calldata _members) external auth(UPDATE_MULTISIG_SETTINGS_PERMISSION_ID) {
-        uint16 newAddresslistLength = uint16(addresslistLength() - _members.length);
-
-        // Check if the new address list length would become less than the current minimum number of approvals required.
-        if (newAddresslistLength < multisigSettings.minApprovals) {
-            revert MinApprovalsOutOfBounds({limit: multisigSettings.minApprovals, actual: newAddresslistLength});
-        }
-
-        _removeAddresses(_members);
-
-        emit MembersRemoved({members: _members});
+        return _interfaceId == type(IEmergencyMultisig).interfaceId || super.supportsInterface(_interfaceId);
     }
 
     /// @notice Updates the plugin settings.
@@ -225,8 +178,13 @@ contract EmergencyMultisig is
         OptimisticTokenVotingPlugin _destinationPlugin,
         bool _approveProposal
     ) external returns (uint256 proposalId) {
-        if (multisigSettings.onlyListed && !isListed(msg.sender)) {
-            revert ProposalCreationForbidden(msg.sender);
+        if (multisigSettings.onlyListed) {
+            (bool ownerIsListed,) = multisigSettings.signerList.resolveEncryptionAccountStatus(msg.sender);
+
+            // Only the account or its appointed address may create proposals
+            if (!ownerIsListed) {
+                revert ProposalCreationForbidden(msg.sender);
+            }
         }
 
         uint64 snapshotBlock;
@@ -267,9 +225,9 @@ contract EmergencyMultisig is
 
     /// @inheritdoc IEmergencyMultisig
     function approve(uint256 _proposalId) public {
-        address approver = msg.sender;
-        if (!_canApprove(_proposalId, approver)) {
-            revert ApprovalCastForbidden(_proposalId, approver);
+        address _sender = msg.sender;
+        if (!_canApprove(_proposalId, _sender)) {
+            revert ApprovalCastForbidden(_proposalId, _sender);
         }
 
         Proposal storage proposal_ = proposals[_proposalId];
@@ -280,9 +238,11 @@ contract EmergencyMultisig is
             proposal_.approvals += 1;
         }
 
-        proposal_.approvers[approver] = true;
+        // Register the approval as being made by the owner, the one who isListed() relates to
+        address _owner = multisigSettings.signerList.resolveEncryptionOwner(_sender);
+        proposal_.approvers[_owner] = true;
 
-        emit Approved({proposalId: _proposalId, approver: approver});
+        emit Approved({proposalId: _proposalId, approver: _owner});
 
         // Automatic execution is intentionally omitted in order to prevent
         // private actions from accidentally leaving the local computer before being executed
@@ -333,7 +293,9 @@ contract EmergencyMultisig is
 
     /// @inheritdoc IEmergencyMultisig
     function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
-        return proposals[_proposalId].approvers[_account];
+        address _owner = multisigSettings.signerList.resolveEncryptionOwner(_account);
+
+        return proposals[_proposalId].approvers[_owner];
     }
 
     /// @inheritdoc IEmergencyMultisig
@@ -362,11 +324,6 @@ contract EmergencyMultisig is
         actionsHash = keccak256(abi.encode(_actions));
     }
 
-    /// @inheritdoc IMembership
-    function isMember(address _account) external view returns (bool) {
-        return isListed(_account);
-    }
-
     /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
     function _execute(uint256 _proposalId, bytes memory _metadataUri, IDAO.Action[] calldata _actions) internal {
@@ -385,9 +342,9 @@ contract EmergencyMultisig is
 
     /// @notice Internal function to check if an account can approve. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
-    /// @param _account The account to check.
+    /// @param _approver The account to check.
     /// @return Returns `true` if the given account can approve on a certain proposal and `false` otherwise.
-    function _canApprove(uint256 _proposalId, address _account) internal view returns (bool) {
+    function _canApprove(uint256 _proposalId, address _approver) internal view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         if (!_isProposalOpen(proposal_)) {
@@ -395,13 +352,25 @@ contract EmergencyMultisig is
             return false;
         }
 
-        if (!isListedAtBlock(_account, proposal_.parameters.snapshotBlock)) {
-            // The approver has no voting power.
+        (address _owner, address _appointedWallet) = multisigSettings.signerList.resolveEncryptionAccount(_approver);
+
+        if (_owner == address(0)) {
+            // Not resolved
+            return false;
+        } else if (!multisigSettings.signerList.isListedAtBlock(_owner, proposal_.parameters.snapshotBlock)) {
+            // The owner account had no voting power
             return false;
         }
+        // If there is an appointed wallet, only that wallet can approve
+        else if (_appointedWallet != address(0)) {
+            // Someone else is appointed
+            if (_approver != _appointedWallet) return false;
+        }
 
-        if (proposal_.approvers[_account]) {
-            // The approver has already approved
+        // If _appointedWallet == address(0), then _owner == _approver. No need to check.
+
+        if (proposal_.approvers[_owner]) {
+            // The account already approved
             return false;
         }
 
@@ -433,10 +402,16 @@ contract EmergencyMultisig is
     /// @notice Internal function to update the plugin settings.
     /// @param _multisigSettings The new settings.
     function _updateMultisigSettings(MultisigSettings calldata _multisigSettings) internal {
-        uint16 addresslistLength_ = uint16(addresslistLength());
+        if (!IERC165(address(_multisigSettings.signerList)).supportsInterface(type(ISignerList).interfaceId)) {
+            revert InvalidSignerList(_multisigSettings.signerList);
+        }
+        
+        uint16 addresslistLength_ = uint16(_multisigSettings.signerList.addresslistLength());
 
         if (_multisigSettings.minApprovals > addresslistLength_) {
             revert MinApprovalsOutOfBounds({limit: addresslistLength_, actual: _multisigSettings.minApprovals});
+        } else if (_multisigSettings.minApprovals < 1) {
+            revert MinApprovalsOutOfBounds({limit: 1, actual: _multisigSettings.minApprovals});
         }
 
         multisigSettings = _multisigSettings;
@@ -445,8 +420,8 @@ contract EmergencyMultisig is
         emit MultisigSettingsUpdated({
             onlyListed: _multisigSettings.onlyListed,
             minApprovals: _multisigSettings.minApprovals,
-            encryptionRegistry: _multisigSettings.encryptionRegistry,
-            proposalExpirationPeriod: _multisigSettings.proposalExpirationPeriod
+            proposalExpirationPeriod: _multisigSettings.proposalExpirationPeriod,
+            signerList: _multisigSettings.signerList
         });
     }
 
