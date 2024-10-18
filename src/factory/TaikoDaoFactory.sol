@@ -5,7 +5,7 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {Multisig} from "../Multisig.sol";
 import {EmergencyMultisig} from "../EmergencyMultisig.sol";
-import {PublicKeyRegistry} from "../PublicKeyRegistry.sol";
+import {EncryptionRegistry} from "../EncryptionRegistry.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPluginSetup.sol";
 import {MultisigPluginSetup} from "../setup/MultisigPluginSetup.sol";
@@ -86,7 +86,7 @@ contract TaikoDaoFactory {
         PluginRepo emergencyMultisigPluginRepo;
         PluginRepo optimisticTokenVotingPluginRepo;
         // Other
-        PublicKeyRegistry publicKeyRegistry;
+        EncryptionRegistry encryptionRegistry;
     }
 
     /// @notice Thrown when attempting to call deployOnce() when the DAO is already deployed.
@@ -151,7 +151,7 @@ contract TaikoDaoFactory {
         revokeOwnerPermission(deployment.dao);
 
         // DEPLOY OTHER CONTRACTS
-        deployment.publicKeyRegistry = deployPublicKeyRegistry();
+        deployment.encryptionRegistry = deployEncryptionRegistry();
     }
 
     function prepareDao() internal returns (DAO dao) {
@@ -302,8 +302,8 @@ contract TaikoDaoFactory {
         return (OptimisticTokenVotingPlugin(plugin), pluginRepo, preparedSetupData);
     }
 
-    function deployPublicKeyRegistry() internal returns (PublicKeyRegistry) {
-        return new PublicKeyRegistry(deployment.multisigPlugin);
+    function deployEncryptionRegistry() internal returns (EncryptionRegistry) {
+        return new EncryptionRegistry(deployment.multisigPlugin);
     }
 
     function applyPluginInstallation(

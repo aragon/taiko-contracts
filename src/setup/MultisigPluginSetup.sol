@@ -26,12 +26,11 @@ contract MultisigPluginSetup is PluginSetup {
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
         // Decode `_data` to extract the parameters needed for deploying and initializing `Multisig` plugin.
-        (address[] memory members, Multisig.MultisigSettings memory multisigSettings) =
-            decodeInstallationParameters(_data);
+        (Multisig.MultisigSettings memory multisigSettings) = decodeInstallationParameters(_data);
 
         // Prepare and Deploy the plugin proxy.
         plugin = createERC1967Proxy(
-            address(multisigBase), abi.encodeCall(Multisig.initialize, (IDAO(_dao), members, multisigSettings))
+            address(multisigBase), abi.encodeCall(Multisig.initialize, (IDAO(_dao), multisigSettings))
         );
 
         // Prepare permissions
@@ -99,20 +98,20 @@ contract MultisigPluginSetup is PluginSetup {
     }
 
     /// @notice Encodes the given installation parameters into a byte array
-    function encodeInstallationParameters(address[] memory _members, Multisig.MultisigSettings memory _multisigSettings)
+    function encodeInstallationParameters(Multisig.MultisigSettings memory _multisigSettings)
         external
         pure
         returns (bytes memory)
     {
-        return abi.encode(_members, _multisigSettings);
+        return abi.encode(_multisigSettings);
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
     function decodeInstallationParameters(bytes memory _data)
         public
         pure
-        returns (address[] memory _members, Multisig.MultisigSettings memory _multisigSettings)
+        returns (Multisig.MultisigSettings memory _multisigSettings)
     {
-        (_members, _multisigSettings) = abi.decode(_data, (address[], Multisig.MultisigSettings));
+        (_multisigSettings) = abi.decode(_data, (Multisig.MultisigSettings));
     }
 }
