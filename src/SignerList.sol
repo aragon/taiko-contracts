@@ -206,8 +206,15 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     /// @notice Internal function to update the plugin settings.
     /// @param _newSettings The new settings.
     function _updateSettings(Settings calldata _newSettings) internal {
-        if (!IERC165(address(_newSettings.encryptionRegistry)).supportsInterface(type(IEncryptionRegistry).interfaceId))
-        {
+        // Avoid writing if not needed
+        if (
+            _newSettings.encryptionRegistry == settings.encryptionRegistry
+                && _newSettings.minSignerListLength == settings.minSignerListLength
+        ) {
+            return;
+        } else if (
+            !IERC165(address(_newSettings.encryptionRegistry)).supportsInterface(type(IEncryptionRegistry).interfaceId)
+        ) {
             revert InvalidEncryptionRegitry(address(_newSettings.encryptionRegistry));
         }
 

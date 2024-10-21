@@ -5,6 +5,7 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {Multisig} from "../Multisig.sol";
 import {EmergencyMultisig} from "../EmergencyMultisig.sol";
+import {SignerList} from "../SignerList.sol";
 import {EncryptionRegistry} from "../EncryptionRegistry.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPluginSetup.sol";
@@ -81,12 +82,13 @@ contract TaikoDaoFactory {
         Multisig multisigPlugin;
         EmergencyMultisig emergencyMultisigPlugin;
         OptimisticTokenVotingPlugin optimisticTokenVotingPlugin;
+        // Helpers
+        SignerList signerList;
+        EncryptionRegistry encryptionRegistry;
         // Plugin repo's
         PluginRepo multisigPluginRepo;
         PluginRepo emergencyMultisigPluginRepo;
         PluginRepo optimisticTokenVotingPluginRepo;
-        // Other
-        EncryptionRegistry encryptionRegistry;
     }
 
     /// @notice Thrown when attempting to call deployOnce() when the DAO is already deployed.
@@ -112,11 +114,20 @@ contract TaikoDaoFactory {
         DAO dao = prepareDao();
         deployment.dao = dao;
 
+        // DEPLOY THE SIGNER LIST AND REGISTRY
+        deployment.signerList = deploySignerListNoSettings(dao);
+        deployment.encryptionRegistry = deployEncryptionRegistry();
+        // Link them together
+        deployment.signerList.updateSettings(
+            SignerList.Settings(deployment.encryptionRegistry, uint16(settings.multisigMembers.length))
+        );
+
         // DEPLOY THE PLUGINS
-        (deployment.multisigPlugin, deployment.multisigPluginRepo, preparedMultisigSetupData) = prepareMultisig(dao);
+        (deployment.multisigPlugin, deployment.multisigPluginRepo, preparedMultisigSetupData) =
+            prepareMultisig(dao, deployment.signerList);
 
         (deployment.emergencyMultisigPlugin, deployment.emergencyMultisigPluginRepo, preparedEmergencyMultisigSetupData)
-        = prepareEmergencyMultisig(dao, deployment.multisigPlugin);
+        = prepareEmergencyMultisig(dao, deployment.signerList);
 
         (
             deployment.optimisticTokenVotingPlugin,
@@ -149,9 +160,6 @@ contract TaikoDaoFactory {
 
         // REMOVE THIS CONTRACT AS OWNER
         revokeOwnerPermission(deployment.dao);
-
-        // DEPLOY OTHER CONTRACTS
-        deployment.encryptionRegistry = deployEncryptionRegistry();
     }
 
     function prepareDao() internal returns (DAO dao) {
@@ -188,18 +196,21 @@ contract TaikoDaoFactory {
         dao.applySingleTargetPermissions(address(dao), items);
     }
 
-    function prepareMultisig(DAO dao) internal returns (Multisig, PluginRepo, IPluginSetup.PreparedSetupData memory) {
+    function prepareMultisig(DAO dao, SignerList signerList)
+        internal
+        returns (Multisig, PluginRepo, IPluginSetup.PreparedSetupData memory)
+    {
         // Publish repo
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
             settings.stdMultisigEnsDomain, address(settings.multisigPluginSetup), address(dao), " ", " "
         );
 
         bytes memory settingsData = settings.multisigPluginSetup.encodeInstallationParameters(
-            settings.multisigMembers,
             Multisig.MultisigSettings(
                 true, // onlyListed
                 settings.minStdApprovals,
                 settings.minStdProposalDuration, // destination minDuration
+                signerList,
                 settings.multisigExpirationPeriod
             )
         );
@@ -216,7 +227,7 @@ contract TaikoDaoFactory {
         return (Multisig(plugin), pluginRepo, preparedSetupData);
     }
 
-    function prepareEmergencyMultisig(DAO dao, Addresslist multisigPlugin)
+    function prepareEmergencyMultisig(DAO dao, SignerList signerList)
         internal
         returns (EmergencyMultisig, PluginRepo, IPluginSetup.PreparedSetupData memory)
     {
@@ -229,7 +240,7 @@ contract TaikoDaoFactory {
             EmergencyMultisig.MultisigSettings(
                 true, // onlyListed
                 settings.minEmergencyApprovals, // minAppovals
-                Addresslist(multisigPlugin),
+                signerList,
                 settings.multisigExpirationPeriod
             )
         );
@@ -302,8 +313,14 @@ contract TaikoDaoFactory {
         return (OptimisticTokenVotingPlugin(plugin), pluginRepo, preparedSetupData);
     }
 
+    function deploySignerListNoSettings(DAO dao) internal returns (SignerList helper) {
+        helper = new SignerList();
+
+        helper.initialize(dao, settings.multisigMembers, SignerList.Settings(EncryptionRegistry(address(0)), 0));
+    }
+
     function deployEncryptionRegistry() internal returns (EncryptionRegistry) {
-        return new EncryptionRegistry(deployment.multisigPlugin);
+        return new EncryptionRegistry(deployment.signerList);
     }
 
     function applyPluginInstallation(

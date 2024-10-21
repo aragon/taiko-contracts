@@ -53,13 +53,13 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     /// @notice A container for the plugin settings.
     /// @param onlyListed Whether only listed addresses can create a proposal or not.
     /// @param minApprovals The minimal number of approvals required for a proposal to pass.
-    /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     /// @param signerList The contract defining who is a member and/or who is appointed as a decryption wallet
+    /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
-        uint64 proposalExpirationPeriod;
         SignerList signerList;
+        uint64 proposalExpirationPeriod;
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -405,7 +405,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
         if (!IERC165(address(_multisigSettings.signerList)).supportsInterface(type(ISignerList).interfaceId)) {
             revert InvalidSignerList(_multisigSettings.signerList);
         }
-        
+
         uint16 addresslistLength_ = uint16(_multisigSettings.signerList.addresslistLength());
 
         if (_multisigSettings.minApprovals > addresslistLength_) {
