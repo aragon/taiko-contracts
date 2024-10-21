@@ -6,6 +6,8 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../../src/Multisig.sol";
 import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
+import {SignerList} from "../../src/SignerList.sol";
+import {EncryptionRegistry} from "../../src/EncryptionRegistry.sol";
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock, TaikoL1Incompatible} from "../mocks/TaikoL1Mock.sol";
@@ -217,15 +219,10 @@ contract DaoBuilder is Test {
             );
         }
 
-        // Standard multisig
+        // Encryption registry and signer list
+        SignerList signerList;
+        EncryptionRegistry encryptionRegistry;
         {
-            Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-                onlyListed: onlyListed,
-                minApprovals: minApprovals,
-                destinationProposalDuration: stdProposalDuration,
-                proposalExpirationPeriod: multisigProposalExpirationPeriod
-            });
-
             address[] memory signers;
             if (multisigMembers.length > 0) {
                 signers = multisigMembers;
@@ -234,10 +231,25 @@ contract DaoBuilder is Test {
                 signers = new address[](1);
                 signers[0] = owner;
             }
+
+            signerList = new SignerList();
+            signerList.initialize(dao, signers, SignerList.Settings(EncryptionRegistry(address(0)), 0));
+            encryptionRegistry = new EncryptionRegistry(signerList);
+            signerList.updateSettings(SignerList.Settings(encryptionRegistry, uint16(signers.length)));
+        }
+
+        // Standard multisig
+        {
+            Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+                onlyListed: onlyListed,
+                minApprovals: minApprovals,
+                destinationProposalDuration: stdProposalDuration,
+                signerList: signerList,
+                proposalExpirationPeriod: multisigProposalExpirationPeriod
+            });
+
             multisig = Multisig(
-                createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings))
-                )
+                createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings)))
             );
         }
 
@@ -246,7 +258,7 @@ contract DaoBuilder is Test {
             EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
                 onlyListed: onlyListed,
                 minApprovals: minApprovals,
-                addresslistSource: multisig,
+                signerList: signerList,
                 proposalExpirationPeriod: multisigProposalExpirationPeriod
             });
 

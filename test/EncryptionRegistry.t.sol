@@ -571,42 +571,42 @@ contract EncryptionRegistryTest is AragonTest {
         registry.setOwnPublicKey(0x0000123400000000000000000000000000000000000000000000000000000000);
     }
 
-    function test_ShouldCountRegisteredAddresses() public {
-        assertEq(registry.getRegisteredAddressesLength(), 0, "Incorrect count");
+    function test_RegisteredAddressShouldHaveTheRightLength() public {
+        assertEq(registry.getRegisteredAddresses().length, 0, "Incorrect length");
 
         // Set public key first
 
         // Alice
         vm.startPrank(alice);
         registry.setOwnPublicKey(bytes32(uint256(1234)));
-        assertEq(registry.getRegisteredAddressesLength(), 1, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 1, "Incorrect length");
         registry.appointWallet(address(0x1234));
-        assertEq(registry.getRegisteredAddressesLength(), 1, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 1, "Incorrect length");
 
         // Bob
         vm.startPrank(bob);
         registry.setOwnPublicKey(bytes32(uint256(2345)));
-        assertEq(registry.getRegisteredAddressesLength(), 2, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 2, "Incorrect length");
         registry.appointWallet(address(0x5678));
-        assertEq(registry.getRegisteredAddressesLength(), 2, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 2, "Incorrect length");
 
         // Appoint first
 
         // Carol
         vm.startPrank(carol);
         registry.appointWallet(address(0x90ab));
-        assertEq(registry.getRegisteredAddressesLength(), 3, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 3, "Incorrect length");
         registry.appointWallet(carol);
         registry.setPublicKey(carol, bytes32(uint256(3456)));
-        assertEq(registry.getRegisteredAddressesLength(), 3, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 3, "Incorrect length");
 
         // David
         vm.startPrank(david);
         registry.appointWallet(address(0xcdef));
-        assertEq(registry.getRegisteredAddressesLength(), 4, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 4, "Incorrect length");
         registry.appointWallet(david);
         registry.setPublicKey(david, bytes32(uint256(4567)));
-        assertEq(registry.getRegisteredAddressesLength(), 4, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 4, "Incorrect length");
     }
 
     function test_ShouldEnumerateRegisteredAddresses() public {
@@ -644,7 +644,7 @@ contract EncryptionRegistryTest is AragonTest {
         registry.setPublicKey(david, bytes32(uint256(4567)));
         assertEq(registry.registeredAddresses(3), david);
 
-        assertEq(registry.getRegisteredAddressesLength(), 4, "Incorrect count");
+        assertEq(registry.getRegisteredAddresses().length, 4, "Incorrect length");
 
         assertEq(registry.registeredAddresses(0), alice);
         assertEq(registry.registeredAddresses(1), bob);
