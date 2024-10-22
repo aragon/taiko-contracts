@@ -7,13 +7,13 @@ import {StandardProposalCondition} from "../src/conditions/StandardProposalCondi
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
+import {SignerList} from "../src/SignerList.sol";
 import {IEmergencyMultisig} from "../src/interfaces/IEmergencyMultisig.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {PermissionManager} from "@aragon/osx/core/permission/PermissionManager.sol";
 import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
-import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
@@ -28,10 +28,11 @@ contract EmergencyMultisigTest is AragonTest {
     EmergencyMultisig eMultisig;
     Multisig stdMultisig;
     OptimisticTokenVotingPlugin optimisticPlugin;
+    SignerList signerList;
 
     // Events/errors to be tested here (duplicate)
     event MultisigSettingsUpdated(
-        bool onlyListed, uint16 indexed minApprovals, Addresslist addresslistSource, uint64 expiration
+        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint64 proposalExpirationPeriod
     );
     event MembersAdded(address[] members);
     event MembersRemoved(address[] members);
@@ -62,8 +63,10 @@ contract EmergencyMultisigTest is AragonTest {
         vm.roll(100);
 
         builder = new DaoBuilder();
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
-            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).withMinDuration(0).build();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,, signerList,,) = builder.withMultisigMember(alice)
+            .withMultisigMember(bob).withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).withMinDuration(
+            0
+        ).build();
     }
 
     function test_RevertsIfTryingToReinitialize() public {
@@ -71,7 +74,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
@@ -91,7 +94,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 2,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
@@ -122,7 +125,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
@@ -153,7 +156,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory emSettings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
@@ -163,13 +166,13 @@ contract EmergencyMultisigTest is AragonTest {
             )
         );
 
-        (,, Addresslist givenAddressListSource,) = eMultisig.multisigSettings();
-        assertEq(address(givenAddressListSource), address(stdMultisig), "Incorrect addresslistSource");
+        (,, Addresslist givenSignerList,) = eMultisig.multisigSettings();
+        assertEq(address(givenSignerList), address(stdMultisig), "Incorrect addresslistSource");
 
         // Redeploy with a new addresslist source
-        (,, Multisig newMultisig,,,) = builder.build();
+        (,,,,, signerList,,) = builder.build();
 
-        emSettings.addresslistSource = newMultisig;
+        emSettings.signerList = signerList;
 
         eMultisig = EmergencyMultisig(
             createProxyAndCall(
@@ -177,8 +180,8 @@ contract EmergencyMultisigTest is AragonTest {
             )
         );
 
-        (,, givenAddressListSource,) = eMultisig.multisigSettings();
-        assertEq(address(givenAddressListSource), address(emSettings.addresslistSource), "Incorrect addresslistSource");
+        (,, signerList,) = eMultisig.multisigSettings();
+        assertEq(address(signerList), address(emSettings.signerList), "Incorrect addresslistSource");
     }
 
     function test_InitializeSetsProposalExpiration() public {
@@ -186,7 +189,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: 15 days
         });
         address[] memory signers = new address[](4);
@@ -222,12 +225,12 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: 5 days
         });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, uint16(3), stdMultisig, 5 days);
+        emit MultisigSettingsUpdated(true, uint16(3), signerList, 5 days);
 
         eMultisig = EmergencyMultisig(
             createProxyAndCall(
@@ -237,16 +240,16 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Deploy with false/2/new
 
-        (,, Multisig newMultisig,,,) = builder.build();
+        (,, Multisig newMultisig,,, SignerList newSignerList,,) = builder.build();
 
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 2,
-            addresslistSource: newMultisig,
+            signerList: newSignerList,
             proposalExpirationPeriod: 15 days
         });
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, uint16(2), newMultisig, 15 days);
+        emit MultisigSettingsUpdated(false, uint16(2), newSignerList, 15 days);
 
         eMultisig = EmergencyMultisig(
             createProxyAndCall(
@@ -277,11 +280,6 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(supported, true, "Should support IProposal");
     }
 
-    function test_SupportsIMembership() public view {
-        bool supported = eMultisig.supportsInterface(type(IMembership).interfaceId);
-        assertEq(supported, true, "Should support IMembership");
-    }
-
     function test_SupportsIEmergencyMultisig() public view {
         bool supported = eMultisig.supportsInterface(type(IEmergencyMultisig).interfaceId);
         assertEq(supported, true, "Should support IEmergencyMultisig");
@@ -289,11 +287,11 @@ contract EmergencyMultisigTest is AragonTest {
 
     // UPDATE MULTISIG SETTINGS
 
-    function test_ShouldntAllowMinApprovalsHigherThenAddrListLength() public {
+    function test_ShouldNotAllowMinApprovalsGreaterThanSignerListLength() public {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 5,
-            addresslistSource: stdMultisig, // Greater than 4 members
+            signerList: signerList, // Greater than 4 members
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
@@ -309,7 +307,7 @@ contract EmergencyMultisigTest is AragonTest {
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 6,
-            addresslistSource: stdMultisig, // Greater than 4 members
+            signerList: signerList, // Greater than 4 members
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 4, 6));
@@ -318,32 +316,9 @@ contract EmergencyMultisigTest is AragonTest {
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
             )
         );
-    }
 
-    function test_ShouldNotAllowMinApprovalsZero() public {
-        EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 0,
-            addresslistSource: stdMultisig,
-            proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 1, 0));
-
-        eMultisig = EmergencyMultisig(
-            createProxyAndCall(
-                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-            )
-        );
-
-        // Retry with onlyListed false
-        settings = EmergencyMultisig.MultisigSettings({
-            onlyListed: false,
-            minApprovals: 0,
-            addresslistSource: stdMultisig,
-            proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 1, 0));
+        // OK
+        settings.minApprovals = 4;
         eMultisig = EmergencyMultisig(
             createProxyAndCall(
                 address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
@@ -358,98 +333,96 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 1,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 1, stdMultisig, EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        emit MultisigSettingsUpdated(true, 1, signerList, EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
         eMultisig.updateMultisigSettings(settings);
 
         // 2
-        (,, Multisig newMultisig,,,) = builder.build();
+        (,, Multisig newMultisig,,, SignerList newSignerList,,) = builder.build();
 
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 2,
-            addresslistSource: newMultisig,
+            signerList: newSignerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1
         });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(true, 2, newMultisig, EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
+        emit MultisigSettingsUpdated(true, 2, newSignerList, EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD - 1);
         eMultisig.updateMultisigSettings(settings);
 
         // 3
-        (,, newMultisig,,,) = builder.build();
+        (,, newMultisig,,, newSignerList,,) = builder.build();
 
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 3,
-            addresslistSource: newMultisig,
+            signerList: newSignerList,
             proposalExpirationPeriod: 4 days
         });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 3, newMultisig, 4 days);
+        emit MultisigSettingsUpdated(false, 3, newSignerList, 4 days);
         eMultisig.updateMultisigSettings(settings);
 
         // 4
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 4,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: 8 days
         });
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 4, stdMultisig, 8 days);
+        emit MultisigSettingsUpdated(false, 4, signerList, 8 days);
         eMultisig.updateMultisigSettings(settings);
     }
 
-    function test_UpdateSettingsShouldRevertWithInvalidAddressSource() public {
+    function test_UpdateSettingsShouldRevertWithInvalidSignerList() public {
         dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         // ko
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 1,
-            addresslistSource: Multisig(address(dao)),
+            signerList: SignerList(address(dao)),
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidAddressListSource.selector, address(dao)));
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidSignerList.selector, address(dao)));
         eMultisig.updateMultisigSettings(settings);
 
         // ko 2
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 1,
-            addresslistSource: Multisig(address(optimisticPlugin)),
+            signerList: SignerList(address(optimisticPlugin)),
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        vm.expectRevert(
-            abi.encodeWithSelector(EmergencyMultisig.InvalidAddressListSource.selector, address(optimisticPlugin))
-        );
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.InvalidSignerList.selector, address(optimisticPlugin)));
         eMultisig.updateMultisigSettings(settings);
 
         // ok
-        (,, Multisig newMultisig,,,) = builder.build();
+        (,,,,, SignerList newSignerList,,) = builder.build();
         settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 1,
-            addresslistSource: newMultisig,
+            signerList: newSignerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         eMultisig.updateMultisigSettings(settings);
     }
 
     function test_onlyWalletWithPermissionsCanUpdateSettings() public {
-        (,, Multisig newMultisig,,,) = builder.build();
+        (,,,,, SignerList newSignerList,,) = builder.build();
 
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 1,
-            addresslistSource: newMultisig,
+            signerList: newSignerList,
             proposalExpirationPeriod: 3 days
         });
         vm.expectRevert(
@@ -475,174 +448,85 @@ contract EmergencyMultisigTest is AragonTest {
         dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
         vm.expectEmit();
-        emit MultisigSettingsUpdated(false, 1, newMultisig, 3 days);
+        emit MultisigSettingsUpdated(false, 1, newSignerList, 3 days);
         eMultisig.updateMultisigSettings(settings);
     }
 
-    function test_IsMemberShouldReturnWhenApropriate() public {
-        assertEq(eMultisig.isMember(alice), true, "Should be a member");
-        assertEq(eMultisig.isMember(bob), true, "Should be a member");
-        assertEq(eMultisig.isMember(carol), true, "Should be a member");
-        assertEq(eMultisig.isMember(david), true, "Should be a member");
+    function test_MinApprovalsBiggerThanTheListReverts() public {
+        // MinApprovals should be within the boundaries of the list
+        dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
-        dao.grant(address(stdMultisig), alice, stdMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        address[] memory signers = new address[](1);
-        signers[0] = bob;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(eMultisig.isMember(alice), true, "Should be a member");
-        assertEq(eMultisig.isMember(bob), false, "Should not be a member");
-        assertEq(eMultisig.isMember(carol), true, "Should be a member");
-        assertEq(eMultisig.isMember(david), true, "Should be a member");
-
-        // 2
-        stdMultisig.addAddresses(signers); // Add Bob back
-        signers[0] = alice;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(eMultisig.isMember(alice), false, "Should not be a member");
-        assertEq(eMultisig.isMember(bob), true, "Should be a member");
-        assertEq(eMultisig.isMember(carol), true, "Should be a member");
-        assertEq(eMultisig.isMember(david), true, "Should be a member");
-
-        // 3
-        stdMultisig.addAddresses(signers); // Add Alice back
-        signers[0] = carol;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(eMultisig.isMember(alice), true, "Should be a member");
-        assertEq(eMultisig.isMember(bob), true, "Should be a member");
-        assertEq(eMultisig.isMember(carol), false, "Should not be a member");
-        assertEq(eMultisig.isMember(david), true, "Should be a member");
-
-        // 4
-        stdMultisig.addAddresses(signers); // Add Carol back
-        signers[0] = david;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(eMultisig.isMember(alice), true, "Should be a member");
-        assertEq(eMultisig.isMember(bob), true, "Should be a member");
-        assertEq(eMultisig.isMember(carol), true, "Should be a member");
-        assertEq(eMultisig.isMember(david), false, "Should not be a member");
-    }
-
-    function test_IsMemberIsListedShouldReturnTheSameValue() public {
-        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
-
-        dao.grant(address(stdMultisig), alice, stdMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        address[] memory signers = new address[](1);
-        signers[0] = alice;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
-
-        // 2
-        stdMultisig.addAddresses(signers); // Add Alice back
-        signers[0] = bob;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
-
-        // 3
-        stdMultisig.addAddresses(signers); // Add Bob back
-        signers[0] = carol;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
-
-        // 4
-        stdMultisig.addAddresses(signers); // Add Carol back
-        signers[0] = david;
-        stdMultisig.removeAddresses(signers);
-
-        assertEq(stdMultisig.isListed(alice), eMultisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(bob), eMultisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(carol), eMultisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(stdMultisig.isListed(david), eMultisig.isMember(david), "isMember isListed should be equal");
-    }
-
-    function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public {
-        // Deploy a new stdMultisig instance
-        Multisig.MultisigSettings memory mSettings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        address[] memory signers = new address[](1);
-        signers[0] = address(0x0); // 0x0... would be a member but the chance is negligible
-
-        stdMultisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, mSettings)))
-        );
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
-            minApprovals: 1,
-            addresslistSource: stdMultisig,
+            minApprovals: 5,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        eMultisig = EmergencyMultisig(
-            createProxyAndCall(
-                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 4, 5));
+        eMultisig.updateMultisigSettings(settings);
 
-        assertEq(
-            eMultisig.isMember(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
-        );
+        // More signers
+
+        address[] memory signers = new address[](1);
+        signers[0] = randomWallet;
+        signerList.addSigners(signers);
+
+        // should not fail now
+        eMultisig.updateMultisigSettings(settings);
+
+        // More than that, should fail again
+        settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 6,
+            signerList: signerList,
+            proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.MinApprovalsOutOfBounds.selector, 5, 6));
+        eMultisig.updateMultisigSettings(settings);
+
+        // OK
+        settings.minApprovals = 5;
+        eMultisig.updateMultisigSettings(settings);
     }
 
     function testFuzz_PermissionedUpdateSettings(address randomAccount) public {
         dao.grant(address(eMultisig), alice, eMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
-        (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource, uint64 expiration) =
+        (bool onlyListed, uint16 minApprovals, SignerList givenSignerList, uint64 expiration) =
             eMultisig.multisigSettings();
         assertEq(minApprovals, 3, "Should be 3");
         assertEq(onlyListed, true, "Should be true");
-        assertEq(address(addresslistSource), address(stdMultisig), "Incorrect addresslistSource");
+        assertEq(address(givenSignerList), address(signerList), "Incorrect addresslistSource");
         assertEq(expiration, 10 days, "Should be 10");
 
         // in
-        (,, Multisig newMultisig,,,) = builder.build();
+        (,,,,, SignerList newSignerList,,) = builder.build();
         EmergencyMultisig.MultisigSettings memory newSettings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 2,
-            addresslistSource: newMultisig,
+            signerList: newSignerList,
             proposalExpirationPeriod: 4 days
         });
         eMultisig.updateMultisigSettings(newSettings);
 
-        Addresslist givenAddresslistSource;
-        (onlyListed, minApprovals, givenAddresslistSource, expiration) = eMultisig.multisigSettings();
+        (onlyListed, minApprovals, givenSignerList, expiration) = eMultisig.multisigSettings();
         assertEq(minApprovals, 2, "Should be 2");
         assertEq(onlyListed, false, "Should be false");
-        assertEq(address(givenAddresslistSource), address(newMultisig), "Incorrect addresslistSource");
+        assertEq(address(givenSignerList), address(newSignerList), "Incorrect signerList");
         assertEq(expiration, 4 days, "Should be 4");
 
         // out
         newSettings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 1,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: 1 days
         });
         eMultisig.updateMultisigSettings(newSettings);
-        (onlyListed, minApprovals, givenAddresslistSource, expiration) = eMultisig.multisigSettings();
+        (onlyListed, minApprovals, givenSignerList, expiration) = eMultisig.multisigSettings();
         assertEq(minApprovals, 1, "Should be 1");
         assertEq(onlyListed, true, "Should be true");
-        assertEq(address(givenAddresslistSource), address(stdMultisig), "Incorrect addresslistSource");
+        assertEq(address(givenSignerList), address(signerList), "Incorrect signerList");
         assertEq(expiration, 1 days, "Should be 1");
 
         vm.roll(block.number + 1);
@@ -651,11 +535,11 @@ contract EmergencyMultisigTest is AragonTest {
         if (randomAccount != alice && randomAccount != address(0)) {
             vm.startPrank(randomAccount);
 
-            (,, newMultisig,,,) = builder.build();
+            (,,,,, newSignerList,,) = builder.build();
             newSettings = EmergencyMultisig.MultisigSettings({
                 onlyListed: false,
                 minApprovals: 4,
-                addresslistSource: newMultisig,
+                signerList: newSignerList,
                 proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
             });
 
@@ -670,10 +554,10 @@ contract EmergencyMultisigTest is AragonTest {
             );
             eMultisig.updateMultisigSettings(newSettings);
 
-            (onlyListed, minApprovals, givenAddresslistSource, expiration) = eMultisig.multisigSettings();
+            (onlyListed, minApprovals, givenSignerList, expiration) = eMultisig.multisigSettings();
             assertEq(minApprovals, 1, "Should still be 1");
             assertEq(onlyListed, true, "Should still be true");
-            assertEq(address(givenAddresslistSource), address(stdMultisig), "Should still be stdMultisig");
+            assertEq(address(givenSignerList), address(signerList), "Should still be signerList");
             assertEq(expiration, 1 days, "Should still be 1");
         }
     }
@@ -778,7 +662,7 @@ contract EmergencyMultisigTest is AragonTest {
             EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
                 onlyListed: true,
                 minApprovals: 3,
-                addresslistSource: stdMultisig,
+                signerList: signerList,
                 proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
             });
 
@@ -802,7 +686,7 @@ contract EmergencyMultisigTest is AragonTest {
         // creates a proposal when unlisted accounts are allowed
 
         // Deploy a new instance with custom settings
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withoutOnlyListed().build();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) = builder.withoutOnlyListed().build();
 
         vm.startPrank(randomWallet);
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
@@ -829,23 +713,23 @@ contract EmergencyMultisigTest is AragonTest {
     function test_RevertsWhenCreatorWasListedBeforeButNotNow() public {
         // reverts if `msg.sender` is not listed although she was listed in the last block
 
-        dao.grant(address(stdMultisig), alice, stdMultisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
 
         // Remove
         address[] memory addrs = new address[](1);
         addrs[0] = alice;
-        stdMultisig.removeAddresses(addrs);
+        signerList.removeSigners(addrs);
 
         vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, alice));
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
-        stdMultisig.addAddresses(addrs); // Add Alice back
+        signerList.addSigners(addrs); // Add Alice back
         vm.roll(block.number + 1);
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // Add+remove
         addrs[0] = bob;
-        stdMultisig.removeAddresses(addrs);
+        signerList.removeSigners(addrs);
 
         vm.startPrank(bob);
 
@@ -856,7 +740,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(alice);
 
         // Bob can create now
-        stdMultisig.addAddresses(addrs); // Add Bob back
+        signerList.addSigners(addrs); // Add Bob back
 
         vm.startPrank(alice);
 
@@ -965,21 +849,20 @@ contract EmergencyMultisigTest is AragonTest {
                 onlyListed: false,
                 minApprovals: 1,
                 destinationProposalDuration: 4 days,
+                signerList: signerList,
                 proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
             });
             address[] memory signers = new address[](1);
             signers[0] = alice;
 
             stdMultisig = Multisig(
-                createProxyAndCall(
-                    address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, mSettings))
-                )
+                createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, mSettings)))
             );
             // New emergency stdMultisig using the above
             EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
                 onlyListed: false,
                 minApprovals: 1,
-                addresslistSource: stdMultisig,
+                signerList: signerList,
                 proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
             });
             eMultisig = EmergencyMultisig(
@@ -1005,7 +888,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CanApproveReturnsFalseIfApproved() public {
         // returns `false` if the approver has already approved
         builder = new DaoBuilder();
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
             .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(4).build();
 
         uint256 pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
@@ -1112,7 +995,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // new setup
         builder = new DaoBuilder();
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) =
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) =
             builder.withMultisigMember(randomWallet).withMinApprovals(1).withMinDuration(0).build();
 
         // now ko
@@ -1206,7 +1089,7 @@ contract EmergencyMultisigTest is AragonTest {
         // Reverts if the signer is not listed
 
         builder = new DaoBuilder();
-        (,,, eMultisig,,) = builder.withMultisigMember(alice).withMinApprovals(1).build();
+        (,,, eMultisig,,,,) = builder.withMultisigMember(alice).withMinApprovals(1).build();
         uint256 pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         if (randomSigner == alice) {
@@ -1368,7 +1251,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_CanExecuteReturnsFalseIfBelowMinApprovals() public {
         // returns `false` if the proposal has not reached the minimum approvals yet
 
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(2).build();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) = builder.withMinApprovals(2).build();
 
         uint256 pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
@@ -1384,7 +1267,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(alice);
 
         // More approvals required (4)
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(4).build();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) = builder.withMinApprovals(4).build();
 
         pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
@@ -1508,7 +1391,7 @@ contract EmergencyMultisigTest is AragonTest {
     function test_ExecuteRevertsIfBelowMinApprovals() public {
         // reverts if minApprovals is not met yet
 
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(2).build();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) = builder.withMinApprovals(2).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         bytes32 metadataUriHash = keccak256("ipfs://");
@@ -1528,7 +1411,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(alice);
 
         // More approvals required (4)
-        (dao, optimisticPlugin, stdMultisig, eMultisig,,) = builder.withMinApprovals(4).build();
+        (dao, optimisticPlugin, stdMultisig, eMultisig,,,,) = builder.withMinApprovals(4).build();
 
         pid = eMultisig.createProposal("", metadataUriHash, actionsHash, optimisticPlugin, false);
 
@@ -1648,7 +1531,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        uint256 targetPid = 5 days << 128 | 5 days << 64;
+        uint256 targetPid = (5 days << 128) | (5 days << 64);
         emit ProposalCreated(targetPid, address(eMultisig), 5 days, 5 days, "ipfs://", actions, 0);
         eMultisig.execute(pid, "ipfs://", actions);
 
@@ -1678,7 +1561,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
         vm.expectEmit();
-        targetPid = (20 days << 128 | 20 days << 64) + 1;
+        targetPid = ((20 days << 128) | (20 days << 64)) + 1;
         emit ProposalCreated(targetPid, address(eMultisig), 20 days, 20 days, "ipfs://more-metadata-here", actions, 0);
         eMultisig.execute(pid, "ipfs://more-metadata-here", actions);
     }
@@ -1969,7 +1852,7 @@ contract EmergencyMultisigTest is AragonTest {
 
     function test_ExecutesSuccessfullyDespiteIncompatibleTaikoL1() public {
         // executes even if the TaikoL1 contract reverts
-        (dao, optimisticPlugin,, eMultisig,,) = builder.withIncompatibleTaikoL1().build();
+        (dao, optimisticPlugin,, eMultisig,,,,) = builder.withIncompatibleTaikoL1().build();
 
         vm.deal(address(dao), 4 ether);
 
@@ -2040,7 +1923,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 2 new proposal
         OptimisticTokenVotingPlugin newOptimisticPlugin;
-        (dao, newOptimisticPlugin, stdMultisig, eMultisig,,) = builder.build();
+        (dao, newOptimisticPlugin, stdMultisig, eMultisig,,,,) = builder.build();
         vm.deal(address(dao), 1 ether);
 
         metadataUriHash = keccak256("ipfs://another-public-metadata");
@@ -2188,7 +2071,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Check round
         (open, executed, parameters, vetoTally, metadataUri, retrievedActions, allowFailureMap) =
-            optimisticPlugin.getProposal((uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64));
+            optimisticPlugin.getProposal(((uint256(block.timestamp) << 128) | (uint256(block.timestamp) << 64)));
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
@@ -2241,7 +2124,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Check round
         (open, executed, parameters, vetoTally, metadataUri, retrievedActions, allowFailureMap) =
-            optimisticPlugin.getProposal((uint256(block.timestamp) << 128 | uint256(block.timestamp) << 64) + 1);
+            optimisticPlugin.getProposal(((uint256(block.timestamp) << 128) | (uint256(block.timestamp) << 64)) + 1);
 
         assertEq(open, false, "Should not be open");
         assertEq(executed, true, "Should be executed");
@@ -2293,7 +2176,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
 
@@ -2338,7 +2221,7 @@ contract EmergencyMultisigTest is AragonTest {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
-            addresslistSource: stdMultisig,
+            signerList: signerList,
             proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         eMultisig.upgradeToAndCall(

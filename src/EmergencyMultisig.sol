@@ -8,7 +8,6 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
-import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IEmergencyMultisig} from "./interfaces/IEmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 import {SignerList} from "./SignerList.sol";

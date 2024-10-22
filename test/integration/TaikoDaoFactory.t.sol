@@ -519,7 +519,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         // ENCRYPTION REGISTRY
         assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
         assertEq(
-            deployment.encryptionRegistry.getRegisteredAddressesLength(), 0, "Invalid getRegisteredAddressesLength"
+            deployment.encryptionRegistry.getRegisteredAddresses().length, 0, "Invalid getRegisteredAddresses().length"
         );
     }
 
@@ -758,7 +758,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         // ENCRYPTION REGISTRY
         assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
         assertEq(
-            deployment.encryptionRegistry.getRegisteredAddressesLength(), 0, "Invalid getRegisteredAddressesLength"
+            deployment.encryptionRegistry.getRegisteredAddresses().length, 0, "Invalid getRegisteredAddresses().length"
         );
     }
 
