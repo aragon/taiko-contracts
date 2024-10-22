@@ -78,7 +78,7 @@ contract EncryptionRegistry is IEncryptionRegistry {
         else if (
             accounts[msg.sender].appointedWallet != address(0) && accounts[msg.sender].appointedWallet != msg.sender
         ) {
-            revert CannotSetPubKeyForAppointedWallets();
+            revert MustResetAppointment();
         }
 
         _setPublicKey(msg.sender, _publicKey);
