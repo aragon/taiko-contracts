@@ -35,7 +35,7 @@ markdown: $(TEST_TREE_MARKDOWN) ## Generates a markdown file with the test defin
 
 # Generate a markdown file with the test trees
 $(TEST_TREE_MARKDOWN): $(TREE_FILES)
-	@echo "[markdown]   TEST_TREE.md"
+	@echo "[Markdown]   TEST_TREE.md"
 	@echo "# Test tree definitions" > $@
 	@echo "" >> $@
 	@echo "Below is the graphical definition of the contract tests implemented on [the test folder](./test)" >> $@
