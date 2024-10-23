@@ -308,9 +308,12 @@ Then use `make` to automatically sync the described branches into solidity test 
 ```sh
 $ make
 Available targets:
+Available targets:
+- make all        Builds all tree files and updates the test tree markdown
 - make sync       Scaffold or sync tree files into solidity tests
 - make check      Checks if solidity files are out of sync
 - make markdown   Generates a markdown file with the test definitions rendered as a tree
+- make init       Check the dependencies and prompt to install if needed
 - make clean      Clean the intermediary tree files
 
 $ make sync
@@ -319,6 +322,8 @@ $ make sync
 The final output will look like a human readable tree:
 
 ```
+# MyTest.tree
+
 EmergencyMultisigTest
 ├── Given proposal exists // Comment here
 │   ├── Given proposal is in the last stage
