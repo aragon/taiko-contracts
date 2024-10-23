@@ -14,7 +14,7 @@ help:
 
 .PHONY: sync
 sync: ##  Scaffold or sync tree files into tests
-	@docker run --rm -it -v .:/data nixos/nix nix-shell -p bulloak gnumake \
+	@docker run --rm -v .:$(MOUNTED_PATH) nixos/nix nix-shell -p bulloak gnumake \
 	   --command "cd $(MOUNTED_PATH) && make sync-tree"
 
 .PHONY: sync-tree
@@ -23,7 +23,7 @@ sync-tree: $(TREE_FILES)
 	@for file in $^; do \
 		if [ ! -f $${file%.tree}.t.sol ]; then \
 			echo "[Scaffold]   $${file%.tree}.t.sol" ; \
-			bulloak scaffold -s $(SOLIDITY_VERSION) -w $$file ; \
+			bulloak scaffold -s $(SOLIDITY_VERSION) --vm-skip -w $$file ; \
 		else \
 			echo "[Sync file]  $${file%.tree}.t.sol" ; \
 			bulloak check --fix $$file ; \
