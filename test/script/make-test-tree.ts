@@ -8,6 +8,7 @@ type Rule = {
   given?: string;
   when?: string;
   and?: Array<Rule>;
+  then?: Array<Rule>;
   it?: string;
 };
 
@@ -54,16 +55,26 @@ function parseRuleChildren(lines: Array<Rule>): Array<TreeItem> {
     if (!rule.when && !rule.given && !rule.it)
       throw new Error("All rules should have a 'given', 'when' or 'it' rule");
 
-    let result: TreeItem = {
-      content: "",
-      children: rule.and?.length ? parseRuleChildren(rule.and) : [],
-    };
-    if (rule.given) result.content = "Given " + rule.given;
-    else if (rule.when) result.content = "When " + rule.when;
-
-    if (rule.it) {
-      result.children.push({ content: "It " + rule.it, children: [] });
+    let content = "";
+    if (rule.given) {
+      content = "Given " + rule.given;
+    } else if (rule.when) {
+      content = "When " + rule.when;
+    } else if (rule.it) {
+      content = "It " + rule.it;
     }
+
+    let children: TreeItem[] = [];
+    if (rule.and?.length) {
+      children = parseRuleChildren(rule.and);
+    } else if (rule.then?.length) {
+      children = parseRuleChildren(rule.then);
+    }
+
+    const result: TreeItem = {
+      content,
+      children,
+    };
 
     if (rule.comment) result.comment = rule.comment;
     return result;
