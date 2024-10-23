@@ -1,8 +1,8 @@
 .DEFAULT_TARGET: help
 
 SOLIDITY_VERSION=0.8.17
-SOURCE_FILES=$(wildcard test/*.htree test/integration/*.htree)
-TREE_FILES = $(SOURCE_FILES:.htree=.tree)
+SOURCE_FILES=$(wildcard test/*.t.yaml test/integration/*.t.yaml)
+TREE_FILES = $(SOURCE_FILES:.t.yaml=.tree)
 TARGET_TEST_FILES = $(SOURCE_FILES:.tree=.t.sol)
 MOUNTED_PATH=/data
 MAKE_TEST_TREE=deno run ./test/script/make-test-tree.ts
@@ -48,10 +48,10 @@ check-tree: $(TREE_FILES)
 
 $(TREE_FILES): $(SOURCE_FILES)
 
-%.tree:%.htree
+%.tree:%.t.yaml
 	@for file in $^; do \
 	    echo "[Convert]    $$file" ; \
-		cat $$file | $(MAKE_TEST_TREE) > $${file%.htree}.tree ; \
+		cat $$file | $(MAKE_TEST_TREE) > $${file%.t.yaml}.tree ; \
 	done
 
 .PHONY: clean

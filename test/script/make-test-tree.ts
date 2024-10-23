@@ -1,107 +1,90 @@
 // Run this program with:
-// $ cat file | deno run test/script/make-test-tree.ts
+// $ cat file.t.yaml | deno run test/script/make-test-tree.ts
 
-type Line = { content: string; indentation: number };
-type TreeItem = { content: string; children: Array<TreeItem> };
+import { parse } from "jsr:@std/yaml";
+
+type Rule = {
+  comment?: string;
+  given?: string;
+  when?: string;
+  and?: Array<Rule>;
+  it?: string;
+};
+
+type TreeItem = {
+  content: string;
+  children: Array<TreeItem>;
+  comment?: string;
+};
 
 async function main() {
   const content = await readStdinText();
-  Deno.stdout.write(new TextEncoder().encode(transformContent(content)));
+  const tree = processTree(content);
+  Deno.stdout.write(new TextEncoder().encode(tree));
 }
 
-function transformContent(content: string) {
-  const lines = parseLines(content);
-  if (!lines.length) return;
+function processTree(content: string) {
+  const data: { [k: string]: Array<Rule> } = parse(content);
+  if (!data || typeof data !== "object") {
+    throw new Error("The file format is not a valid yaml object");
+  }
+
+  const rootKeys = Object.keys(data);
+  if (rootKeys.length > 1) {
+    throw new Error("The test definition must have only one root node");
+  }
+  const [rootKey] = rootKeys;
+  if (!rootKey || !data[rootKey]) {
+    throw new Error("A root node needs to be defined");
+  } else if (!data[rootKey].length) {
+    throw new Error("The root node needs to include at least one element");
+  }
 
   const root: TreeItem = {
-    content: lines[0].content,
-    children: parseChildrenLines(lines.slice(1)),
+    content: rootKey,
+    children: parseRuleChildren(data[rootKey]),
   };
-  return formatTree(root);
+  return renderTree(root);
 }
 
-function parseLines(input: string): Array<Line> {
-  const lines = input
-    .split("\n")
-    .map((line) => {
-      const match = line.match(/^\s*(#*)\s*(.*)/);
-      if (!match || !match[2].trim()) return null;
-
-      let result: Line = {
-        indentation: match[1].length,
-        content: match[2].trim(),
-      };
-      return result;
-    })
-    .filter((line) => !!line);
-
+function parseRuleChildren(lines: Array<Rule>): Array<TreeItem> {
   if (!lines.length) return [];
 
-  // Sanity checks
-  let count = lines.filter((line) => line.indentation === 0).length;
-  if (count > 1) {
-    throw new Error("There can be only one root element at the begining");
-  } else if (lines[0].indentation != 0) {
-    throw new Error("The first element should have no indentation");
-  }
+  const result: Array<TreeItem> = lines.map((rule) => {
+    if (!rule.when && !rule.given && !rule.it)
+      throw new Error("All rules should have a 'given', 'when' or 'it' rule");
 
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].indentation > lines[i - 1].indentation + 1) {
-      throw new Error(
-        "Incorrect indentation: Was " +
-          lines[i - 1].indentation +
-          " and now is " +
-          lines[i].indentation
-      );
-    }
-  }
+    let result: TreeItem = {
+      content: "",
+      children: rule.and?.length ? parseRuleChildren(rule.and) : [],
+    };
+    if (rule.given) result.content = "Given " + rule.given;
+    else if (rule.when) result.content = "When " + rule.when;
 
-  return lines;
-}
-
-function parseChildrenLines(
-  lines: Array<Line>,
-  parentIndentation = 0
-): Array<TreeItem> {
-  if (!lines.length) return [];
-
-  const result: Array<TreeItem> = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const item = lines[i];
-    // Iterate over the direct children
-    if (item.indentation != parentIndentation + 1) continue;
-
-    // Determine the boundaries of `item`'s children
-    let j = i + 1;
-    for (; j < lines.length; j++) {
-      if (lines[j].indentation <= item.indentation) break;
+    if (rule.it) {
+      result.children.push({ content: "It " + rule.it, children: [] });
     }
 
-    // Process our subsegment only
-    const children = lines.slice(i, j);
-    result.push({
-      content: item.content,
-      children: parseChildrenLines(children, item.indentation),
-    });
-  }
+    if (rule.comment) result.comment = rule.comment;
+    return result;
+  });
 
   return result;
 }
 
-function formatTree(root: TreeItem): string {
+function renderTree(root: TreeItem): string {
   let result = root.content + "\n";
 
   for (let i = 0; i < root.children.length; i++) {
     const item = root.children[i];
-    const newLines = formatTreeItem(item, i === root.children.length - 1);
+    const newLines = renderTreeItem(item, i === root.children.length - 1);
     result += newLines.join("\n") + "\n";
   }
 
   return result;
 }
 
-function formatTreeItem(
+function renderTreeItem(
   root: TreeItem,
   lastChildren: boolean,
   prefix = ""
@@ -109,10 +92,14 @@ function formatTreeItem(
   const result: string[] = [];
 
   // Add ourselves
+  const content = root.comment
+    ? `${root.content} // ${root.comment}`
+    : root.content;
+
   if (lastChildren) {
-    result.push(prefix + "└── " + root.content);
+    result.push(prefix + "└── " + content);
   } else {
-    result.push(prefix + "├── " + root.content);
+    result.push(prefix + "├── " + content);
   }
 
   // Add any children
@@ -122,14 +109,14 @@ function formatTreeItem(
     // Last child
     if (i === root.children.length - 1) {
       const newPrefix = lastChildren ? prefix + "    " : prefix + "│   ";
-      const lines = formatTreeItem(item, true, newPrefix);
+      const lines = renderTreeItem(item, true, newPrefix);
       lines.forEach((line) => result.push(line));
       continue;
     }
 
     // The rest of children
     const newPrefix = lastChildren ? prefix + "    " : prefix + "│   ";
-    const lines = formatTreeItem(item, false, newPrefix);
+    const lines = renderTreeItem(item, false, newPrefix);
     lines.forEach((line) => result.push(line));
   }
 
