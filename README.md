@@ -266,11 +266,70 @@ forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" 
 
 ## Testing
 
-Tests can be described using [tree files](https://github.com/alexfertel/bulloak?tab=readme-ov-file#spec) and transformed into solidity files using [bulloak](https://github.com/alexfertel/bulloak). For convenience, you can use `make` to automaticaly sync the described branches into solidity test files.
+See the [test tree](./TEST_TREE.md) file for a visual representation of the implemented tests.
+
+Tests can be described using yaml files. They will be automatically transformed into solidity test files with [bulloak](https://github.com/alexfertel/bulloak).
+
+Create a file with `.t.yaml` extension within the `test` folder and describe a hierarchy of test cases:
+
+```yaml
+# MyTest.t.yaml
+
+MultisigTest:
+- given: proposal exists
+  comment: Comment here
+  and: 
+  - given: proposal is in the last stage
+    and:
+
+    - when: proposal can advance
+      then:
+      - it: Should return true
+
+    - when: proposal cannot advance
+      then:
+      - it: Should return false
+
+  - when: proposal is not in the last stage
+    then:
+    - it: should do A
+      comment: This is an important remark
+    - it: should do B
+    - it: should do C
+
+- when: proposal doesn't exist
+  comment: Testing edge cases here
+  then:
+  - it: should revert
+```
+
+Then use `make` to automatically sync the described branches into solidity test files.
 
 ```sh
 $ make
 Available targets:
-- make sync:    Scaffold or sync tree files into solidity tests
-- make check:   Checks if solidity files are out of sync
+- make sync       Scaffold or sync tree files into solidity tests
+- make check      Checks if solidity files are out of sync
+- make markdown   Generates a markdown file with the test definitions rendered as a tree
+- make clean      Clean the intermediary tree files
+
+$ make sync
+```
+
+The final output will look like a human readable tree:
+
+```
+EmergencyMultisigTest
+├── Given proposal exists // Comment here
+│   ├── Given proposal is in the last stage
+│   │   ├── When proposal can advance
+│   │   │   └── It Should return true
+│   │   └── When proposal cannot advance
+│   │       └── It Should return false
+│   └── When proposal is not in the last stage
+│       ├── It should do A // Careful here
+│       ├── It should do B
+│       └── It should do C
+└── When proposal doesn't exist // Testing edge cases here
+    └── It should revert
 ```
