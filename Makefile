@@ -8,12 +8,12 @@ MOUNTED_PATH=/data
 help:
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-	| sed -n 's/^\(.*\): \(.*\)##\(.*\)/- \1:\t\3/p'
+	| sed -n 's/^\(.*\): \(.*\)##\(.*\)/- make \1:  \3/p'
 
 # SYNC TEST FILES
 
 .PHONY: sync
-sync: ##  Scaffold or sync tree files into tests
+sync: ##  Scaffold or sync tree files into solidity tests
 	@docker run --rm -v .:$(MOUNTED_PATH) nixos/nix nix-shell -p bulloak gnumake \
 	   --command "cd $(MOUNTED_PATH) && make sync-tree"
 
@@ -33,7 +33,7 @@ sync-tree: $(TREE_FILES)
 # CHECK TEST FILES
 
 .PHONY: check
-check: ##  Scaffold or sync tree files into tests
+check: ## Checks if solidity files are out of sync
 	@docker run --rm -it -v .:/data nixos/nix nix-shell -p bulloak gnumake \
 	   --command "cd $(MOUNTED_PATH) && make check-tree"
 
