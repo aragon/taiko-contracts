@@ -13,3 +13,5 @@ docs/
 
 lcov.info
 .DS_Store
+
+*.tree

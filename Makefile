@@ -1,43 +1,59 @@
 .DEFAULT_TARGET: help
 
 SOLIDITY_VERSION=0.8.17
-TREE_FILES=$(wildcard test/*.tree test/integration/*.tree)
+SOURCE_FILES=$(wildcard test/*.htree test/integration/*.htree)
+TREE_FILES = $(SOURCE_FILES:.htree=.tree)
+TARGET_TEST_FILES = $(SOURCE_FILES:.tree=.t.sol)
 MOUNTED_PATH=/data
+MAKE_TEST_TREE=deno run ./test/script/make-test-tree.ts
 
 .PHONY: help
 help:
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-	| sed -n 's/^\(.*\): \(.*\)##\(.*\)/- make \1:  \3/p'
+	| sed -n 's/^\(.*\): \(.*\)##\(.*\)/- make \1  \3/p'
 
-# SYNC TEST FILES
+# External targets (running docker)
 
 .PHONY: sync
 sync: ##  Scaffold or sync tree files into solidity tests
-	@docker run --rm -v .:$(MOUNTED_PATH) nixos/nix nix-shell -p bulloak gnumake \
+	@docker run --rm -v .:$(MOUNTED_PATH) nixos/nix nix-shell -p bulloak gnumake deno \
 	   --command "cd $(MOUNTED_PATH) && make sync-tree"
 
-.PHONY: sync-tree
+.PHONY: check
+check: ## Checks if solidity files are out of sync
+	@docker run --rm -v .:/data nixos/nix nix-shell -p bulloak gnumake deno \
+	   --command "cd $(MOUNTED_PATH) && make check-tree"
+
+
+# Internal targets (run within docker)
+
 sync-tree: $(TREE_FILES)
-	@echo "Syncing tree files"
 	@for file in $^; do \
 		if [ ! -f $${file%.tree}.t.sol ]; then \
 			echo "[Scaffold]   $${file%.tree}.t.sol" ; \
-			bulloak scaffold -s $(SOLIDITY_VERSION) --vm-skip -w $$file ; \
+			# bulloak scaffold -s $(SOLIDITY_VERSION) --vm-skip -w $$file ; \
+			bulloak scaffold -s $(SOLIDITY_VERSION) -w $$file ; \
 		else \
 			echo "[Sync file]  $${file%.tree}.t.sol" ; \
 			bulloak check --fix $$file ; \
 		fi \
 	done
 
-# CHECK TEST FILES
-
-.PHONY: check
-check: ## Checks if solidity files are out of sync
-	@docker run --rm -it -v .:/data nixos/nix nix-shell -p bulloak gnumake \
-	   --command "cd $(MOUNTED_PATH) && make check-tree"
-
 .PHONY: check-tree
 check-tree: $(TREE_FILES)
-	@echo "Checking tree files"
 	bulloak check $^
+
+# Internal dependencies and transformations
+
+$(TREE_FILES): $(SOURCE_FILES)
+
+%.tree:%.htree
+	@for file in $^; do \
+	    echo "[Convert]    $$file" ; \
+		cat $$file | $(MAKE_TEST_TREE) > $${file%.htree}.tree ; \
+	done
+
+.PHONY: clean
+clean: ## Clean the intermediary tree files
+	rm -f $(TREE_FILES)
