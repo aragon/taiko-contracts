@@ -266,7 +266,7 @@ forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" 
 
 ## Testing
 
-Tests can be described using [tree files]() and transformed into solidity files using [bulloak](). For convenience, you can use `make` to automaticaly sync the described branches into solidity test files.
+Tests can be described using [tree files](https://github.com/alexfertel/bulloak?tab=readme-ov-file#spec) and transformed into solidity files using [bulloak](https://github.com/alexfertel/bulloak). For convenience, you can use `make` to automaticaly sync the described branches into solidity test files.
 
 ```sh
 $ make
