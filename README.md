@@ -263,3 +263,14 @@ If a some contracts fail to verify on Etherscan, retry with this command:
 ```shell
 forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --verify --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
 ```
+
+## Testing
+
+Tests can be described using [tree files]() and transformed into solidity files using [bulloak](). For convenience, you can use `make` to automaticaly sync the described branches into solidity test files.
+
+```sh
+$ make
+Available targets:
+- make sync:    Scaffold or sync tree files into solidity tests
+- make check:   Checks if solidity files are out of sync
+```
