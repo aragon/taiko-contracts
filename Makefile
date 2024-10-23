@@ -14,39 +14,25 @@ help:
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 	| sed -n 's/^\(.*\): \(.*\)##\(.*\)/- make \1  \3/p'
 
-# External targets (running docker)
+all: sync markdown ## Builds all tree files and updates the test tree markdown
 
-.PHONY: sync
-sync: ##     Scaffold or sync tree files into solidity tests
-	@docker run --rm -v .:$(MOUNTED_PATH) nixos/nix nix-shell -p bulloak gnumake deno \
-	   --command "cd $(MOUNTED_PATH) && make sync-tree"
-
-.PHONY: check
-check: ##    Checks if solidity files are out of sync
-	@docker run --rm -v .:/data nixos/nix nix-shell -p bulloak gnumake deno \
-	   --command "cd $(MOUNTED_PATH) && make check-tree"
-
-markdown: $(TEST_TREE_MARKDOWN) ## Generates a markdown file with the test definitions rendered as a tree
-
-# Internal targets (run within docker)
-
-# Scaffold or add missing tests
-sync-tree: $(TREE_FILES) $(TEST_TREE_MARKDOWN)
+sync: $(TREE_FILES) ##     Scaffold or sync tree files into solidity tests
 	@for file in $^; do \
 		if [ ! -f $${file%.tree}.t.sol ]; then \
 			echo "[Scaffold]   $${file%.tree}.t.sol" ; \
-			# bulloak scaffold -s $(SOLIDITY_VERSION) --vm-skip -w $$file ; \
-			bulloak scaffold -s $(SOLIDITY_VERSION) -w $$file ; \
+			bulloak scaffold -s $(SOLIDITY_VERSION) --vm-skip -w $$file ; \
 		else \
 			echo "[Sync file]  $${file%.tree}.t.sol" ; \
 			bulloak check --fix $$file ; \
 		fi \
 	done
 
-# Check if there are missing tests
-.PHONY: check-tree
-check-tree: $(TREE_FILES)
+check: $(TREE_FILES) ##    Checks if solidity files are out of sync
 	bulloak check $^
+
+markdown: $(TEST_TREE_MARKDOWN) ## Generates a markdown file with the test definitions rendered as a tree
+
+# Internal targets
 
 # Generate a markdown file with the test trees
 $(TEST_TREE_MARKDOWN): $(TREE_FILES)
@@ -67,9 +53,9 @@ $(TEST_TREE_MARKDOWN): $(TREE_FILES)
 
 $(TREE_FILES): $(SOURCE_FILES)
 
-%.tree:%.t.yaml
+%.tree: %.t.yaml
 	@for file in $^; do \
-	    echo "[Convert]    $$file" ; \
+	    echo "[Convert]    $$file -> $${file%.t.yaml}.tree" ; \
 		cat $$file | $(MAKE_TEST_TREE) > $${file%.t.yaml}.tree ; \
 	done
 
