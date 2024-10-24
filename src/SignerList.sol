@@ -110,14 +110,14 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function resolveEncryptionAccountStatus(address _sender)
+    function resolveEncryptionAccountStatus(address _address)
         public
         view
         returns (bool ownerIsListed, bool isAppointed)
     {
-        if (this.isListed(_sender)) {
+        if (this.isListed(_address)) {
             ownerIsListed = true;
-        } else if (this.isListed(settings.encryptionRegistry.appointedBy(_sender))) {
+        } else if (this.isListed(settings.encryptionRegistry.appointedBy(_address))) {
             ownerIsListed = true;
             isAppointed = true;
         }
@@ -126,25 +126,25 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function resolveEncryptionOwner(address _sender) public view returns (address owner) {
-        (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_sender);
+    function resolveEncryptionOwner(address _address) public view returns (address owner) {
+        (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_address);
 
         if (!ownerIsListed) return address(0);
-        else if (isAppointed) return settings.encryptionRegistry.appointedBy(_sender);
-        return _sender;
+        else if (isAppointed) return settings.encryptionRegistry.appointedBy(_address);
+        return _address;
     }
 
     /// @inheritdoc ISignerList
-    function resolveEncryptionAccount(address _sender) public view returns (address owner, address appointedWallet) {
-        (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_sender);
+    function resolveEncryptionAccount(address _address) public view returns (address owner, address appointedWallet) {
+        (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_address);
 
         if (ownerIsListed) {
             if (isAppointed) {
-                owner = settings.encryptionRegistry.appointedBy(_sender);
-                appointedWallet = _sender;
+                owner = settings.encryptionRegistry.appointedBy(_address);
+                appointedWallet = _address;
             } else {
-                owner = _sender;
-                appointedWallet = settings.encryptionRegistry.getAppointedWallet(_sender);
+                owner = _address;
+                appointedWallet = settings.encryptionRegistry.getAppointedWallet(_address);
             }
         }
 

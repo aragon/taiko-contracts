@@ -7,7 +7,7 @@ import {StandardProposalCondition} from "../src/conditions/StandardProposalCondi
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
-import {SignerList} from "../src/SignerList.sol";
+import {SignerList, UPDATE_SIGNER_LIST_PERMISSION_ID} from "../src/SignerList.sol";
 import {IEmergencyMultisig} from "../src/interfaces/IEmergencyMultisig.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";

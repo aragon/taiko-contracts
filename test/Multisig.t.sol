@@ -7,12 +7,12 @@ import {StandardProposalCondition} from "../src/conditions/StandardProposalCondi
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {IMultisig} from "../src/interfaces/IMultisig.sol";
+import {SignerList} from "../src/SignerList.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {PermissionManager} from "@aragon/osx/core/permission/PermissionManager.sol";
 import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
-import {IMembership} from "@aragon/osx/core/plugin/membership/IMembership.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
@@ -26,12 +26,14 @@ contract MultisigTest is AragonTest {
     DAO dao;
     Multisig multisig;
     OptimisticTokenVotingPlugin optimisticPlugin;
+    SignerList signerList;
 
     // Events/errors to be tested here (duplicate)
     event MultisigSettingsUpdated(
         bool onlyListed,
         uint16 indexed minApprovals,
         uint64 destinationProposalDuration,
+        SignerList signerList,
         uint64 proposalExpirationPeriod
     );
     event MembersAdded(address[] members);
@@ -58,7 +60,7 @@ contract MultisigTest is AragonTest {
         vm.roll(100);
 
         builder = new DaoBuilder();
-        (dao, optimisticPlugin, multisig,,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
+        (dao, optimisticPlugin, multisig,,, signerList,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
             .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
     }
 
@@ -68,67 +70,16 @@ contract MultisigTest is AragonTest {
             onlyListed: true,
             minApprovals: 3,
             destinationProposalDuration: 4 days,
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
         // Reinitialize should fail
         vm.expectRevert("Initializable: contract is already initialized");
-        multisig.initialize(dao, signers, settings);
-    }
-
-    function test_InitializeAddsInitialAddresses() public {
-        // Deploy with 4 signers
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 3,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(multisig.isListed(alice), true, "Should be a member");
-        assertEq(multisig.isListed(bob), true, "Should be a member");
-        assertEq(multisig.isListed(carol), true, "Should be a member");
-        assertEq(multisig.isListed(david), true, "Should be a member");
-        assertEq(multisig.isListed(randomWallet), false, "Should not be a member");
-
-        // Redeploy with just 2 signers
-        builder = new DaoBuilder();
-        (dao, optimisticPlugin, multisig,,,) = builder.withMultisigMember(alice).withMultisigMember(bob).build();
-
-        assertEq(multisig.isListed(alice), true, "Should be a member");
-        assertEq(multisig.isListed(bob), true, "Should be a member");
-        assertEq(multisig.isListed(carol), false, "Should not be a member");
-        assertEq(multisig.isListed(david), false, "Should not be a member");
-        assertEq(multisig.isListed(randomWallet), false, "Should not be a member");
-
-        // Redeploy with 5 signers
-        builder = new DaoBuilder();
-        (dao, optimisticPlugin, multisig,,,) = builder.withMultisigMember(alice).withMultisigMember(bob)
-            .withMultisigMember(carol).withMultisigMember(david).withMultisigMember(randomWallet).build();
-
-        assertEq(multisig.isListed(alice), true, "Should be a member");
-        assertEq(multisig.isListed(bob), true, "Should be a member");
-        assertEq(multisig.isListed(carol), true, "Should be a member");
-        assertEq(multisig.isListed(david), true, "Should be a member");
-        assertEq(multisig.isListed(randomWallet), true, "Should be a member");
+        multisig.initialize(dao, settings);
     }
 
     function test_InitializeSetsMinApprovals() public {
@@ -137,29 +88,22 @@ contract MultisigTest is AragonTest {
             onlyListed: true,
             minApprovals: 2,
             destinationProposalDuration: 4 days,
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        (, uint16 minApprovals,,) = multisig.multisigSettings();
+        (, uint16 minApprovals,,,,,) = multisig.multisigSettings();
         assertEq(minApprovals, uint16(2), "Incorrect minApprovals");
 
         // Redeploy with 1
         settings.minApprovals = 1;
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        (, minApprovals,,) = multisig.multisigSettings();
+        (, minApprovals,,,,,) = multisig.multisigSettings();
         assertEq(minApprovals, uint16(1), "Incorrect minApprovals");
     }
 
@@ -169,29 +113,22 @@ contract MultisigTest is AragonTest {
             onlyListed: true,
             minApprovals: 3,
             destinationProposalDuration: 4 days,
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        (bool onlyListed,,,) = multisig.multisigSettings();
+        (bool onlyListed,,,,,) = multisig.multisigSettings();
         assertEq(onlyListed, true, "Incorrect onlyListed");
 
         // Redeploy with false
         settings.onlyListed = false;
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        (onlyListed,,,) = multisig.multisigSettings();
+        (onlyListed,,,,,) = multisig.multisigSettings();
         assertEq(onlyListed, false, "Incorrect onlyListed");
     }
 
@@ -201,29 +138,22 @@ contract MultisigTest is AragonTest {
             onlyListed: true,
             minApprovals: 3,
             destinationProposalDuration: 5 days,
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        (,, uint64 minDuration,) = multisig.multisigSettings();
+        (,, uint64 minDuration,,,) = multisig.multisigSettings();
         assertEq(minDuration, 5 days, "Incorrect minDuration");
 
         // Redeploy with 3 days
         settings.destinationProposalDuration = 3 days;
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        (,, minDuration,) = multisig.multisigSettings();
+        (,, minDuration,,,) = multisig.multisigSettings();
         assertEq(minDuration, 3 days, "Incorrect minDuration");
     }
 
@@ -235,27 +165,19 @@ contract MultisigTest is AragonTest {
             destinationProposalDuration: 5 days,
             proposalExpirationPeriod: 15 days
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        (,,, uint64 expirationPeriod) = multisig.multisigSettings();
+        (,,, uint64 expirationPeriod,) = multisig.multisigSettings();
         assertEq(expirationPeriod, 15 days, "Incorrect expirationPeriod");
 
         // Redeploy with 3 days
         settings.proposalExpirationPeriod = 3 days;
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
-        (,,, expirationPeriod) = multisig.multisigSettings();
+        (,,, expirationPeriod,) = multisig.multisigSettings();
         assertEq(expirationPeriod, 3 days, "Incorrect expirationPeriod");
     }
 
@@ -267,18 +189,11 @@ contract MultisigTest is AragonTest {
             destinationProposalDuration: 4 days,
             proposalExpirationPeriod: 6 days
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
         vm.expectEmit();
         emit MultisigSettingsUpdated(true, uint16(3), 4 days, 6 days);
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
     function test_InitializeEmitsMultisigSettingsUpdatedOnInstall2() public {
@@ -289,33 +204,11 @@ contract MultisigTest is AragonTest {
             destinationProposalDuration: 7 days,
             proposalExpirationPeriod: 8 days
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
         vm.expectEmit();
         emit MultisigSettingsUpdated(false, uint16(2), 7 days, 8 days);
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-    }
-
-    function test_InitializeRevertsIfMembersListIsTooLong() public {
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 3,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        address[] memory signers = new address[](65537);
-
-        vm.expectRevert(abi.encodeWithSelector(Multisig.AddresslistLengthOutOfBounds.selector, 65535, 65537));
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
     // INTERFACES
@@ -340,16 +233,6 @@ contract MultisigTest is AragonTest {
         assertEq(supported, true, "Should support IProposal");
     }
 
-    function test_SupportsIMembership() public view {
-        bool supported = multisig.supportsInterface(type(IMembership).interfaceId);
-        assertEq(supported, true, "Should support IMembership");
-    }
-
-    function test_SupportsAddresslist() public view {
-        bool supported = multisig.supportsInterface(type(Addresslist).interfaceId);
-        assertEq(supported, true, "Should support Addresslist");
-    }
-
     function test_SupportsIMultisig() public view {
         bool supported = multisig.supportsInterface(type(IMultisig).interfaceId);
         assertEq(supported, true, "Should support IMultisig");
@@ -357,36 +240,35 @@ contract MultisigTest is AragonTest {
 
     // UPDATE MULTISIG SETTINGS
 
-    function test_ShouldntAllowMinApprovalsHigherThenAddrListLength() public {
+    function test_ShouldNotAllowMinApprovalsGreaterThanSignerListLength() public {
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 5,
-            destinationProposalDuration: 4 days, // Greater than 4 members below
+            destinationProposalDuration: 4 days, // Greater than 4 members
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
 
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 5));
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
         // Retry with onlyListed false
         settings = Multisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 6,
-            destinationProposalDuration: 4 days, // Greater than 4 members below
+            destinationProposalDuration: 4 days, // Greater than 4 members
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 6));
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+
+        // OK
+        settings.minApprovals = 4;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
     function test_ShouldNotAllowMinApprovalsZero() public {
@@ -396,17 +278,10 @@ contract MultisigTest is AragonTest {
             destinationProposalDuration: 4 days,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
         // Retry with onlyListed false
         settings = Multisig.MultisigSettings({
@@ -416,9 +291,8 @@ contract MultisigTest is AragonTest {
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
     function test_EmitsMultisigSettingsUpdated() public {
@@ -492,7 +366,7 @@ contract MultisigTest is AragonTest {
         multisig.updateMultisigSettings(settings);
 
         // Nothing changed
-        (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expiration) =
+        (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expiration,) =
             multisig.multisigSettings();
         assertEq(onlyListed, true);
         assertEq(minApprovals, 3);
@@ -507,322 +381,6 @@ contract MultisigTest is AragonTest {
         multisig.updateMultisigSettings(settings);
     }
 
-    function test_IsMemberShouldReturnWhenApropriate() public {
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        address[] memory signers = new address[](1);
-        signers[0] = alice;
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(multisig.isMember(alice), true, "Should be a member");
-        assertEq(multisig.isMember(bob), false, "Should not be a member");
-        assertEq(multisig.isMember(carol), false, "Should not be a member");
-        assertEq(multisig.isMember(david), false, "Should not be a member");
-
-        // More members
-        settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        signers = new address[](3);
-        signers[0] = bob;
-        signers[1] = carol;
-        signers[2] = david;
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(multisig.isMember(alice), false, "Should not be a member");
-        assertEq(multisig.isMember(bob), true, "Should be a member");
-        assertEq(multisig.isMember(carol), true, "Should be a member");
-        assertEq(multisig.isMember(david), true, "Should be a member");
-    }
-
-    function test_IsMemberIsListedShouldReturnTheSameValue() public {
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        address[] memory signers = new address[](1);
-        signers[0] = alice;
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(multisig.isListed(alice), multisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), multisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), multisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), multisig.isMember(david), "isMember isListed should be equal");
-
-        // More members
-        settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        signers = new address[](3);
-        signers[0] = bob;
-        signers[1] = carol;
-        signers[2] = david;
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(multisig.isListed(alice), multisig.isMember(alice), "isMember isListed should be equal");
-        assertEq(multisig.isListed(bob), multisig.isMember(bob), "isMember isListed should be equal");
-        assertEq(multisig.isListed(carol), multisig.isMember(carol), "isMember isListed should be equal");
-        assertEq(multisig.isListed(david), multisig.isMember(david), "isMember isListed should be equal");
-    }
-
-    function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public {
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        address[] memory signers = new address[](1); // 0x0... would be a member but the chance is negligible
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
-
-        assertEq(multisig.isListed(randomWallet), false, "Should be false");
-        assertEq(
-            multisig.isListed(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
-        );
-    }
-
-    function test_AddsNewMembersAndEmits() public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // No
-        assertEq(multisig.isMember(randomWallet), false, "Should not be a member");
-
-        address[] memory addrs = new address[](1);
-        addrs[0] = randomWallet;
-
-        vm.expectEmit();
-        emit MembersAdded({members: addrs});
-        multisig.addAddresses(addrs);
-
-        // Yes
-        assertEq(multisig.isMember(randomWallet), true, "Should be a member");
-
-        // Next
-        addrs = new address[](3);
-        addrs[0] = vm.addr(1234);
-        addrs[1] = vm.addr(2345);
-        addrs[2] = vm.addr(3456);
-
-        // No
-        assertEq(multisig.isMember(addrs[0]), false, "Should not be a member");
-        assertEq(multisig.isMember(addrs[1]), false, "Should not be a member");
-        assertEq(multisig.isMember(addrs[2]), false, "Should not be a member");
-
-        vm.expectEmit();
-        emit MembersAdded({members: addrs});
-        multisig.addAddresses(addrs);
-
-        // Yes
-        assertEq(multisig.isMember(addrs[0]), true, "Should be a member");
-        assertEq(multisig.isMember(addrs[1]), true, "Should be a member");
-        assertEq(multisig.isMember(addrs[2]), true, "Should be a member");
-    }
-
-    function test_RemovesMembersAndEmits() public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        multisig.updateMultisigSettings(settings);
-
-        // Before
-        assertEq(multisig.isMember(alice), true, "Should be a member");
-        assertEq(multisig.isMember(bob), true, "Should be a member");
-        assertEq(multisig.isMember(carol), true, "Should be a member");
-        assertEq(multisig.isMember(david), true, "Should be a member");
-
-        address[] memory addrs = new address[](2);
-        addrs[0] = alice;
-        addrs[1] = bob;
-
-        vm.expectEmit();
-        emit MembersRemoved({members: addrs});
-        multisig.removeAddresses(addrs);
-
-        // After
-        assertEq(multisig.isMember(alice), false, "Should not be a member");
-        assertEq(multisig.isMember(bob), false, "Should not be a member");
-        assertEq(multisig.isMember(carol), true, "Should be a member");
-        assertEq(multisig.isMember(david), true, "Should be a member");
-
-        // Next
-        addrs = new address[](3);
-        addrs[0] = vm.addr(1234);
-        addrs[1] = vm.addr(2345);
-        addrs[2] = vm.addr(3456);
-        multisig.addAddresses(addrs);
-
-        // Remove
-        addrs = new address[](2);
-        addrs[0] = carol;
-        addrs[1] = david;
-
-        vm.expectEmit();
-        emit MembersRemoved({members: addrs});
-        multisig.removeAddresses(addrs);
-
-        // Yes
-        assertEq(multisig.isMember(carol), false, "Should not be a member");
-        assertEq(multisig.isMember(david), false, "Should not be a member");
-    }
-
-    function test_RevertsIfAddingTooManyMembers() public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        address[] memory addrs = new address[](type(uint16).max);
-        addrs[0] = address(12345678);
-
-        assertEq(multisig.isMember(addrs[0]), false, "Should not be a member");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Multisig.AddresslistLengthOutOfBounds.selector, type(uint16).max, uint256(type(uint16).max) + 4
-            )
-        );
-        multisig.addAddresses(addrs);
-
-        assertEq(multisig.isMember(addrs[0]), false, "Should not be a member");
-    }
-
-    function test_ShouldRevertIfEmptySignersList() public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
-        multisig.updateMultisigSettings(settings);
-
-        // Before
-        assertEq(multisig.isMember(alice), true, "Should be a member");
-        assertEq(multisig.isMember(bob), true, "Should be a member");
-        assertEq(multisig.isMember(carol), true, "Should be a member");
-        assertEq(multisig.isMember(david), true, "Should be a member");
-
-        // ok
-        address[] memory addrs = new address[](1);
-        addrs[0] = alice;
-        multisig.removeAddresses(addrs);
-
-        addrs[0] = bob;
-        multisig.removeAddresses(addrs);
-
-        addrs[0] = carol;
-        multisig.removeAddresses(addrs);
-
-        assertEq(multisig.isMember(alice), false, "Should not be a member");
-        assertEq(multisig.isMember(bob), false, "Should not be a member");
-        assertEq(multisig.isMember(carol), false, "Should not be a member");
-        assertEq(multisig.isMember(david), true, "Should be a member");
-
-        // ko
-        addrs[0] = david;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 1, 0));
-        multisig.removeAddresses(addrs);
-
-        // Next
-        addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        multisig.addAddresses(addrs);
-
-        // Retry removing David
-        addrs = new address[](1);
-        addrs[0] = david;
-
-        multisig.removeAddresses(addrs);
-
-        // Yes
-        assertEq(multisig.isMember(david), false, "Should not be a member");
-    }
-
-    function test_ShouldRevertIfLessThanMinApproval() public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // Before
-        assertEq(multisig.isMember(alice), true, "Should be a member");
-        assertEq(multisig.isMember(bob), true, "Should be a member");
-        assertEq(multisig.isMember(carol), true, "Should be a member");
-        assertEq(multisig.isMember(david), true, "Should be a member");
-
-        // ok
-        address[] memory addrs = new address[](1);
-        addrs[0] = alice;
-        multisig.removeAddresses(addrs);
-
-        // ko
-        addrs[0] = bob;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 3, 2));
-        multisig.removeAddresses(addrs);
-
-        // ko
-        addrs[0] = carol;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 3, 2));
-        multisig.removeAddresses(addrs);
-
-        // ko
-        addrs[0] = david;
-        vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 3, 2));
-        multisig.removeAddresses(addrs);
-
-        // Add and retry removing
-
-        addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        multisig.addAddresses(addrs);
-
-        addrs = new address[](1);
-        addrs[0] = bob;
-        multisig.removeAddresses(addrs);
-
-        // 2
-        addrs = new address[](1);
-        addrs[0] = vm.addr(2345);
-        multisig.addAddresses(addrs);
-
-        addrs = new address[](1);
-        addrs[0] = carol;
-        multisig.removeAddresses(addrs);
-
-        // 3
-        addrs = new address[](1);
-        addrs[0] = vm.addr(3456);
-        multisig.addAddresses(addrs);
-
-        addrs = new address[](1);
-        addrs[0] = david;
-        multisig.removeAddresses(addrs);
-    }
-
     function test_MinApprovalsBiggerThanTheListReverts() public {
         // MinApprovals should be within the boundaries of the list
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
@@ -831,6 +389,7 @@ contract MultisigTest is AragonTest {
             onlyListed: true,
             minApprovals: 5,
             destinationProposalDuration: 4 days, // More than 4
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 4, 5));
@@ -850,161 +409,21 @@ contract MultisigTest is AragonTest {
             onlyListed: true,
             minApprovals: 6,
             destinationProposalDuration: 4 days, // More than 5
+            signerList: signerList,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
         vm.expectRevert(abi.encodeWithSelector(Multisig.MinApprovalsOutOfBounds.selector, 5, 6));
         multisig.updateMultisigSettings(settings);
-    }
 
-    function test_ShouldRevertIfDuplicatingAddresses() public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // ok
-        address[] memory addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        multisig.addAddresses(addrs);
-
-        // ko
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.addAddresses(addrs);
-
-        // 1
-        addrs[0] = alice;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.addAddresses(addrs);
-
-        // 2
-        addrs[0] = bob;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.addAddresses(addrs);
-
-        // 3
-        addrs[0] = carol;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.addAddresses(addrs);
-
-        // 4
-        addrs[0] = david;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.addAddresses(addrs);
-
-        // ok
-        addrs[0] = vm.addr(1234);
-        multisig.removeAddresses(addrs);
-
-        // ko
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.removeAddresses(addrs);
-
-        addrs[0] = vm.addr(2345);
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.removeAddresses(addrs);
-
-        addrs[0] = vm.addr(3456);
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.removeAddresses(addrs);
-
-        addrs[0] = vm.addr(4567);
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.removeAddresses(addrs);
-
-        addrs[0] = randomWallet;
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddresslistUpdate.selector, addrs[0]));
-        multisig.removeAddresses(addrs);
-    }
-
-    function test_onlyWalletWithPermissionsCanAddRemove() public {
-        // ko
-        address[] memory addrs = new address[](1);
-        addrs[0] = vm.addr(1234);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                address(dao),
-                address(multisig),
-                alice,
-                multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-            )
-        );
-        multisig.addAddresses(addrs);
-
-        // ko
-        addrs[0] = alice;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                address(dao),
-                address(multisig),
-                alice,
-                multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-            )
-        );
-        multisig.removeAddresses(addrs);
-
-        // Permission
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        // ok
-        addrs[0] = vm.addr(1234);
-        multisig.addAddresses(addrs);
-
-        addrs[0] = alice;
-        multisig.removeAddresses(addrs);
-    }
-
-    function testFuzz_PermissionedAddRemoveMembers(address randomAccount) public {
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
-
-        assertEq(multisig.isMember(randomWallet), false, "Should be false");
-
-        // in
-        address[] memory addrs = new address[](1);
-        addrs[0] = randomWallet;
-        multisig.addAddresses(addrs);
-        assertEq(multisig.isMember(randomWallet), true, "Should be true");
-
-        // out
-        multisig.removeAddresses(addrs);
-        assertEq(multisig.isMember(randomWallet), false, "Should be false");
-
-        // someone else
-        if (randomAccount != alice) {
-            vm.startPrank(randomAccount);
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    DaoUnauthorized.selector,
-                    address(dao),
-                    address(multisig),
-                    randomAccount,
-                    multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-                )
-            );
-            multisig.addAddresses(addrs);
-            assertEq(multisig.isMember(randomWallet), false, "Should be false");
-
-            addrs[0] = carol;
-            assertEq(multisig.isMember(carol), true, "Should be true");
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    DaoUnauthorized.selector,
-                    address(dao),
-                    address(multisig),
-                    randomAccount,
-                    multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID()
-                )
-            );
-            multisig.removeAddresses(addrs);
-
-            assertEq(multisig.isMember(carol), true, "Should be true");
-        }
-
-        vm.startPrank(alice);
+        // OK
+        settings.minApprovals = 5;
+        multisig.updateMultisigSettings(settings);
     }
 
     function testFuzz_PermissionedUpdateSettings(address randomAccount) public {
         dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
 
-        (bool onlyListed, uint16 minApprovals, uint64 destMinDuration, uint64 expiration) = multisig.multisigSettings();
+        (bool onlyListed, uint16 minApprovals, uint64 destMinDuration, uint64 expiration,) = multisig.multisigSettings();
         assertEq(minApprovals, 3, "Should be 3");
         assertEq(onlyListed, true, "Should be true");
         assertEq(destMinDuration, 10 days, "Incorrect destMinDuration A");
@@ -1160,15 +579,8 @@ contract MultisigTest is AragonTest {
             destinationProposalDuration: 4 days,
             proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
         });
-        address[] memory signers = new address[](4);
-        signers[0] = alice;
-        signers[1] = bob;
-        signers[2] = carol;
-        signers[3] = david;
-
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, signers, settings)))
-        );
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
 
         // 1
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1203,43 +615,40 @@ contract MultisigTest is AragonTest {
     }
 
     function test_RevertsWhenCreatorWasListedBeforeButNotNow() public {
-        // reverts if `_msgSender` is not listed although she was listed in the last block
+        // reverts if `msg.sender` is not listed although she was listed in the last block
 
-        // Deploy a new multisig instance
-        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
-            onlyListed: true,
-            minApprovals: 1,
-            destinationProposalDuration: 4 days,
-            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
-        });
+        dao.grant(address(signerList), alice, signerList.UPDATE_SIGNER_LIST_PERMISSION_ID());
+
+        // Remove
         address[] memory addrs = new address[](1);
         addrs[0] = alice;
+        signerList.removeSigners(addrs);
 
-        multisig = Multisig(
-            createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, addrs, settings)))
-        );
-        dao.grant(address(multisig), alice, multisig.UPDATE_MULTISIG_SETTINGS_PERMISSION_ID());
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, alice));
+        multisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        signerList.addSigners(addrs); // Add Alice back
         vm.roll(block.number + 1);
+        multisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // Add+remove
         addrs[0] = bob;
-        multisig.addAddresses(addrs);
+        signerList.removeSigners(addrs);
 
-        addrs[0] = alice;
-        multisig.removeAddresses(addrs);
-
-        // Alice cannot create now
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, alice));
-        multisig.createProposal("", actions, optimisticPlugin, false);
-
-        // Bob can create now
         vm.startPrank(bob);
 
-        multisig.createProposal("", actions, optimisticPlugin, false);
+        // Bob cannot create now
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, bob));
+        multisig.createProposal("", 0, 0, optimisticPlugin, false);
 
-        assertEq(multisig.isListed(alice), false, "Should not be listed");
-        assertEq(multisig.isListed(bob), true, "Should be listed");
+        vm.startPrank(alice);
+
+        // Bob can create now
+        signerList.addSigners(addrs); // Add Bob back
+
+        vm.startPrank(alice);
+
+        multisig.createProposal("", 0, 0, optimisticPlugin, false);
     }
 
     function test_CreatesProposalWithoutApprovingIfUnspecified() public {
@@ -1968,7 +1377,7 @@ contract MultisigTest is AragonTest {
         // event
         vm.expectEmit();
         emit Executed(pid);
-        uint256 targetPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 targetPid = (uint256(block.timestamp) << 128) | (uint256(block.timestamp + 10 days) << 64);
         vm.expectEmit();
         emit ProposalCreated(
             targetPid, address(multisig), uint64(block.timestamp), uint64(block.timestamp) + 10 days, "", actions, 0
@@ -2000,7 +1409,7 @@ contract MultisigTest is AragonTest {
         // events
         vm.expectEmit();
         emit Executed(pid);
-        targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64);
+        targetPid = ((uint256(block.timestamp) << 128) | (uint256(block.timestamp + 50 days) << 64));
         vm.expectEmit();
         emit ProposalCreated(
             targetPid, address(multisig), uint64(block.timestamp), 20 days + 50 days, "ipfs://", actions, 0
@@ -2055,7 +1464,7 @@ contract MultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
 
-        uint256 targetPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64);
+        uint256 targetPid = ((uint256(block.timestamp) << 128) | (uint256(block.timestamp + 10 days) << 64));
         vm.expectEmit();
         emit ProposalCreated(
             targetPid, address(multisig), uint64(block.timestamp), uint64(block.timestamp) + 10 days, "", actions, 0
@@ -2085,7 +1494,7 @@ contract MultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
 
-        targetPid = (uint256(5 days) << 128 | uint256(5 days + 10 days) << 64) + 1;
+        targetPid = ((uint256(5 days) << 128) | (uint256(5 days + 10 days) << 64)) + 1;
         vm.expectEmit();
         emit ProposalCreated(
             targetPid, // foreign pid
@@ -2123,7 +1532,7 @@ contract MultisigTest is AragonTest {
         vm.expectEmit();
         emit Executed(pid);
 
-        targetPid = (uint256(7 days) << 128 | uint256(7 days + 50 days) << 64);
+        targetPid = ((uint256(7 days) << 128) | (uint256(7 days + 50 days) << 64));
         vm.expectEmit();
         emit ProposalCreated(targetPid, address(multisig), 7 days, 7 days + 50 days, "ipfs://...", actions, 0);
         multisig.approve(pid, true);
@@ -2566,7 +1975,7 @@ contract MultisigTest is AragonTest {
         // Check round
         // start=1d, end=10d, counter=0
         (open, executed, parameters, vetoTally, metadataUri, actions, allowFailureMap) =
-            optimisticPlugin.getProposal(uint256(2 days) << 128 | uint256(2 days + 10 days) << 64);
+            optimisticPlugin.getProposal((uint256(2 days) << 128) | (uint256(2 days + 10 days) << 64));
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");
@@ -2614,7 +2023,7 @@ contract MultisigTest is AragonTest {
 
         // Check round
         (open, executed, parameters, vetoTally, metadataUri, actions, allowFailureMap) =
-            optimisticPlugin.getProposal((uint256(3 days) << 128 | uint256(3 days + 10 days) << 64) + 1);
+            optimisticPlugin.getProposal(((uint256(3 days) << 128) | (uint256(3 days + 10 days) << 64)) + 1);
 
         assertEq(open, true, "Should be open");
         assertEq(executed, false, "Should not be executed");
