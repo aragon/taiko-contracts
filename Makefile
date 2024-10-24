@@ -54,7 +54,7 @@ $(TREE_FILES): $(SOURCE_FILES)
 
 %.tree: %.t.yaml
 	@for file in $^; do \
-	    echo "[Convert]    $$file -> $${file%.t.yaml}.tree" ; \
+	  echo "[Convert]    $$file -> $${file%.t.yaml}.tree" ; \
 		cat $$file | $(MAKE_TEST_TREE) > $${file%.t.yaml}.tree ; \
 	done
 

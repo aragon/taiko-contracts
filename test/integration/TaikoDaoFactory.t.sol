@@ -516,9 +516,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid optimisticTokenVotingPluginSetup"
         );
 
-        // PUBLIC KEY REGISTRY
-        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
-        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+        // ENCRYPTION REGISTRY
+        assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
+        assertEq(
+            deployment.encryptionRegistry.getRegisteredAddresses().length, 0, "Invalid getRegisteredAddresses().length"
+        );
     }
 
     function test_StandardDeployment_2() public {
@@ -753,9 +755,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid optimisticTokenVotingPluginSetup"
         );
 
-        // PUBLIC KEY REGISTRY
-        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
-        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+        // ENCRYPTION REGISTRY
+        assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
+        assertEq(
+            deployment.encryptionRegistry.getRegisteredAddresses().length, 0, "Invalid getRegisteredAddresses().length"
+        );
     }
 
     function test_MultipleDeploysDoNothing() public {
