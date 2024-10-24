@@ -1,154 +1,153 @@
 SignerListTest:
-- when: deploying the contract
-  then:
-  - it: should initialize normally
-- given: a deployed contract
-  then:
-  - it: should fail to initialize again
-- given: a new instance
-  and:
-  - given: calling initialize
+  - when: deploying the contract
+    then:
+      - it: should initialize normally
+  - given: a deployed contract
+    then:
+      - it: should refuse to initialize again
+  - given: a new instance
     and:
-    - it: should set the DAO address
-    - it: should set the addresses as signers
-    - it: settings should match the given ones
-    - it: should emit the SignersAdded event
-    - it: should emit the SignerListSettingsUpdated event
-    - given: passing more addresses than supported
-      then: 
-      - it: should revert
+      - given: calling initialize
+        and:
+          - it: should set the DAO address
+          - it: should set the addresses as signers
+          - it: settings should match the given ones
+          - it: should emit the SignersAdded event
+          - it: should emit the SignerListSettingsUpdated event
+          - given: passing more addresses than supported
+            then:
+              - it: should revert
 
-- when: calling addSigners
-  and:
-  - when: addSigners without the permission
-    then:
-    - it: should revert
-  - given: passing more addresses than allowed
-    then: 
-    - it: should revert
-  - given: duplicate addresses
-    then:
-    - it: should revert
-  - it: should append the new addresses to the list
-  - it: should emit the SignersAddedEvent
-
-- when: calling removeSigners
-  and:
-  - when: removeSigners without the permission
-    then:
-    - it: should revert
-  - given: removing too many addresses
-    comment: The new list will be smaller than minSignerListLength
-    then: 
-    - it: should revert
-  - it: should more the given addresses
-  - it: should emit the SignersRemovedEvent
-
-- when: calling isListed
-  and:
-  - given: the member is listed
-    then:
-    - it: returns true
-  - given: the member is not listed
-    then:
-    - it: returns false
-
-- when: calling isListedAtBlock
-  and:
-  - given: the member was listed
+  - when: calling addSigners
     and:
-    - given: the member is not listed now
-      then:
-      - it: returns true
-    - given: the member is listed now
-      then:
-      - it: returns true
-  - given: the member was not listed
+      - when: addSigners without the permission
+        then:
+          - it: should revert
+      - given: passing more addresses than allowed
+        then:
+          - it: should revert
+      - given: duplicate addresses
+        then:
+          - it: should revert
+      - it: should append the new addresses to the list
+      - it: should emit the SignersAddedEvent
+
+  - when: calling removeSigners
     and:
-    - given: the member is delisted now
-      then:
-      - it: returns false
-    - given: the member is enlisted now
-      then:
-      - it: returns false
+      - when: removeSigners without the permission
+        then:
+          - it: should revert
+      - given: removing too many addresses
+        comment: The new list will be smaller than minSignerListLength
+        then:
+          - it: should revert
+      - it: should more the given addresses
+      - it: should emit the SignersRemovedEvent
 
-- when: calling updateSettings
-  and:
-  - when: updateSettings without the permission
-    then:
-    - it: should revert
-  - when: encryptionRegistry is not compatible
-    then:
-    - it: should revert
-  - when: setting a minSignerListLength lower than the current list size
-    then:
-    - it: should revert
-  - it: set the new encryption registry
-  - it: set the new minSignerListLength
-  - it: should emit a SignerListSettingsUpdated event
-
-- when: calling resolveEncryptionAccountStatus
-  and:
-  - given: the caller is a listed signer
-    then:
-    - it: ownerIsListed should be true
-    - it: isAppointed should be false
-  - given: the caller is appointed by a signer
-    then:
-    - it: ownerIsListed should be true
-    - it: isAppointed should be true
-  - given: the caller is not listed or appointed
-    then:
-    - it: ownerIsListed should be false
-    - it: isAppointed should be false
-
-- when: calling resolveEncryptionOwner
-  and:
-  - given: the resolved owner is listed
+  - when: calling isListed
     and:
-    - when: the given address is appointed
-      then:
-      - it: owner should be the resolved owner
-      - it: appointedWallet should be the caller
-    - when: the given address is not appointed
-      then:
-      - it: owner should be the caller
-      - it: appointedWallet should be resolved appointed wallet
+      - given: the member is listed
+        then:
+          - it: returns true
+      - given: the member is not listed
+        then:
+          - it: returns false
 
-  - given: the resolved owner is not listed
+  - when: calling isListedAtBlock
+    and:
+      - given: the member was listed
+        and:
+          - given: the member is not listed now
+            then:
+              - it: returns true
+          - given: the member is listed now
+            then:
+              - it: returns true
+      - given: the member was not listed
+        and:
+          - given: the member is delisted now
+            then:
+              - it: returns false
+          - given: the member is enlisted now
+            then:
+              - it: returns false
+
+  - when: calling updateSettings
+    and:
+      - when: updateSettings without the permission
+        then:
+          - it: should revert
+      - when: encryptionRegistry is not compatible
+        then:
+          - it: should revert
+      - when: setting a minSignerListLength lower than the current list size
+        then:
+          - it: should revert
+      - it: set the new encryption registry
+      - it: set the new minSignerListLength
+      - it: should emit a SignerListSettingsUpdated event
+
+  - when: calling resolveEncryptionAccountStatus
+    and:
+      - given: the caller is a listed signer
+        then:
+          - it: ownerIsListed should be true
+          - it: isAppointed should be false
+      - given: the caller is appointed by a signer
+        then:
+          - it: ownerIsListed should be true
+          - it: isAppointed should be true
+      - given: the caller is not listed or appointed
+        then:
+          - it: ownerIsListed should be false
+          - it: isAppointed should be false
+
+  - when: calling resolveEncryptionOwner
+    and:
+      - given: the resolved owner is listed
+        and:
+          - when: the given address is appointed
+            then:
+              - it: owner should be the resolved owner
+              - it: appointedWallet should be the caller
+          - when: the given address is not appointed
+            then:
+              - it: owner should be the caller
+              - it: appointedWallet should be resolved appointed wallet
+
+      - given: the resolved owner is not listed
+        then:
+          - it: should return a zero owner
+          - it: should return a zero appointedWallet
+
+  - when: calling getEncryptionRecipients
+    and:
+      - given: the encryption registry has no accounts
+        then:
+          - it: returns an empty list, even with signers
+          - it: returns an empty list, without signers
+
+      - given: the encryption registry has accounts
+        then:
+          - given: no overlap between registry and signerList
+            comment: Some are on the encryption registry only and some are on the signerList only
+            then:
+              - it: returns an empty list
+          - given: some addresses are registered everywhere
+            then:
+              - it: returns a list containing the overlapping addresses
+              - it: the result has the correct resolved addresses
+                comment: appointed wallets are present, not the owner
+              - it: result does not contain unregistered addresses
+              - it: result does not contain unlisted addresses
+              - it: result does not contain non appointed addresses
+
+  - when: calling supportsInterface
     then:
-    - it: should return a zero owner
-    - it: should return a zero appointedWallet
+      - it: does not support the empty interface
+      - it: supports IERC165Upgradeable
+      - it: supports IPlugin
+      - it: supports IProposal
+      - it: supports IMultisig
 
-- when: calling getEncryptionRecipients
-  and:
-  - given: the encryption registry has no accounts
-    then:
-      - it: returns an empty list, even with signers
-      - it: returns an empty list, without signers
-
-  - given: the encryption registry has accounts
-    then:
-    - given: no overlap between registry and signerList
-      comment: Some are on the encryption registry only and some are on the signerList only
-      then:
-      - it: returns an empty list
-    - given: some addresses are registered everywhere
-      then:
-      - it: returns a list containing the overlapping addresses
-      - it: the result has the correct resolved addresses
-        comment: appointed wallets are present, not the owner
-      - it: result does not contain unregistered addresses
-      - it: result does not contain unlisted addresses
-      - it: result does not contain non appointed addresses
-
-- when: calling supportsInterface
-  then:
-  - it: supports ISignerList
-  - it: supports Addresslist
-  - it: supports the parents interfaces
-
-
-
-
-
+  - when: calling

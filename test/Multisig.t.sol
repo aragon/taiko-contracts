@@ -20,7 +20,7 @@ import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
 uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 
-contract MultisigTest is AragonTest {
+contract MultisigTestOld is AragonTest {
     DaoBuilder builder;
 
     DAO dao;

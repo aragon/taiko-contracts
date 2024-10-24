@@ -1,0 +1,110 @@
+MultisigTest:
+  - given: a newly deployed contract
+    then:
+      - given: calling initialize()
+        then:
+          - it: should initialize the first time
+          - it: should refuse to initialize again
+          - it: should set the DAO address
+
+          # updateSettings() below should have the same branches:
+          - it: should set the minApprovals
+          - it: should set onlyListed
+          - it: should set signerList
+          - it: should set destinationProposalDuration
+          - it: should set proposalExpirationPeriod
+          - it: should emit MultisigSettingsUpdated
+          - when: minApprovals is greater than signerList length
+            then:
+              - it: should revert
+              - it: should revert (with onlyListed false)
+              - it: should not revert otherwise
+          - when: minApprovals is zero
+            then:
+              - it: should revert
+              - it: should revert (with onlyListed false)
+              - it: should not revert otherwise
+
+  - when: calling supportsInterface()
+    then:
+      - it: does not support the empty interface
+      - it: supports IERC165Upgradeable
+      - it: supports IPlugin
+      - it: supports IProposal
+
+  - when: calling updateSettings()
+    then:
+      - given: caller has no permission
+        then:
+          - it: should revert
+          - it: otherwise it should just work
+
+      # initialize() above should have the same branches:
+      - it: should set the minApprovals
+      - it: should set onlyListed
+      - it: should set signerList
+      - it: should set destinationProposalDuration
+      - it: should set proposalExpirationPeriod
+      - it: should emit MultisigSettingsUpdated
+      - when: minApprovals is greater than signerList length
+        then:
+          - it: should revert
+          - it: should revert (with onlyListed false)
+          - it: should not revert otherwise
+      - when: minApprovals is zero
+        then:
+          - it: should revert
+          - it: should revert (with onlyListed false)
+          - it: should not revert otherwise
+
+  - when: calling createProposal()
+    then:
+      - it: increments the proposal counter
+      - it: creates and return unique proposal IDs
+      - it: emits the ProposalCreatedEvent
+      - given: settings changed on the same block
+        then:
+          - it: reverts
+          - it: does not revert otherwise
+      - given: onlyListed is false
+        then:
+          - it: allows anyone to create
+      - given: onlyListed is true
+        and:
+          - given: creation caller is not listed or appointed
+            then:
+              - it: reverts
+          - given: creation caller is appointed by a former signer
+            then:
+              - it: reverts
+          - given: creation caller is listed
+            then:
+              - it: creates the proposal
+          - given: creation caller is appointed by a current signer
+            then:
+              - it: creates the proposal
+      - given: approveProposal is true
+        then:
+          - it: creates and calls approval in one go
+      - given: approveProposal is false
+        then:
+          - it: only creates the proposal
+
+  # Proposal lifecycle stages
+
+  - given: The proposal is not created
+    then:
+      - when: calling canApprove
+        then:
+          - it: should always return false (listed sender)
+          - it: should always return false (appointed sender)
+          - it: should always return false (unlisted unappointed sender)
+
+  # - when: calling canApprove()
+  #   and:
+  #     - given: the proposal is not created
+  #       then:
+  #         - it: reverts
+  #     - given: the proposal is expired
+  #       then:
+  #         - it: reverts
