@@ -3,11 +3,84 @@
 Below is the graphical definition of the contract tests implemented on [the test folder](./test)
 
 ```
+MultisigTest
+├── Given a newly deployed contract
+│   └── Given calling initialize()
+│       ├── It should initialize the first time
+│       ├── It should refuse to initialize again
+│       ├── It should set the DAO address
+│       ├── It should set the minApprovals
+│       ├── It should set onlyListed
+│       ├── It should set signerList
+│       ├── It should set destinationProposalDuration
+│       ├── It should set proposalExpirationPeriod
+│       ├── It should emit MultisigSettingsUpdated
+│       ├── When minApprovals is greater than signerList length
+│       │   ├── It should revert
+│       │   ├── It should revert (with onlyListed false)
+│       │   └── It should not revert otherwise
+│       └── When minApprovals is zero
+│           ├── It should revert
+│           ├── It should revert (with onlyListed false)
+│           └── It should not revert otherwise
+├── When calling supportsInterface()
+│   ├── It does not support the empty interface
+│   ├── It supports IERC165Upgradeable
+│   ├── It supports IPlugin
+│   └── It supports IProposal
+├── When calling updateSettings()
+│   ├── Given caller has no permission
+│   │   ├── It should revert
+│   │   └── It otherwise it should just work
+│   ├── It should set the minApprovals
+│   ├── It should set onlyListed
+│   ├── It should set signerList
+│   ├── It should set destinationProposalDuration
+│   ├── It should set proposalExpirationPeriod
+│   ├── It should emit MultisigSettingsUpdated
+│   ├── When minApprovals is greater than signerList length
+│   │   ├── It should revert
+│   │   ├── It should revert (with onlyListed false)
+│   │   └── It should not revert otherwise
+│   └── When minApprovals is zero
+│       ├── It should revert
+│       ├── It should revert (with onlyListed false)
+│       └── It should not revert otherwise
+├── When calling createProposal()
+│   ├── It increments the proposal counter
+│   ├── It creates and return unique proposal IDs
+│   ├── It emits the ProposalCreatedEvent
+│   ├── Given settings changed on the same block
+│   │   ├── It reverts
+│   │   └── It does not revert otherwise
+│   ├── Given onlyListed is false
+│   │   └── It allows anyone to create
+│   ├── Given onlyListed is true
+│   │   ├── Given creation caller is not listed or appointed
+│   │   │   └── It reverts
+│   │   ├── Given creation caller is appointed by a former signer
+│   │   │   └── It reverts
+│   │   ├── Given creation caller is listed
+│   │   │   └── It creates the proposal
+│   │   └── Given creation caller is appointed by a current signer
+│   │       └── It creates the proposal
+│   ├── Given approveProposal is true
+│   │   └── It creates and calls approval in one go
+│   └── Given approveProposal is false
+│       └── It only creates the proposal
+└── Given The proposal is not created
+    └── When calling canApprove
+        ├── It should always return false (listed sender)
+        ├── It should always return false (appointed sender)
+        └── It should always return false (unlisted unappointed sender)
+```
+
+```
 SignerListTest
 ├── When deploying the contract
 │   └── It should initialize normally
 ├── Given a deployed contract
-│   └── It should fail to initialize again
+│   └── It should refuse to initialize again
 ├── Given a new instance
 │   └── Given calling initialize
 │       ├── It should set the DAO address
@@ -93,9 +166,12 @@ SignerListTest
 │           ├── It result does not contain unregistered addresses
 │           ├── It result does not contain unlisted addresses
 │           └── It result does not contain non appointed addresses
-└── When calling supportsInterface
-    ├── It supports ISignerList
-    ├── It supports Addresslist
-    └── It supports the parents interfaces
+├── When calling supportsInterface
+│   ├── It does not support the empty interface
+│   ├── It supports IERC165Upgradeable
+│   ├── It supports IPlugin
+│   ├── It supports IProposal
+│   └── It supports IMultisig
+└── When calling
 ```
 
