@@ -36,6 +36,44 @@ contract SignerListTest is Test {
         vm.skip(true);
     }
 
+    modifier whenCallingUpdateSettings() {
+        _;
+    }
+
+    function test_WhenCallingUpdateSettings() external whenCallingUpdateSettings {
+        // It set the new encryption registry
+        // It set the new minSignerListLength
+        // It should emit a SignerListSettingsUpdated event
+        vm.skip(true);
+    }
+
+    function test_RevertWhen_UpdateSettingsWithoutThePermission() external whenCallingUpdateSettings {
+        // It should revert
+        vm.skip(true);
+    }
+
+    function test_RevertWhen_EncryptionRegistryIsNotCompatible() external whenCallingUpdateSettings {
+        // It should revert
+        vm.skip(true);
+    }
+
+    function test_RevertWhen_SettingAMinSignerListLengthLowerThanTheCurrentListSize()
+        external
+        whenCallingUpdateSettings
+    {
+        // It should revert
+        vm.skip(true);
+    }
+
+    function test_WhenCallingSupportsInterface() external {
+        // It does not support the empty interface
+        // It supports IERC165Upgradeable
+        // It supports IPlugin
+        // It supports IProposal
+        // It supports IMultisig
+        vm.skip(true);
+    }
+
     modifier whenCallingAddSigners() {
         _;
     }
@@ -46,7 +84,7 @@ contract SignerListTest is Test {
         vm.skip(true);
     }
 
-    function test_RevertWhen_AddSignersWithoutThePermission() external whenCallingAddSigners {
+    function test_RevertWhen_AddingWithoutThePermission() external whenCallingAddSigners {
         // It should revert
         vm.skip(true);
     }
@@ -71,8 +109,13 @@ contract SignerListTest is Test {
         vm.skip(true);
     }
 
-    function test_RevertWhen_RemoveSignersWithoutThePermission() external whenCallingRemoveSigners {
+    function test_RevertWhen_RemovingWithoutThePermission() external whenCallingRemoveSigners {
         // It should revert
+        vm.skip(true);
+    }
+
+    function test_WhenRemovingAnUnlistedAddress() external whenCallingRemoveSigners {
+        // It should continue gracefully
         vm.skip(true);
     }
 
@@ -124,35 +167,6 @@ contract SignerListTest is Test {
 
     function test_GivenTheMemberIsEnlistedNow() external whenCallingIsListedAtBlock givenTheMemberWasNotListed {
         // It returns false
-        vm.skip(true);
-    }
-
-    modifier whenCallingUpdateSettings() {
-        _;
-    }
-
-    function test_WhenCallingUpdateSettings() external whenCallingUpdateSettings {
-        // It set the new encryption registry
-        // It set the new minSignerListLength
-        // It should emit a SignerListSettingsUpdated event
-        vm.skip(true);
-    }
-
-    function test_RevertWhen_UpdateSettingsWithoutThePermission() external whenCallingUpdateSettings {
-        // It should revert
-        vm.skip(true);
-    }
-
-    function test_RevertWhen_EncryptionRegistryIsNotCompatible() external whenCallingUpdateSettings {
-        // It should revert
-        vm.skip(true);
-    }
-
-    function test_RevertWhen_SettingAMinSignerListLengthLowerThanTheCurrentListSize()
-        external
-        whenCallingUpdateSettings
-    {
-        // It should revert
         vm.skip(true);
     }
 
@@ -245,15 +259,6 @@ contract SignerListTest is Test {
         // It result does not contain unregistered addresses
         // It result does not contain unlisted addresses
         // It result does not contain non appointed addresses
-        vm.skip(true);
-    }
-
-    function test_WhenCallingSupportsInterface() external {
-        // It does not support the empty interface
-        // It supports IERC165Upgradeable
-        // It supports IPlugin
-        // It supports IProposal
-        // It supports IMultisig
         vm.skip(true);
     }
 }

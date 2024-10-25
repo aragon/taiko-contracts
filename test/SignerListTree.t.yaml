@@ -1,4 +1,5 @@
 SignerListTest:
+  # contract lifecycle
   - when: deploying the contract
     then:
       - it: should initialize normally
@@ -18,9 +19,33 @@ SignerListTest:
             then:
               - it: should revert
 
+  - when: calling updateSettings
+    and:
+      - when: updateSettings without the permission
+        then:
+          - it: should revert
+      - when: encryptionRegistry is not compatible
+        then:
+          - it: should revert
+      - when: setting a minSignerListLength lower than the current list size
+        then:
+          - it: should revert
+      - it: set the new encryption registry
+      - it: set the new minSignerListLength
+      - it: should emit a SignerListSettingsUpdated event
+
+  - when: calling supportsInterface
+    then:
+      - it: does not support the empty interface
+      - it: supports IERC165Upgradeable
+      - it: supports IPlugin
+      - it: supports IProposal
+      - it: supports IMultisig
+
+  # List lifecycle
   - when: calling addSigners
     and:
-      - when: addSigners without the permission
+      - when: adding without the permission
         then:
           - it: should revert
       - given: passing more addresses than allowed
@@ -34,9 +59,12 @@ SignerListTest:
 
   - when: calling removeSigners
     and:
-      - when: removeSigners without the permission
+      - when: removing without the permission
         then:
           - it: should revert
+      - when: removing an unlisted address
+        then:
+          - it: should continue gracefully
       - given: removing too many addresses
         comment: The new list will be smaller than minSignerListLength
         then:
@@ -44,6 +72,7 @@ SignerListTest:
       - it: should more the given addresses
       - it: should emit the SignersRemovedEvent
 
+  # Getters
   - when: calling isListed
     and:
       - given: the member is listed
@@ -71,21 +100,6 @@ SignerListTest:
           - given: the member is enlisted now
             then:
               - it: returns false
-
-  - when: calling updateSettings
-    and:
-      - when: updateSettings without the permission
-        then:
-          - it: should revert
-      - when: encryptionRegistry is not compatible
-        then:
-          - it: should revert
-      - when: setting a minSignerListLength lower than the current list size
-        then:
-          - it: should revert
-      - it: set the new encryption registry
-      - it: set the new minSignerListLength
-      - it: should emit a SignerListSettingsUpdated event
 
   - when: calling resolveEncryptionAccountStatus
     and:
@@ -142,12 +156,4 @@ SignerListTest:
               - it: result does not contain unlisted addresses
               - it: result does not contain non appointed addresses
 
-  - when: calling supportsInterface
-    then:
-      - it: does not support the empty interface
-      - it: supports IERC165Upgradeable
-      - it: supports IPlugin
-      - it: supports IProposal
-      - it: supports IMultisig
-
-  - when: calling
+  # - when: calling

@@ -251,22 +251,17 @@ MultisigTest:
       # Execution
       - when: calling canExecute and execute [passed]
         then:
-          - it: canExecute should return true (when listed on creation, self appointed now)
-          - it: execute should work (when listed on creation, self appointed now)
-          - it: execute should emit an event (when listed on creation, self appointed now)
-          - it: canExecute should return true (when listed on creation, appointing someone else now)
-          - it: execute should work (when listed on creation, appointing someone else now)
-          - it: execute should emit an event (when listed on creation, appointing someone else now)
-          - it: canExecute should return true (when currently appointed by a signer listed on creation)
-          - it: execute should work (when currently appointed by a signer listed on creation)
-          - it: execute should emit an event (when currently appointed by a signer listed on creation)
-          - it: canExecute should return true (when unlisted on creation, unappointed now)
-          - it: execute should work (when unlisted on creation, unappointed now)
-          - it: execute should emit an event (when unlisted on creation, unappointed now)
+          - it: canExecute should return true, always
+          - it: execute should work, when called by anyone
+          - it: execute should emit an event, when called by anyone
           # Proposal forwarding on execution
           - it: execute recreates the proposal on the destination plugin
           - it: The parameters of the recreated proposal match those of the executed one
+          - it: The proposal duration on the destination plugin matches the multisig settings
           - it: A ProposalCreated event is emitted on the destination plugin
+      - given: TaikoL1 is incompatible
+        then:
+          - it: executes successfully, regardless
 
   - given: The proposal is already executed
     then:

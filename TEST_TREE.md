@@ -82,7 +82,8 @@ EmergencyMultisigTest
 │       └── It only creates the proposal
 ├── When calling hashActions
 │   ├── It returns the right result
-│   └── It reacts to any of the values changing
+│   ├── It reacts to any of the values changing
+│   └── It same input produces the same output
 ├── Given The proposal is not created
 │   ├── When calling getProposal uncreated
 │   │   └── It should return empty values
@@ -154,14 +155,19 @@ EmergencyMultisigTest
 │   ├── When calling hasApproved passed
 │   │   └── It hasApproved should return false until approved
 │   ├── When calling canExecute and execute with modified data passed
-│   │   └── It execute should revert, always
-│   └── When calling canExecute and execute passed
-│       ├── It canExecute should return true, always
-│       ├── It execute should work, always
-│       ├── It execute should emit an event, always
-│       ├── It execute recreates the proposal on the destination plugin
-│       ├── It The parameters of the recreated proposal match the hash of the executed one
-│       └── It A ProposalCreated event is emitted on the destination plugin
+│   │   ├── It execute should revert with modified metadata
+│   │   ├── It execute should revert with modified actions
+│   │   └── It execute should work with matching data
+│   ├── When calling canExecute and execute passed
+│   │   ├── It canExecute should return true, always
+│   │   ├── It execute should work, when called by anyone with the actions
+│   │   ├── It execute should emit an event, when called by anyone with the actions
+│   │   ├── It execute recreates the proposal on the destination plugin
+│   │   ├── It The parameters of the recreated proposal match the hash of the executed one
+│   │   ├── It A ProposalCreated event is emitted on the destination plugin
+│   │   └── It Execution is immediate on the destination plugin
+│   └── Given TaikoL1 is incompatible
+│       └── It executes successfully, regardless
 ├── Given The proposal is already executed
 │   ├── When calling getProposal executed
 │   │   └── It should return the right values
@@ -373,22 +379,16 @@ MultisigTest
 │   │   └── It approve should revert (when unlisted on creation, unappointed now)
 │   ├── When calling hasApproved passed
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute passed
-│       ├── It canExecute should return true (when listed on creation, self appointed now)
-│       ├── It execute should work (when listed on creation, self appointed now)
-│       ├── It execute should emit an event (when listed on creation, self appointed now)
-│       ├── It canExecute should return true (when listed on creation, appointing someone else now)
-│       ├── It execute should work (when listed on creation, appointing someone else now)
-│       ├── It execute should emit an event (when listed on creation, appointing someone else now)
-│       ├── It canExecute should return true (when currently appointed by a signer listed on creation)
-│       ├── It execute should work (when currently appointed by a signer listed on creation)
-│       ├── It execute should emit an event (when currently appointed by a signer listed on creation)
-│       ├── It canExecute should return true (when unlisted on creation, unappointed now)
-│       ├── It execute should work (when unlisted on creation, unappointed now)
-│       ├── It execute should emit an event (when unlisted on creation, unappointed now)
-│       ├── It execute recreates the proposal on the destination plugin
-│       ├── It The parameters of the recreated proposal match those of the executed one
-│       └── It A ProposalCreated event is emitted on the destination plugin
+│   ├── When calling canExecute and execute passed
+│   │   ├── It canExecute should return true, always
+│   │   ├── It execute should work, when called by anyone
+│   │   ├── It execute should emit an event, when called by anyone
+│   │   ├── It execute recreates the proposal on the destination plugin
+│   │   ├── It The parameters of the recreated proposal match those of the executed one
+│   │   ├── It The proposal duration on the destination plugin matches the multisig settings
+│   │   └── It A ProposalCreated event is emitted on the destination plugin
+│   └── Given TaikoL1 is incompatible
+│       └── It executes successfully, regardless
 ├── Given The proposal is already executed
 │   ├── When calling getProposal executed
 │   │   └── It should return the right values
@@ -452,8 +452,24 @@ SignerListTest
 │       ├── It should emit the SignerListSettingsUpdated event
 │       └── Given passing more addresses than supported
 │           └── It should revert
+├── When calling updateSettings
+│   ├── When updateSettings without the permission
+│   │   └── It should revert
+│   ├── When encryptionRegistry is not compatible
+│   │   └── It should revert
+│   ├── When setting a minSignerListLength lower than the current list size
+│   │   └── It should revert
+│   ├── It set the new encryption registry
+│   ├── It set the new minSignerListLength
+│   └── It should emit a SignerListSettingsUpdated event
+├── When calling supportsInterface
+│   ├── It does not support the empty interface
+│   ├── It supports IERC165Upgradeable
+│   ├── It supports IPlugin
+│   ├── It supports IProposal
+│   └── It supports IMultisig
 ├── When calling addSigners
-│   ├── When addSigners without the permission
+│   ├── When adding without the permission
 │   │   └── It should revert
 │   ├── Given passing more addresses than allowed
 │   │   └── It should revert
@@ -462,8 +478,10 @@ SignerListTest
 │   ├── It should append the new addresses to the list
 │   └── It should emit the SignersAddedEvent
 ├── When calling removeSigners
-│   ├── When removeSigners without the permission
+│   ├── When removing without the permission
 │   │   └── It should revert
+│   ├── When removing an unlisted address
+│   │   └── It should continue gracefully
 │   ├── Given removing too many addresses // The new list will be smaller than minSignerListLength
 │   │   └── It should revert
 │   ├── It should more the given addresses
@@ -484,16 +502,6 @@ SignerListTest
 │       │   └── It returns false
 │       └── Given the member is enlisted now
 │           └── It returns false
-├── When calling updateSettings
-│   ├── When updateSettings without the permission
-│   │   └── It should revert
-│   ├── When encryptionRegistry is not compatible
-│   │   └── It should revert
-│   ├── When setting a minSignerListLength lower than the current list size
-│   │   └── It should revert
-│   ├── It set the new encryption registry
-│   ├── It set the new minSignerListLength
-│   └── It should emit a SignerListSettingsUpdated event
 ├── When calling resolveEncryptionAccountStatus
 │   ├── Given the caller is a listed signer
 │   │   ├── It ownerIsListed should be true
@@ -515,24 +523,18 @@ SignerListTest
 │   └── Given the resolved owner is not listed
 │       ├── It should return a zero owner
 │       └── It should return a zero appointedWallet
-├── When calling getEncryptionRecipients
-│   ├── Given the encryption registry has no accounts
-│   │   ├── It returns an empty list, even with signers
-│   │   └── It returns an empty list, without signers
-│   └── Given the encryption registry has accounts
-│       ├── Given no overlap between registry and signerList // Some are on the encryption registry only and some are on the signerList only
-│       │   └── It returns an empty list
-│       └── Given some addresses are registered everywhere
-│           ├── It returns a list containing the overlapping addresses
-│           ├── It the result has the correct resolved addresses // appointed wallets are present, not the owner
-│           ├── It result does not contain unregistered addresses
-│           ├── It result does not contain unlisted addresses
-│           └── It result does not contain non appointed addresses
-└── When calling supportsInterface
-    ├── It does not support the empty interface
-    ├── It supports IERC165Upgradeable
-    ├── It supports IPlugin
-    ├── It supports IProposal
-    └── It supports IMultisig
+└── When calling getEncryptionRecipients
+    ├── Given the encryption registry has no accounts
+    │   ├── It returns an empty list, even with signers
+    │   └── It returns an empty list, without signers
+    └── Given the encryption registry has accounts
+        ├── Given no overlap between registry and signerList // Some are on the encryption registry only and some are on the signerList only
+        │   └── It returns an empty list
+        └── Given some addresses are registered everywhere
+            ├── It returns a list containing the overlapping addresses
+            ├── It the result has the correct resolved addresses // appointed wallets are present, not the owner
+            ├── It result does not contain unregistered addresses
+            ├── It result does not contain unlisted addresses
+            └── It result does not contain non appointed addresses
 ```
 

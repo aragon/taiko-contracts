@@ -202,6 +202,7 @@ contract EmergencyMultisigTest is Test {
     function test_WhenCallingHashActions() external {
         // It returns the right result
         // It reacts to any of the values changing
+        // It same input produces the same output
         vm.skip(true);
     }
 
@@ -333,17 +334,25 @@ contract EmergencyMultisigTest is Test {
     }
 
     function test_WhenCallingCanExecuteAndExecuteWithModifiedDataPassed() external givenTheProposalPassed {
-        // It execute should revert, always
+        // It execute should revert with modified metadata
+        // It execute should revert with modified actions
+        // It execute should work with matching data
         vm.skip(true);
     }
 
     function test_WhenCallingCanExecuteAndExecutePassed() external givenTheProposalPassed {
         // It canExecute should return true, always
-        // It execute should work, always
-        // It execute should emit an event, always
+        // It execute should work, when called by anyone with the actions
+        // It execute should emit an event, when called by anyone with the actions
         // It execute recreates the proposal on the destination plugin
         // It The parameters of the recreated proposal match the hash of the executed one
         // It A ProposalCreated event is emitted on the destination plugin
+        // It Execution is immediate on the destination plugin
+        vm.skip(true);
+    }
+
+    function test_GivenTaikoL1IsIncompatible() external givenTheProposalPassed {
+        // It executes successfully, regardless
         vm.skip(true);
     }
 

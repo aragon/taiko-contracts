@@ -116,6 +116,7 @@ EmergencyMultisigTest:
     then:
       - it: returns the right result
       - it: reacts to any of the values changing
+      - it: same input produces the same output
 
   # Proposal lifecycle
 
@@ -238,17 +239,23 @@ EmergencyMultisigTest:
       # Execution integrity
       - when: calling canExecute and execute with modified data [passed]
         then:
-          - it: execute should revert, always
+          - it: execute should revert with modified metadata
+          - it: execute should revert with modified actions
+          - it: execute should work with matching data
       # Execution
       - when: calling canExecute and execute [passed]
         then:
           - it: canExecute should return true, always
-          - it: execute should work, always
-          - it: execute should emit an event, always
+          - it: execute should work, when called by anyone with the actions
+          - it: execute should emit an event, when called by anyone with the actions
           # Proposal forwarding on execution
           - it: execute recreates the proposal on the destination plugin
           - it: The parameters of the recreated proposal match the hash of the executed one
           - it: A ProposalCreated event is emitted on the destination plugin
+          - it: Execution is immediate on the destination plugin
+      - given: TaikoL1 is incompatible
+        then:
+          - it: executes successfully, regardless
 
   - given: The proposal is already executed
     then:

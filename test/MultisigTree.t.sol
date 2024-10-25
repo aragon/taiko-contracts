@@ -345,21 +345,18 @@ contract MultisigTest is Test {
     }
 
     function test_WhenCallingCanExecuteAndExecutePassed() external givenTheProposalPassed {
-        // It canExecute should return true (when listed on creation, self appointed now)
-        // It execute should work (when listed on creation, self appointed now)
-        // It execute should emit an event (when listed on creation, self appointed now)
-        // It canExecute should return true (when listed on creation, appointing someone else now)
-        // It execute should work (when listed on creation, appointing someone else now)
-        // It execute should emit an event (when listed on creation, appointing someone else now)
-        // It canExecute should return true (when currently appointed by a signer listed on creation)
-        // It execute should work (when currently appointed by a signer listed on creation)
-        // It execute should emit an event (when currently appointed by a signer listed on creation)
-        // It canExecute should return true (when unlisted on creation, unappointed now)
-        // It execute should work (when unlisted on creation, unappointed now)
-        // It execute should emit an event (when unlisted on creation, unappointed now)
+        // It canExecute should return true, always
+        // It execute should work, when called by anyone
+        // It execute should emit an event, when called by anyone
         // It execute recreates the proposal on the destination plugin
         // It The parameters of the recreated proposal match those of the executed one
+        // It The proposal duration on the destination plugin matches the multisig settings
         // It A ProposalCreated event is emitted on the destination plugin
+        vm.skip(true);
+    }
+
+    function test_GivenTaikoL1IsIncompatible() external givenTheProposalPassed {
+        // It executes successfully, regardless
         vm.skip(true);
     }
 
