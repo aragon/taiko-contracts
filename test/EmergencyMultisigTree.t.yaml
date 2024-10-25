@@ -123,11 +123,11 @@ EmergencyMultisigTest:
   - given: The proposal is not created
     then:
       # Get proposal
-      - when: calling getProposal [uncreated]
+      - when: calling getProposal [being uncreated]
         then:
           - it: should return empty values
       # Approval
-      - when: calling canApprove and approve [uncreated]
+      - when: calling canApprove and approve [being uncreated]
         then:
           - it: canApprove should return false (when currently listed and self appointed)
           - it: approve should revert (when currently listed and self appointed)
@@ -138,22 +138,22 @@ EmergencyMultisigTest:
           - it: canApprove should return false (when currently unlisted and unappointed)
           - it: approve should revert (when currently unlisted and unappointed)
       # Has approved
-      - when: calling hasApproved [uncreated]
+      - when: calling hasApproved [being uncreated]
         then:
           - it: hasApproved should always return false
       # Execution
-      - when: calling canExecute and execute [uncreated]
+      - when: calling canExecute and execute [being uncreated]
         then:
           - it: canExecute should always return false
 
   - given: The proposal is open
     then:
       # Get proposal
-      - when: calling getProposal [open]
+      - when: calling getProposal [being open]
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [open]
+      - when: calling canApprove and approve [being open]
         then:
           - it: canApprove should return true (when listed on creation, self appointed now)
           - it: approve should work (when listed on creation, self appointed now)
@@ -167,11 +167,11 @@ EmergencyMultisigTest:
           - it: approve should revert (when unlisted on creation, unappointed now)
 
       # Has approved
-      - when: calling hasApproved [open]
+      - when: calling hasApproved [being open]
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [open]
+      - when: calling canExecute and execute [being open]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -185,11 +185,11 @@ EmergencyMultisigTest:
   - given: The proposal was approved by the address
     then:
       # Get proposal
-      - when: calling getProposal [approved]
+      - when: calling getProposal [being approved]
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [approved]
+      - when: calling canApprove and approve [being approved]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -200,11 +200,11 @@ EmergencyMultisigTest:
           # - it: canApprove should return false (when unlisted on creation, unappointed now)
           # - it: approve should revert (when unlisted on creation, unappointed now)
       # Has approved
-      - when: calling hasApproved [approved]
+      - when: calling hasApproved [being approved]
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [approved]
+      - when: calling canExecute and execute [being approved]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -218,11 +218,11 @@ EmergencyMultisigTest:
   - given: The proposal passed
     then:
       # Get proposal
-      - when: calling getProposal [passed]
+      - when: calling getProposal [being passed]
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [passed]
+      - when: calling canApprove and approve [being passed]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -233,17 +233,17 @@ EmergencyMultisigTest:
           - it: canApprove should return false (when unlisted on creation, unappointed now)
           - it: approve should revert (when unlisted on creation, unappointed now)
       # Has approved
-      - when: calling hasApproved [passed]
+      - when: calling hasApproved [being passed]
         then:
           - it: hasApproved should return false until approved
       # Execution integrity
-      - when: calling canExecute and execute with modified data [passed]
+      - when: calling canExecute and execute with modified data [being passed]
         then:
           - it: execute should revert with modified metadata
           - it: execute should revert with modified actions
           - it: execute should work with matching data
       # Execution
-      - when: calling canExecute and execute [passed]
+      - when: calling canExecute and execute [being passed]
         then:
           - it: canExecute should return true, always
           - it: execute should work, when called by anyone with the actions
@@ -260,11 +260,11 @@ EmergencyMultisigTest:
   - given: The proposal is already executed
     then:
       # Get proposal
-      - when: calling getProposal [executed]
+      - when: calling getProposal [being executed]
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [executed]
+      - when: calling canApprove and approve [being executed]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -275,11 +275,11 @@ EmergencyMultisigTest:
           - it: canApprove should return false (when unlisted on creation, unappointed now)
           - it: approve should revert (when unlisted on creation, unappointed now)
       # Has approved
-      - when: calling hasApproved [executed]
+      - when: calling hasApproved [being executed]
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [executed]
+      - when: calling canExecute and execute [being executed]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -293,11 +293,11 @@ EmergencyMultisigTest:
   - given: The proposal expired
     then:
       # Get proposal
-      - when: calling getProposal [expired]
+      - when: calling getProposal [being expired]
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [expired]
+      - when: calling canApprove and approve [being expired]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -308,11 +308,11 @@ EmergencyMultisigTest:
           - it: canApprove should return false (when unlisted on creation, unappointed now)
           - it: approve should revert (when unlisted on creation, unappointed now)
       # Has approved
-      - when: calling hasApproved [expired]
+      - when: calling hasApproved [being expired]
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [expired]
+      - when: calling canExecute and execute [being expired]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)

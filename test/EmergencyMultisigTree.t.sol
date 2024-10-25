@@ -210,12 +210,12 @@ contract EmergencyMultisigTest is Test {
         _;
     }
 
-    function test_WhenCallingGetProposalUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingGetProposalBeingUncreated() external givenTheProposalIsNotCreated {
         // It should return empty values
         vm.skip(true);
     }
 
-    function test_WhenCallingCanApproveAndApproveUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingCanApproveAndApproveBeingUncreated() external givenTheProposalIsNotCreated {
         // It canApprove should return false (when currently listed and self appointed)
         // It approve should revert (when currently listed and self appointed)
         // It canApprove should return false (when currently listed, appointing someone else now)
@@ -227,12 +227,12 @@ contract EmergencyMultisigTest is Test {
         vm.skip(true);
     }
 
-    function test_WhenCallingHasApprovedUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingHasApprovedBeingUncreated() external givenTheProposalIsNotCreated {
         // It hasApproved should always return false
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingCanExecuteAndExecuteBeingUncreated() external givenTheProposalIsNotCreated {
         // It canExecute should always return false
         vm.skip(true);
     }
@@ -241,12 +241,12 @@ contract EmergencyMultisigTest is Test {
         _;
     }
 
-    function test_WhenCallingGetProposalOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingGetProposalBeingOpen() external givenTheProposalIsOpen {
         // It should return the right values
         vm.skip(true);
     }
 
-    function test_WhenCallingCanApproveAndApproveOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingCanApproveAndApproveBeingOpen() external givenTheProposalIsOpen {
         // It canApprove should return true (when listed on creation, self appointed now)
         // It approve should work (when listed on creation, self appointed now)
         // It approve should emit an event (when listed on creation, self appointed now)
@@ -260,12 +260,12 @@ contract EmergencyMultisigTest is Test {
         vm.skip(true);
     }
 
-    function test_WhenCallingHasApprovedOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingHasApprovedBeingOpen() external givenTheProposalIsOpen {
         // It hasApproved should return false until approved
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingCanExecuteAndExecuteBeingOpen() external givenTheProposalIsOpen {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
@@ -281,12 +281,12 @@ contract EmergencyMultisigTest is Test {
         _;
     }
 
-    function test_WhenCallingGetProposalApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingGetProposalBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It should return the right values
         vm.skip(true);
     }
 
-    function test_WhenCallingCanApproveAndApproveApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingCanApproveAndApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
@@ -294,12 +294,12 @@ contract EmergencyMultisigTest is Test {
         vm.skip(true);
     }
 
-    function test_WhenCallingHasApprovedApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingHasApprovedBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It hasApproved should return false until approved
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingCanExecuteAndExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when currently appointed by a signer listed on creation)
@@ -311,12 +311,12 @@ contract EmergencyMultisigTest is Test {
         _;
     }
 
-    function test_WhenCallingGetProposalPassed() external givenTheProposalPassed {
+    function test_WhenCallingGetProposalBeingPassed() external givenTheProposalPassed {
         // It should return the right values
         vm.skip(true);
     }
 
-    function test_WhenCallingCanApproveAndApprovePassed() external givenTheProposalPassed {
+    function test_WhenCallingCanApproveAndApproveBeingPassed() external givenTheProposalPassed {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
@@ -328,19 +328,19 @@ contract EmergencyMultisigTest is Test {
         vm.skip(true);
     }
 
-    function test_WhenCallingHasApprovedPassed() external givenTheProposalPassed {
+    function test_WhenCallingHasApprovedBeingPassed() external givenTheProposalPassed {
         // It hasApproved should return false until approved
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteWithModifiedDataPassed() external givenTheProposalPassed {
+    function test_WhenCallingCanExecuteAndExecuteWithModifiedDataBeingPassed() external givenTheProposalPassed {
         // It execute should revert with modified metadata
         // It execute should revert with modified actions
         // It execute should work with matching data
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecutePassed() external givenTheProposalPassed {
+    function test_WhenCallingCanExecuteAndExecuteBeingPassed() external givenTheProposalPassed {
         // It canExecute should return true, always
         // It execute should work, when called by anyone with the actions
         // It execute should emit an event, when called by anyone with the actions
@@ -360,12 +360,12 @@ contract EmergencyMultisigTest is Test {
         _;
     }
 
-    function test_WhenCallingGetProposalExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingGetProposalBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It should return the right values
         vm.skip(true);
     }
 
-    function test_WhenCallingCanApproveAndApproveExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingCanApproveAndApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
@@ -377,12 +377,12 @@ contract EmergencyMultisigTest is Test {
         vm.skip(true);
     }
 
-    function test_WhenCallingHasApprovedExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingHasApprovedBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It hasApproved should return false until approved
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingCanExecuteAndExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
@@ -398,12 +398,12 @@ contract EmergencyMultisigTest is Test {
         _;
     }
 
-    function test_WhenCallingGetProposalExpired() external givenTheProposalExpired {
+    function test_WhenCallingGetProposalBeingExpired() external givenTheProposalExpired {
         // It should return the right values
         vm.skip(true);
     }
 
-    function test_WhenCallingCanApproveAndApproveExpired() external givenTheProposalExpired {
+    function test_WhenCallingCanApproveAndApproveBeingExpired() external givenTheProposalExpired {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
@@ -415,12 +415,12 @@ contract EmergencyMultisigTest is Test {
         vm.skip(true);
     }
 
-    function test_WhenCallingHasApprovedExpired() external givenTheProposalExpired {
+    function test_WhenCallingHasApprovedBeingExpired() external givenTheProposalExpired {
         // It hasApproved should return false until approved
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteExpired() external givenTheProposalExpired {
+    function test_WhenCallingCanExecuteAndExecuteBeingExpired() external givenTheProposalExpired {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
