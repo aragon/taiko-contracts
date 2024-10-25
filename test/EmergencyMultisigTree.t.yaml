@@ -1,4 +1,4 @@
-MultisigTest:
+EmergencyMultisigTest:
   # Plugin lifecycle
   - given: a newly deployed contract
     then:
@@ -12,7 +12,6 @@ MultisigTest:
           - it: should set the minApprovals
           - it: should set onlyListed
           - it: should set signerList
-          - it: should set destinationProposalDuration
           - it: should set proposalExpirationPeriod
           - it: should emit MultisigSettingsUpdated
           - when: minApprovals is greater than signerList length [on initialize]
@@ -47,7 +46,7 @@ MultisigTest:
       - it: supports IERC165Upgradeable
       - it: supports IPlugin
       - it: supports IProposal
-      - it: supports IMultisig
+      - it: supports IEmergencyMultisig
 
   - when: calling updateSettings
     then:
@@ -60,7 +59,6 @@ MultisigTest:
       - it: should set the minApprovals
       - it: should set onlyListed
       - it: should set signerList
-      - it: should set destinationProposalDuration
       - it: should set proposalExpirationPeriod
       - it: should emit MultisigSettingsUpdated
       - when: minApprovals is greater than signerList length [on updateSettings]
@@ -114,6 +112,11 @@ MultisigTest:
         then:
           - it: only creates the proposal
 
+  - when: calling hashActions
+    then:
+      - it: returns the right result
+      - it: reacts to any of the values changing
+
   # Proposal lifecycle
 
   - given: The proposal is not created
@@ -140,14 +143,7 @@ MultisigTest:
       # Execution
       - when: calling canExecute and execute [uncreated]
         then:
-          - it: canExecute should return false (when currently listed and self appointed)
-          - it: execute should revert (when currently listed and self appointed)
-          - it: canExecute should return false (when currently listed, appointing someone else now)
-          - it: execute should revert (when currently listed, appointing someone else now)
-          - it: canExecute should return false (when appointed by a listed signer)
-          - it: execute should revert (when appointed by a listed signer)
-          - it: canExecute should return false (when currently unlisted and unappointed)
-          - it: execute should revert (when currently unlisted and unappointed)
+          - it: canExecute should always return false
 
   - given: The proposal is open
     then:
@@ -168,15 +164,6 @@ MultisigTest:
           - it: approve should emit an event (when currently appointed by a signer listed on creation)
           - it: canApprove should return false (when unlisted on creation, unappointed now)
           - it: approve should revert (when unlisted on creation, unappointed now)
-      # Auto execution
-      - when: calling approve with tryExecution and almost passed [open]
-        then:
-          - it: approve should also execute the proposal
-          - it: approve should emit an Executed event
-          # Proposal forwarding on execution
-          - it: approve recreates the proposal on the destination plugin
-          - it: The parameters of the recreated proposal match those of the approved one
-          - it: A ProposalCreated event is emitted on the destination plugin
 
       # Has approved
       - when: calling hasApproved [open]
@@ -248,24 +235,19 @@ MultisigTest:
       - when: calling hasApproved [passed]
         then:
           - it: hasApproved should return false until approved
+      # Execution integrity
+      - when: calling canExecute and execute with modified data [passed]
+        then:
+          - it: execute should revert, always
       # Execution
       - when: calling canExecute and execute [passed]
         then:
-          - it: canExecute should return true (when listed on creation, self appointed now)
-          - it: execute should work (when listed on creation, self appointed now)
-          - it: execute should emit an event (when listed on creation, self appointed now)
-          - it: canExecute should return true (when listed on creation, appointing someone else now)
-          - it: execute should work (when listed on creation, appointing someone else now)
-          - it: execute should emit an event (when listed on creation, appointing someone else now)
-          - it: canExecute should return true (when currently appointed by a signer listed on creation)
-          - it: execute should work (when currently appointed by a signer listed on creation)
-          - it: execute should emit an event (when currently appointed by a signer listed on creation)
-          - it: canExecute should return true (when unlisted on creation, unappointed now)
-          - it: execute should work (when unlisted on creation, unappointed now)
-          - it: execute should emit an event (when unlisted on creation, unappointed now)
+          - it: canExecute should return true, always
+          - it: execute should work, always
+          - it: execute should emit an event, always
           # Proposal forwarding on execution
           - it: execute recreates the proposal on the destination plugin
-          - it: The parameters of the recreated proposal match those of the executed one
+          - it: The parameters of the recreated proposal match the hash of the executed one
           - it: A ProposalCreated event is emitted on the destination plugin
 
   - given: The proposal is already executed

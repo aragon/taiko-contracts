@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import {Test} from "forge-std/Test.sol";
 
-contract MultisigTest is Test {
+contract EmergencyMultisigTest is Test {
     modifier givenANewlyDeployedContract() {
         _;
     }
@@ -19,7 +19,6 @@ contract MultisigTest is Test {
         // It should set the minApprovals
         // It should set onlyListed
         // It should set signerList
-        // It should set destinationProposalDuration
         // It should set proposalExpirationPeriod
         // It should emit MultisigSettingsUpdated
         vm.skip(true);
@@ -73,7 +72,7 @@ contract MultisigTest is Test {
         // It supports IERC165Upgradeable
         // It supports IPlugin
         // It supports IProposal
-        // It supports IMultisig
+        // It supports IEmergencyMultisig
         vm.skip(true);
     }
 
@@ -85,7 +84,6 @@ contract MultisigTest is Test {
         // It should set the minApprovals
         // It should set onlyListed
         // It should set signerList
-        // It should set destinationProposalDuration
         // It should set proposalExpirationPeriod
         // It should emit MultisigSettingsUpdated
         vm.skip(true);
@@ -201,6 +199,12 @@ contract MultisigTest is Test {
         vm.skip(true);
     }
 
+    function test_WhenCallingHashActions() external {
+        // It returns the right result
+        // It reacts to any of the values changing
+        vm.skip(true);
+    }
+
     modifier givenTheProposalIsNotCreated() {
         _;
     }
@@ -228,14 +232,7 @@ contract MultisigTest is Test {
     }
 
     function test_WhenCallingCanExecuteAndExecuteUncreated() external givenTheProposalIsNotCreated {
-        // It canExecute should return false (when currently listed and self appointed)
-        // It execute should revert (when currently listed and self appointed)
-        // It canExecute should return false (when currently listed, appointing someone else now)
-        // It execute should revert (when currently listed, appointing someone else now)
-        // It canExecute should return false (when appointed by a listed signer)
-        // It execute should revert (when appointed by a listed signer)
-        // It canExecute should return false (when currently unlisted and unappointed)
-        // It execute should revert (when currently unlisted and unappointed)
+        // It canExecute should always return false
         vm.skip(true);
     }
 
@@ -259,15 +256,6 @@ contract MultisigTest is Test {
         // It approve should emit an event (when currently appointed by a signer listed on creation)
         // It canApprove should return false (when unlisted on creation, unappointed now)
         // It approve should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
-    }
-
-    function test_WhenCallingApproveWithTryExecutionAndAlmostPassedOpen() external givenTheProposalIsOpen {
-        // It approve should also execute the proposal
-        // It approve should emit an Executed event
-        // It approve recreates the proposal on the destination plugin
-        // It The parameters of the recreated proposal match those of the approved one
-        // It A ProposalCreated event is emitted on the destination plugin
         vm.skip(true);
     }
 
@@ -344,21 +332,17 @@ contract MultisigTest is Test {
         vm.skip(true);
     }
 
+    function test_WhenCallingCanExecuteAndExecuteWithModifiedDataPassed() external givenTheProposalPassed {
+        // It execute should revert, always
+        vm.skip(true);
+    }
+
     function test_WhenCallingCanExecuteAndExecutePassed() external givenTheProposalPassed {
-        // It canExecute should return true (when listed on creation, self appointed now)
-        // It execute should work (when listed on creation, self appointed now)
-        // It execute should emit an event (when listed on creation, self appointed now)
-        // It canExecute should return true (when listed on creation, appointing someone else now)
-        // It execute should work (when listed on creation, appointing someone else now)
-        // It execute should emit an event (when listed on creation, appointing someone else now)
-        // It canExecute should return true (when currently appointed by a signer listed on creation)
-        // It execute should work (when currently appointed by a signer listed on creation)
-        // It execute should emit an event (when currently appointed by a signer listed on creation)
-        // It canExecute should return true (when unlisted on creation, unappointed now)
-        // It execute should work (when unlisted on creation, unappointed now)
-        // It execute should emit an event (when unlisted on creation, unappointed now)
+        // It canExecute should return true, always
+        // It execute should work, always
+        // It execute should emit an event, always
         // It execute recreates the proposal on the destination plugin
-        // It The parameters of the recreated proposal match those of the executed one
+        // It The parameters of the recreated proposal match the hash of the executed one
         // It A ProposalCreated event is emitted on the destination plugin
         vm.skip(true);
     }
