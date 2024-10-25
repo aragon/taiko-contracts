@@ -57,9 +57,9 @@ function parseRuleChildren(lines: Array<Rule>): Array<TreeItem> {
 
     let content = "";
     if (rule.given) {
-      content = "Given " + rule.given;
+      content = "Given " + cleanText(rule.given);
     } else if (rule.when) {
-      content = "When " + rule.when;
+      content = "When " + cleanText(rule.when);
     } else if (rule.it) {
       content = "It " + rule.it;
     }
@@ -132,6 +132,10 @@ function renderTreeItem(
   }
 
   return result;
+}
+
+function cleanText(input: string): string {
+  return input.replace(/[^a-zA-Z0-9 ]/g, "").trim();
 }
 
 async function readStdinText() {

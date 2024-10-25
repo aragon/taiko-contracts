@@ -10,7 +10,7 @@ contract SignerListTest is Test {
     }
 
     function test_GivenADeployedContract() external {
-        // It should fail to initialize again
+        // It should refuse to initialize again
         vm.skip(true);
     }
 
@@ -249,9 +249,11 @@ contract SignerListTest is Test {
     }
 
     function test_WhenCallingSupportsInterface() external {
-        // It supports ISignerList
-        // It supports Addresslist
-        // It supports the parents interfaces
+        // It does not support the empty interface
+        // It supports IERC165Upgradeable
+        // It supports IPlugin
+        // It supports IProposal
+        // It supports IMultisig
         vm.skip(true);
     }
 }

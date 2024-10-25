@@ -1,67 +1,81 @@
 MultisigTest:
+  # Plugin lifecycle
   - given: a newly deployed contract
     then:
-      - given: calling initialize()
+      - given: calling initialize
         then:
           - it: should initialize the first time
           - it: should refuse to initialize again
           - it: should set the DAO address
 
-          # updateSettings() below should have the same branches:
+          # updateSettings below should have the same branches:
           - it: should set the minApprovals
           - it: should set onlyListed
           - it: should set signerList
           - it: should set destinationProposalDuration
           - it: should set proposalExpirationPeriod
           - it: should emit MultisigSettingsUpdated
-          - when: minApprovals is greater than signerList length
+          - when: minApprovals is greater than signerList length [initialize]
             then:
               - it: should revert
               - it: should revert (with onlyListed false)
               - it: should not revert otherwise
-          - when: minApprovals is zero
+          - when: minApprovals is zero [initialize]
             then:
               - it: should revert
               - it: should revert (with onlyListed false)
               - it: should not revert otherwise
 
-  - when: calling supportsInterface()
+  - when: calling upgradeTo
     then:
-      - it: does not support the empty interface
-      - it: supports IERC165Upgradeable
-      - it: supports IPlugin
-      - it: supports IProposal
+      - it: should revert when called without the permission
+      - it: should work when called with the permission
 
-  - when: calling updateSettings()
+  - when: calling upgradeToAndCall
+    then:
+      - it: should revert when called without the permission
+      - it: should work when called with the permission
+
+  - when: calling updateSettings
     then:
       - given: caller has no permission
         then:
           - it: should revert
           - it: otherwise it should just work
 
-      # initialize() above should have the same branches:
+      # initialize above should have the same branches:
       - it: should set the minApprovals
       - it: should set onlyListed
       - it: should set signerList
       - it: should set destinationProposalDuration
       - it: should set proposalExpirationPeriod
       - it: should emit MultisigSettingsUpdated
-      - when: minApprovals is greater than signerList length
+      - when: minApprovals is greater than signerList length [updateSettings]
         then:
           - it: should revert
           - it: should revert (with onlyListed false)
           - it: should not revert otherwise
-      - when: minApprovals is zero
+      - when: minApprovals is zero [updateSettings]
         then:
           - it: should revert
           - it: should revert (with onlyListed false)
           - it: should not revert otherwise
 
-  - when: calling createProposal()
+  # General methods
+
+  - when: calling supportsInterface
+    then:
+      - it: does not support the empty interface
+      - it: supports IERC165Upgradeable
+      - it: supports IPlugin
+      - it: supports IProposal
+
+  - when: calling createProposal
     then:
       - it: increments the proposal counter
       - it: creates and return unique proposal IDs
       - it: emits the ProposalCreatedEvent
+      - it: creates a proposal with the given values
       - given: settings changed on the same block
         then:
           - it: reverts
@@ -77,7 +91,10 @@ MultisigTest:
           - given: creation caller is appointed by a former signer
             then:
               - it: reverts
-          - given: creation caller is listed
+          - given: creation caller is listed and self appointed
+            then:
+              - it: creates the proposal
+          - given: creation caller is listed, appointing someone else now
             then:
               - it: creates the proposal
           - given: creation caller is appointed by a current signer
@@ -90,21 +107,223 @@ MultisigTest:
         then:
           - it: only creates the proposal
 
-  # Proposal lifecycle stages
+  # Proposal lifecycle
 
   - given: The proposal is not created
     then:
-      - when: calling canApprove
+      # Get proposal
+      - when: calling getProposal [uncreated]
         then:
-          - it: should always return false (listed sender)
-          - it: should always return false (appointed sender)
-          - it: should always return false (unlisted unappointed sender)
+          - it: should return empty values
+      # Approval
+      - when: calling canApprove and approve [uncreated]
+        then:
+          - it: canApprove should return false (when currently listed and self appointed)
+          - it: approve should revert (when currently listed and self appointed)
+          - it: canApprove should return false (when currently listed, appointing someone else now)
+          - it: approve should revert (when currently listed, appointing someone else now)
+          - it: canApprove should return false (when appointed by a listed signer)
+          - it: approve should revert (when appointed by a listed signer)
+          - it: canApprove should return false (when currently unlisted and unappointed)
+          - it: approve should revert (when currently unlisted and unappointed)
+      # Has approved
+      - when: calling hasApproved [uncreated]
+        then:
+          - it: hasApproved should always return false
+      # Execution
+      - when: calling canExecute and execute [uncreated]
+        then:
+          - it: canExecute should return false (when currently listed and self appointed)
+          - it: execute should revert (when currently listed and self appointed)
+          - it: canExecute should return false (when currently listed, appointing someone else now)
+          - it: execute should revert (when currently listed, appointing someone else now)
+          - it: canExecute should return false (when appointed by a listed signer)
+          - it: execute should revert (when appointed by a listed signer)
+          - it: canExecute should return false (when currently unlisted and unappointed)
+          - it: execute should revert (when currently unlisted and unappointed)
 
-  # - when: calling canApprove()
-  #   and:
-  #     - given: the proposal is not created
-  #       then:
-  #         - it: reverts
-  #     - given: the proposal is expired
-  #       then:
-  #         - it: reverts
+  - given: The proposal is open
+    then:
+      # Get proposal
+      - when: calling getProposal [open]
+        then:
+          - it: should return the right values
+      # Approval
+      - when: calling canApprove and approve [open]
+        then:
+          - it: canApprove should return true (when listed on creation, self appointed now)
+          - it: approve should work (when listed on creation, self appointed now)
+          - it: approve should emit an event (when listed on creation, self appointed now)
+          - it: canApprove should return false (when listed on creation, appointing someone else now)
+          - it: approve should revert (when listed on creation, appointing someone else now)
+          - it: canApprove should return true (when currently appointed by a signer listed on creation)
+          - it: approve should work (when currently appointed by a signer listed on creation)
+          - it: approve should emit an event (when currently appointed by a signer listed on creation)
+          - it: canApprove should return false (when unlisted on creation, unappointed now)
+          - it: approve should revert (when unlisted on creation, unappointed now)
+      # Auto execution
+      - when: calling approve with tryExecution and almost passed [open]
+        then:
+          - it: approve should also execute the proposal
+          - it: approve should emit an Executed event
+          # Proposal forwarding on execution
+          - it: approve recreates the proposal on the destination plugin
+          - it: The parameters of the recreated proposal match those of the approved one
+          - it: A ProposalCreated event is emitted on the destination plugin
+
+      # Has approved
+      - when: calling hasApproved [open]
+        then:
+          - it: hasApproved should return false until approved
+      # Execution
+      - when: calling canExecute and execute [open]
+        then:
+          - it: canExecute should return false (when listed on creation, self appointed now)
+          - it: execute should revert (when listed on creation, self appointed now)
+          - it: canExecute should return false (when listed on creation, appointing someone else now)
+          - it: execute should revert (when listed on creation, appointing someone else now)
+          - it: canExecute should return false (when currently appointed by a signer listed on creation)
+          - it: execute should revert (when currently appointed by a signer listed on creation)
+          - it: canExecute should return false (when unlisted on creation, unappointed now)
+          - it: execute should revert (when unlisted on creation, unappointed now)
+
+  - given: The proposal was approved by the address
+    then:
+      # Get proposal
+      - when: calling getProposal [approved]
+        then:
+          - it: should return the right values
+      # Approval
+      - when: calling canApprove and approve [approved]
+        then:
+          - it: canApprove should return false (when listed on creation, self appointed now)
+          - it: approve should revert (when listed on creation, self appointed now)
+          # - it: canApprove should return false (when listed on creation, appointing someone else now)
+          # - it: approve should revert (when listed on creation, appointing someone else now)
+          - it: canApprove should return false (when currently appointed by a signer listed on creation)
+          - it: approve should revert (when currently appointed by a signer listed on creation)
+          # - it: canApprove should return false (when unlisted on creation, unappointed now)
+          # - it: approve should revert (when unlisted on creation, unappointed now)
+      # Has approved
+      - when: calling hasApproved [approved]
+        then:
+          - it: hasApproved should return false until approved
+      # Execution
+      - when: calling canExecute and execute [approved]
+        then:
+          - it: canExecute should return false (when listed on creation, self appointed now)
+          - it: execute should revert (when listed on creation, self appointed now)
+          # - it: canExecute should return false (when listed on creation, appointing someone else now)
+          # - it: execute should revert (when listed on creation, appointing someone else now)
+          - it: canExecute should return false (when currently appointed by a signer listed on creation)
+          - it: execute should revert (when currently appointed by a signer listed on creation)
+          # - it: canExecute should return false (when unlisted on creation, unappointed now)
+          # - it: execute should revert (when unlisted on creation, unappointed now)
+
+  - given: The proposal passed
+    then:
+      # Get proposal
+      - when: calling getProposal [passed]
+        then:
+          - it: should return the right values
+      # Approval
+      - when: calling canApprove and approve [passed]
+        then:
+          - it: canApprove should return false (when listed on creation, self appointed now)
+          - it: approve should revert (when listed on creation, self appointed now)
+          - it: canApprove should return false (when listed on creation, appointing someone else now)
+          - it: approve should revert (when listed on creation, appointing someone else now)
+          - it: canApprove should return false (when currently appointed by a signer listed on creation)
+          - it: approve should revert (when currently appointed by a signer listed on creation)
+          - it: canApprove should return false (when unlisted on creation, unappointed now)
+          - it: approve should revert (when unlisted on creation, unappointed now)
+      # Has approved
+      - when: calling hasApproved [passed]
+        then:
+          - it: hasApproved should return false until approved
+      # Execution
+      - when: calling canExecute and execute [passed]
+        then:
+          - it: canExecute should return true (when listed on creation, self appointed now)
+          - it: execute should work (when listed on creation, self appointed now)
+          - it: execute should emit an event (when listed on creation, self appointed now)
+          - it: canExecute should return true (when listed on creation, appointing someone else now)
+          - it: execute should work (when listed on creation, appointing someone else now)
+          - it: execute should emit an event (when listed on creation, appointing someone else now)
+          - it: canExecute should return true (when currently appointed by a signer listed on creation)
+          - it: execute should work (when currently appointed by a signer listed on creation)
+          - it: execute should emit an event (when currently appointed by a signer listed on creation)
+          - it: canExecute should return true (when unlisted on creation, unappointed now)
+          - it: execute should work (when unlisted on creation, unappointed now)
+          - it: execute should emit an event (when unlisted on creation, unappointed now)
+          # Proposal forwarding on execution
+          - it: execute recreates the proposal on the destination plugin
+          - it: The parameters of the recreated proposal match those of the executed one
+          - it: A ProposalCreated event is emitted on the destination plugin
+
+  - given: The proposal is already executed
+    then:
+      # Get proposal
+      - when: calling getProposal [executed]
+        then:
+          - it: should return the right values
+      # Approval
+      - when: calling canApprove and approve [executed]
+        then:
+          - it: canApprove should return false (when listed on creation, self appointed now)
+          - it: approve should revert (when listed on creation, self appointed now)
+          - it: canApprove should return false (when listed on creation, appointing someone else now)
+          - it: approve should revert (when listed on creation, appointing someone else now)
+          - it: canApprove should return false (when currently appointed by a signer listed on creation)
+          - it: approve should revert (when currently appointed by a signer listed on creation)
+          - it: canApprove should return false (when unlisted on creation, unappointed now)
+          - it: approve should revert (when unlisted on creation, unappointed now)
+      # Has approved
+      - when: calling hasApproved [executed]
+        then:
+          - it: hasApproved should return false until approved
+      # Execution
+      - when: calling canExecute and execute [executed]
+        then:
+          - it: canExecute should return false (when listed on creation, self appointed now)
+          - it: execute should revert (when listed on creation, self appointed now)
+          - it: canExecute should return false (when listed on creation, appointing someone else now)
+          - it: execute should revert (when listed on creation, appointing someone else now)
+          - it: canExecute should return false (when currently appointed by a signer listed on creation)
+          - it: execute should revert (when currently appointed by a signer listed on creation)
+          - it: canExecute should return false (when unlisted on creation, unappointed now)
+          - it: execute should revert (when unlisted on creation, unappointed now)
+
+  - given: The proposal expired
+    then:
+      # Get proposal
+      - when: calling getProposal [expired]
+        then:
+          - it: should return the right values
+      # Approval
+      - when: calling canApprove and approve [expired]
+        then:
+          - it: canApprove should return false (when listed on creation, self appointed now)
+          - it: approve should revert (when listed on creation, self appointed now)
+          - it: canApprove should return false (when listed on creation, appointing someone else now)
+          - it: approve should revert (when listed on creation, appointing someone else now)
+          - it: canApprove should return false (when currently appointed by a signer listed on creation)
+          - it: approve should revert (when currently appointed by a signer listed on creation)
+          - it: canApprove should return false (when unlisted on creation, unappointed now)
+          - it: approve should revert (when unlisted on creation, unappointed now)
+      # Has approved
+      - when: calling hasApproved [expired]
+        then:
+          - it: hasApproved should return false until approved
+      # Execution
+      - when: calling canExecute and execute [expired]
+        then:
+          - it: canExecute should return false (when listed on creation, self appointed now)
+          - it: execute should revert (when listed on creation, self appointed now)
+          - it: canExecute should return false (when listed on creation, appointing someone else now)
+          - it: execute should revert (when listed on creation, appointing someone else now)
+          - it: canExecute should return false (when currently appointed by a signer listed on creation)
+          - it: execute should revert (when currently appointed by a signer listed on creation)
+          - it: canExecute should return false (when unlisted on creation, unappointed now)
+          - it: execute should revert (when unlisted on creation, unappointed now)
+
