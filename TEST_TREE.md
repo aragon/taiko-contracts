@@ -446,18 +446,25 @@ SignerListTest
 ├── Given a new instance
 │   └── Given calling initialize
 │       ├── It should set the DAO address
-│       ├── It should set the addresses as signers
-│       ├── It settings should match the given ones
-│       ├── It should emit the SignersAdded event
-│       ├── It should emit the SignerListSettingsUpdated event
-│       └── Given passing more addresses than supported
-│           └── It should revert
+│       ├── Given passing more addresses than supported on initialize
+│       │   └── It should revert
+│       ├── Given duplicate addresses on initialize
+│       │   └── It should revert
+│       ├── It should append the new addresses to the list
+│       ├── It should emit the SignersAddedEvent
+│       ├── When encryptionRegistry is not compatible on initialize
+│       │   └── It should revert
+│       ├── When minSignerListLength is lower than the list size on initialize
+│       │   └── It should revert
+│       ├── It sets the new encryption registry
+│       ├── It sets the new minSignerListLength
+│       └── It should emit a SignerListSettingsUpdated event
 ├── When calling updateSettings
 │   ├── When updateSettings without the permission
 │   │   └── It should revert
-│   ├── When encryptionRegistry is not compatible
+│   ├── When encryptionRegistry is not compatible on updateSettings
 │   │   └── It should revert
-│   ├── When setting a minSignerListLength lower than the current list size
+│   ├── When minSignerListLength is lower than the list size on updateSettings
 │   │   └── It should revert
 │   ├── It set the new encryption registry
 │   ├── It set the new minSignerListLength
@@ -465,15 +472,14 @@ SignerListTest
 ├── When calling supportsInterface
 │   ├── It does not support the empty interface
 │   ├── It supports IERC165Upgradeable
-│   ├── It supports IPlugin
-│   ├── It supports IProposal
-│   └── It supports IMultisig
+│   ├── It supports Addresslist
+│   └── It supports ISignerList
 ├── When calling addSigners
 │   ├── When adding without the permission
 │   │   └── It should revert
-│   ├── Given passing more addresses than allowed
+│   ├── Given passing more addresses than supported on updateSettings
 │   │   └── It should revert
-│   ├── Given duplicate addresses
+│   ├── Given duplicate addresses on updateSettings
 │   │   └── It should revert
 │   ├── It should append the new addresses to the list
 │   └── It should emit the SignersAddedEvent

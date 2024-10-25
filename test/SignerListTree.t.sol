@@ -24,14 +24,42 @@ contract SignerListTest is Test {
 
     function test_GivenCallingInitialize() external givenANewInstance givenCallingInitialize {
         // It should set the DAO address
-        // It should set the addresses as signers
-        // It settings should match the given ones
-        // It should emit the SignersAdded event
-        // It should emit the SignerListSettingsUpdated event
+        // It should append the new addresses to the list
+        // It should emit the SignersAddedEvent
+        // It sets the new encryption registry
+        // It sets the new minSignerListLength
+        // It should emit a SignerListSettingsUpdated event
         vm.skip(true);
     }
 
-    function test_RevertGiven_PassingMoreAddressesThanSupported() external givenANewInstance givenCallingInitialize {
+    function test_RevertGiven_PassingMoreAddressesThanSupportedOnInitialize()
+        external
+        givenANewInstance
+        givenCallingInitialize
+    {
+        // It should revert
+        vm.skip(true);
+    }
+
+    function test_RevertGiven_DuplicateAddressesOnInitialize() external givenANewInstance givenCallingInitialize {
+        // It should revert
+        vm.skip(true);
+    }
+
+    function test_RevertWhen_EncryptionRegistryIsNotCompatibleOnInitialize()
+        external
+        givenANewInstance
+        givenCallingInitialize
+    {
+        // It should revert
+        vm.skip(true);
+    }
+
+    function test_RevertWhen_MinSignerListLengthIsLowerThanTheListSizeOnInitialize()
+        external
+        givenANewInstance
+        givenCallingInitialize
+    {
         // It should revert
         vm.skip(true);
     }
@@ -52,12 +80,12 @@ contract SignerListTest is Test {
         vm.skip(true);
     }
 
-    function test_RevertWhen_EncryptionRegistryIsNotCompatible() external whenCallingUpdateSettings {
+    function test_RevertWhen_EncryptionRegistryIsNotCompatibleOnUpdateSettings() external whenCallingUpdateSettings {
         // It should revert
         vm.skip(true);
     }
 
-    function test_RevertWhen_SettingAMinSignerListLengthLowerThanTheCurrentListSize()
+    function test_RevertWhen_MinSignerListLengthIsLowerThanTheListSizeOnUpdateSettings()
         external
         whenCallingUpdateSettings
     {
@@ -68,9 +96,8 @@ contract SignerListTest is Test {
     function test_WhenCallingSupportsInterface() external {
         // It does not support the empty interface
         // It supports IERC165Upgradeable
-        // It supports IPlugin
-        // It supports IProposal
-        // It supports IMultisig
+        // It supports Addresslist
+        // It supports ISignerList
         vm.skip(true);
     }
 
@@ -89,12 +116,12 @@ contract SignerListTest is Test {
         vm.skip(true);
     }
 
-    function test_RevertGiven_PassingMoreAddressesThanAllowed() external whenCallingAddSigners {
+    function test_RevertGiven_PassingMoreAddressesThanSupportedOnUpdateSettings() external whenCallingAddSigners {
         // It should revert
         vm.skip(true);
     }
 
-    function test_RevertGiven_DuplicateAddresses() external whenCallingAddSigners {
+    function test_RevertGiven_DuplicateAddressesOnUpdateSettings() external whenCallingAddSigners {
         // It should revert
         vm.skip(true);
     }

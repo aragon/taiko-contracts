@@ -11,23 +11,36 @@ SignerListTest:
       - given: calling initialize
         and:
           - it: should set the DAO address
-          - it: should set the addresses as signers
-          - it: settings should match the given ones
-          - it: should emit the SignersAdded event
-          - it: should emit the SignerListSettingsUpdated event
-          - given: passing more addresses than supported
+          # Same checks as addSigners below
+          - given: passing more addresses than supported [on initialize]
             then:
               - it: should revert
+          - given: duplicate addresses [on initialize]
+            then:
+              - it: should revert
+          - it: should append the new addresses to the list
+          - it: should emit the SignersAddedEvent
+          # Same checks as updateSettings below
+          - when: encryptionRegistry is not compatible [on initialize]
+            then:
+              - it: should revert
+          - when: minSignerListLength is lower than the list size [on initialize]
+            then:
+              - it: should revert
+          - it: sets the new encryption registry
+          - it: sets the new minSignerListLength
+          - it: should emit a SignerListSettingsUpdated event
 
   - when: calling updateSettings
     and:
       - when: updateSettings without the permission
         then:
           - it: should revert
-      - when: encryptionRegistry is not compatible
+      # Same checks as initialize does above
+      - when: encryptionRegistry is not compatible [on updateSettings]
         then:
           - it: should revert
-      - when: setting a minSignerListLength lower than the current list size
+      - when: minSignerListLength is lower than the list size [on updateSettings]
         then:
           - it: should revert
       - it: set the new encryption registry
@@ -38,9 +51,8 @@ SignerListTest:
     then:
       - it: does not support the empty interface
       - it: supports IERC165Upgradeable
-      - it: supports IPlugin
-      - it: supports IProposal
-      - it: supports IMultisig
+      - it: supports Addresslist
+      - it: supports ISignerList
 
   # List lifecycle
   - when: calling addSigners
@@ -48,10 +60,10 @@ SignerListTest:
       - when: adding without the permission
         then:
           - it: should revert
-      - given: passing more addresses than allowed
+      - given: passing more addresses than supported [on updateSettings]
         then:
           - it: should revert
-      - given: duplicate addresses
+      - given: duplicate addresses [on updateSettings]
         then:
           - it: should revert
       - it: should append the new addresses to the list
@@ -101,6 +113,7 @@ SignerListTest:
             then:
               - it: returns false
 
+  # Encryption getters
   - when: calling resolveEncryptionAccountStatus
     and:
       - given: the caller is a listed signer
@@ -155,5 +168,3 @@ SignerListTest:
               - it: result does not contain unregistered addresses
               - it: result does not contain unlisted addresses
               - it: result does not contain non appointed addresses
-
-  # - when: calling
