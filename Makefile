@@ -1,17 +1,18 @@
 .DEFAULT_TARGET: help
 
 SOLIDITY_VERSION=0.8.17
+TEST_TREE_MARKDOWN=TEST_TREE.md
 SOURCE_FILES=$(wildcard test/*.t.yaml test/integration/*.t.yaml)
 TREE_FILES = $(SOURCE_FILES:.t.yaml=.tree)
 TARGET_TEST_FILES = $(SOURCE_FILES:.tree=.t.sol)
 MAKE_TEST_TREE=deno run ./test/script/make-test-tree.ts
-TEST_TREE_MARKDOWN=TEST_TREE.md
+MAKEFILE=Makefile
 
 .PHONY: help
 help:
 	@echo "Available targets:"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-	| sed -n 's/^\(.*\): \(.*\)##\(.*\)/- make \1  \3/p'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE) \
+	   | sed -n 's/^\(.*\): \(.*\)##\(.*\)/- make \1  \3/p'
 
 all: sync markdown ##      Builds all tree files and updates the test tree markdown
 

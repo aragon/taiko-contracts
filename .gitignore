@@ -1,3 +1,7 @@
+# Signer lists
+script/multisig-*.json
+!script/multisig-members.json
+
 # Compiler files
 cache/
 out/
