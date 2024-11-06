@@ -129,8 +129,11 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     function resolveEncryptionOwner(address _address) public view returns (address owner) {
         (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_address);
 
-        if (!ownerIsListed) return address(0);
-        else if (isAppointed) return settings.encryptionRegistry.appointedBy(_address);
+        if (!ownerIsListed) {
+            return address(0);
+        } else if (isAppointed) {
+            return settings.encryptionRegistry.appointedBy(_address);
+        }
         return _address;
     }
 
@@ -212,9 +215,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
                 && _newSettings.minSignerListLength == settings.minSignerListLength
         ) {
             return;
-        } else if (
-            !IERC165(address(_newSettings.encryptionRegistry)).supportsInterface(type(IEncryptionRegistry).interfaceId)
-        ) {
+        } else if (!_newSettings.encryptionRegistry.supportsInterface(type(IEncryptionRegistry).interfaceId)) {
             revert InvalidEncryptionRegitry(address(_newSettings.encryptionRegistry));
         }
 

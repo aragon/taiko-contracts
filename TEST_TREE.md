@@ -451,6 +451,7 @@ SignerListTest
 │       ├── Given duplicate addresses on initialize
 │       │   └── It should revert
 │       ├── It should append the new addresses to the list
+│       ├── It should return true on isListed
 │       ├── It should emit the SignersAddedEvent
 │       ├── When encryptionRegistry is not compatible on initialize
 │       │   └── It should revert
@@ -482,6 +483,7 @@ SignerListTest
 │   ├── Given duplicate addresses on updateSettings
 │   │   └── It should revert
 │   ├── It should append the new addresses to the list
+│   ├── It should return true on isListed
 │   └── It should emit the SignersAddedEvent
 ├── When calling removeSigners
 │   ├── When removing without the permission
@@ -543,4 +545,3 @@ SignerListTest
             ├── It result does not contain unlisted addresses
             └── It result does not contain non appointed addresses
 ```
-

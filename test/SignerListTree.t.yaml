@@ -19,12 +19,13 @@ SignerListTest:
             then:
               - it: should revert
           - it: should append the new addresses to the list
-          - it: should emit the SignersAddedEvent
+          - it: should return true on isListed
+          - it: should emit the SignersAdded event
           # Same checks as updateSettings below
           - when: encryptionRegistry is not compatible [on initialize]
             then:
               - it: should revert
-          - when: minSignerListLength is lower than the list size [on initialize]
+          - when: minSignerListLength is bigger than the list size [on initialize]
             then:
               - it: should revert
           - it: sets the new encryption registry
@@ -40,11 +41,11 @@ SignerListTest:
       - when: encryptionRegistry is not compatible [on updateSettings]
         then:
           - it: should revert
-      - when: minSignerListLength is lower than the list size [on updateSettings]
+      - when: minSignerListLength is bigger than the list size [on updateSettings]
         then:
           - it: should revert
-      - it: set the new encryption registry
-      - it: set the new minSignerListLength
+      - it: sets the new encryption registry
+      - it: sets the new minSignerListLength
       - it: should emit a SignerListSettingsUpdated event
 
   - when: calling supportsInterface
@@ -67,7 +68,8 @@ SignerListTest:
         then:
           - it: should revert
       - it: should append the new addresses to the list
-      - it: should emit the SignersAddedEvent
+      - it: should return true on isListed
+      - it: should emit the SignersAdded event
 
   - when: calling removeSigners
     and:

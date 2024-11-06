@@ -306,7 +306,6 @@ Then use `make` to automatically sync the described branches into solidity test 
 ```sh
 $ make
 Available targets:
-Available targets:
 - make all        Builds all tree files and updates the test tree markdown
 - make sync       Scaffold or sync tree files into solidity tests
 - make check      Checks if solidity files are out of sync

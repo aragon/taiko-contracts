@@ -4,13 +4,14 @@ pragma solidity ^0.8.17;
 
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IEncryptionRegistry} from "./interfaces/IEncryptionRegistry.sol";
 
 /// @title EncryptionRegistry - Release 1, Build 1
 /// @author Aragon Association - 2024
 /// @notice A smart contract where accounts can register their libsodium public key for encryption purposes, as well as appointing an EOA
-contract EncryptionRegistry is IEncryptionRegistry {
+contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     struct AccountEntry {
         address appointedWallet;
         bytes32 publicKey;
@@ -108,6 +109,13 @@ contract EncryptionRegistry is IEncryptionRegistry {
             return accounts[_member].appointedWallet;
         }
         return _member;
+    }
+
+    /// @notice Checks if this or the parent contract supports an interface by its ID.
+    /// @param _interfaceId The ID of the interface.
+    /// @return Returns `true` if the interface is supported.
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return _interfaceId == type(IEncryptionRegistry).interfaceId || super.supportsInterface(_interfaceId);
     }
 
     // Internal helpers

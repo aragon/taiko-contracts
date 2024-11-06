@@ -6,7 +6,7 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../../src/Multisig.sol";
 import {EmergencyMultisig} from "../../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
-import {SignerList} from "../../src/SignerList.sol";
+import {SignerList, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID} from "../../src/SignerList.sol";
 import {EncryptionRegistry} from "../../src/EncryptionRegistry.sol";
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
@@ -20,6 +20,7 @@ contract DaoBuilder is Test {
     address immutable MULTISIG_BASE = address(new Multisig());
     address immutable EMERGENCY_MULTISIG_BASE = address(new EmergencyMultisig());
     address immutable OPTIMISTIC_BASE = address(new OptimisticTokenVotingPlugin());
+    address immutable SIGNER_LIST_BASE = address(new SignerList());
 
     enum TaikoL1Status {
         Standard,
@@ -234,10 +235,18 @@ contract DaoBuilder is Test {
                 signers[0] = owner;
             }
 
-            signerList = new SignerList();
-            signerList.initialize(dao, signers, SignerList.Settings(EncryptionRegistry(address(0)), 0));
+            signerList = SignerList(
+                createProxyAndCall(
+                    address(SIGNER_LIST_BASE),
+                    abi.encodeCall(
+                        SignerList.initialize, (dao, signers, SignerList.Settings(EncryptionRegistry(address(0)), 0))
+                    )
+                )
+            );
             encryptionRegistry = new EncryptionRegistry(signerList);
+            dao.grant(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
             signerList.updateSettings(SignerList.Settings(encryptionRegistry, uint16(signers.length)));
+            dao.revoke(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         }
 
         // Standard multisig
