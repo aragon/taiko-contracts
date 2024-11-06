@@ -236,12 +236,7 @@ contract DaoBuilder is Test {
             }
 
             signerList = SignerList(
-                createProxyAndCall(
-                    address(SIGNER_LIST_BASE),
-                    abi.encodeCall(
-                        SignerList.initialize, (dao, signers, SignerList.Settings(EncryptionRegistry(address(0)), 0))
-                    )
-                )
+                createProxyAndCall(address(SIGNER_LIST_BASE), abi.encodeCall(SignerList.initialize, (dao, signers)))
             );
             encryptionRegistry = new EncryptionRegistry(signerList);
             dao.grant(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);

@@ -21,27 +21,18 @@ SignerListTest:
           - it: should append the new addresses to the list
           - it: should return true on isListed
           - it: should emit the SignersAdded event
-          # Same checks as updateSettings below
-          - when: encryptionRegistry is not compatible [on initialize]
-            then:
-              - it: should revert
-          - when: minSignerListLength is bigger than the list size [on initialize]
-            then:
-              - it: should revert
-          - it: sets the new encryption registry
-          - it: sets the new minSignerListLength
-          - it: should emit a SignerListSettingsUpdated event
+          - it: the encryption registry should be empty
+          - it: minSignerListLength should be zero
 
   - when: calling updateSettings
     and:
       - when: updateSettings without the permission
         then:
           - it: should revert
-      # Same checks as initialize does above
-      - when: encryptionRegistry is not compatible [on updateSettings]
+      - when: encryptionRegistry is not compatible
         then:
           - it: should revert
-      - when: minSignerListLength is bigger than the list size [on updateSettings]
+      - when: minSignerListLength is bigger than the list size
         then:
           - it: should revert
       - it: sets the new encryption registry
@@ -61,10 +52,10 @@ SignerListTest:
       - when: adding without the permission
         then:
           - it: should revert
-      - given: passing more addresses than supported [on updateSettings]
+      - given: passing more addresses than supported [on addSigners]
         then:
           - it: should revert
-      - given: duplicate addresses [on updateSettings]
+      - given: duplicate addresses [on addSigners]
         then:
           - it: should revert
       - it: should append the new addresses to the list
@@ -78,13 +69,14 @@ SignerListTest:
           - it: should revert
       - when: removing an unlisted address
         then:
-          - it: should continue gracefully
+          - it: should revert
       - given: removing too many addresses
         comment: The new list will be smaller than minSignerListLength
         then:
           - it: should revert
-      - it: should more the given addresses
-      - it: should emit the SignersRemovedEvent
+      - it: should remove the given addresses
+      - it: should return false on isListed
+      - it: should emit the SignersRemoved event
 
   # Getters
   - when: calling isListed
@@ -133,18 +125,33 @@ SignerListTest:
 
   - when: calling resolveEncryptionOwner
     and:
-      - given: the resolved owner is listed
+      - given: the resolved owner is listed [on resolveEncryptionOwner]
+        and:
+          - when: the given address is the owner
+            then:
+              - it: should return the given address
+          - when: the given address is appointed by the owner
+            then:
+              - it: should return the resolved owner
+
+      - given: the resolved owner is not listed [on resolveEncryptionOwner]
+        then:
+          - it: should return a zero value
+
+  - when: calling resolveEncryptionAccount
+    and:
+      - given: the resolved owner is listed [on resolveEncryptionAccount]
         and:
           - when: the given address is appointed
             then:
               - it: owner should be the resolved owner
-              - it: appointedWallet should be the caller
+              - it: appointedWallet should be the given address
           - when: the given address is not appointed
             then:
-              - it: owner should be the caller
-              - it: appointedWallet should be resolved appointed wallet
+              - it: owner should be the given address
+              - it: appointedWallet should be the resolved appointed wallet
 
-      - given: the resolved owner is not listed
+      - given: the resolved owner is not listed [on resolveEncryptionAccount]
         then:
           - it: should return a zero owner
           - it: should return a zero appointedWallet

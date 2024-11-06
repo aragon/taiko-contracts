@@ -452,23 +452,18 @@ SignerListTest
 │       │   └── It should revert
 │       ├── It should append the new addresses to the list
 │       ├── It should return true on isListed
-│       ├── It should emit the SignersAddedEvent
-│       ├── When encryptionRegistry is not compatible on initialize
-│       │   └── It should revert
-│       ├── When minSignerListLength is lower than the list size on initialize
-│       │   └── It should revert
-│       ├── It sets the new encryption registry
-│       ├── It sets the new minSignerListLength
-│       └── It should emit a SignerListSettingsUpdated event
+│       ├── It should emit the SignersAdded event
+│       ├── It the encryption registry should be empty
+│       └── It minSignerListLength should be zero
 ├── When calling updateSettings
 │   ├── When updateSettings without the permission
 │   │   └── It should revert
-│   ├── When encryptionRegistry is not compatible on updateSettings
+│   ├── When encryptionRegistry is not compatible
 │   │   └── It should revert
-│   ├── When minSignerListLength is lower than the list size on updateSettings
+│   ├── When minSignerListLength is bigger than the list size
 │   │   └── It should revert
-│   ├── It set the new encryption registry
-│   ├── It set the new minSignerListLength
+│   ├── It sets the new encryption registry
+│   ├── It sets the new minSignerListLength
 │   └── It should emit a SignerListSettingsUpdated event
 ├── When calling supportsInterface
 │   ├── It does not support the empty interface
@@ -478,22 +473,23 @@ SignerListTest
 ├── When calling addSigners
 │   ├── When adding without the permission
 │   │   └── It should revert
-│   ├── Given passing more addresses than supported on updateSettings
+│   ├── Given passing more addresses than supported on addSigners
 │   │   └── It should revert
-│   ├── Given duplicate addresses on updateSettings
+│   ├── Given duplicate addresses on addSigners
 │   │   └── It should revert
 │   ├── It should append the new addresses to the list
 │   ├── It should return true on isListed
-│   └── It should emit the SignersAddedEvent
+│   └── It should emit the SignersAdded event
 ├── When calling removeSigners
 │   ├── When removing without the permission
 │   │   └── It should revert
 │   ├── When removing an unlisted address
-│   │   └── It should continue gracefully
+│   │   └── It should revert
 │   ├── Given removing too many addresses // The new list will be smaller than minSignerListLength
 │   │   └── It should revert
-│   ├── It should more the given addresses
-│   └── It should emit the SignersRemovedEvent
+│   ├── It should remove the given addresses
+│   ├── It should return false on isListed
+│   └── It should emit the SignersRemoved event
 ├── When calling isListed
 │   ├── Given the member is listed
 │   │   └── It returns true
@@ -521,14 +517,22 @@ SignerListTest
 │       ├── It ownerIsListed should be false
 │       └── It isAppointed should be false
 ├── When calling resolveEncryptionOwner
-│   ├── Given the resolved owner is listed
+│   ├── Given the resolved owner is listed on resolveEncryptionOwner
+│   │   ├── When the given address is the owner
+│   │   │   └── It should return the given address
+│   │   └── When the given address is appointed by the owner
+│   │       └── It should return the resolved owner
+│   └── Given the resolved owner is not listed on resolveEncryptionOwner
+│       └── It should return a zero value
+├── When calling resolveEncryptionAccount
+│   ├── Given the resolved owner is listed on resolveEncryptionAccount
 │   │   ├── When the given address is appointed
 │   │   │   ├── It owner should be the resolved owner
 │   │   │   └── It appointedWallet should be the caller
 │   │   └── When the given address is not appointed
 │   │       ├── It owner should be the caller
 │   │       └── It appointedWallet should be resolved appointed wallet
-│   └── Given the resolved owner is not listed
+│   └── Given the resolved owner is not listed on resolveEncryptionAccount
 │       ├── It should return a zero owner
 │       └── It should return a zero appointedWallet
 └── When calling getEncryptionRecipients
@@ -545,3 +549,4 @@ SignerListTest
             ├── It result does not contain unlisted addresses
             └── It result does not contain non appointed addresses
 ```
+

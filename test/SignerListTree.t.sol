@@ -507,7 +507,7 @@ contract SignerListTest is AragonTest {
         signerList.removeSigners(newSigners);
     }
 
-    function test_WhenRemovingAnUnlistedAddress() external whenCallingRemoveSigners {
+    function test_RevertWhen_RemovingAnUnlistedAddress() external whenCallingRemoveSigners {
         address[] memory newSigners = new address[](1);
         newSigners[0] = address(100);
         signerList.addSigners(newSigners);
@@ -640,7 +640,7 @@ contract SignerListTest is AragonTest {
     }
 
     modifier givenTheMemberWasNotListed() {
-                // Replace the list
+        // Replace the list
         address[] memory newSigners = new address[](4);
         newSigners[0] = address(0);
         newSigners[1] = address(1);
@@ -685,60 +685,267 @@ contract SignerListTest is AragonTest {
     }
 
     modifier whenCallingResolveEncryptionAccountStatus() {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 2));
+
+        // Remove Carol and David
+        address[] memory rmSigners = new address[](2);
+        rmSigners[0] = carol;
+        rmSigners[1] = david;
+        signerList.removeSigners(rmSigners);
+
+        // Alice (owner) appoints david
+        encryptionRegistry.appointWallet(david);
+
+        // Bob is the owner
+
         _;
     }
-    /*
 
     function test_GivenTheCallerIsAListedSigner() external whenCallingResolveEncryptionAccountStatus {
+        // 1
+        (bool ownerIsListed, bool appointed) = signerList.resolveEncryptionAccountStatus(alice);
+
         // It ownerIsListed should be true
+        assertEq(ownerIsListed, true, "The owner should be listed");
+
         // It isAppointed should be false
-        vm.skip(true);
+        assertEq(appointed, false, "Should not be appointed");
+
+        // 2
+        (ownerIsListed, appointed) = signerList.resolveEncryptionAccountStatus(bob);
+
+        // It ownerIsListed should be true
+        assertEq(ownerIsListed, true, "The owner should be listed");
+
+        // It isAppointed should be false
+        assertEq(appointed, false, "Should not be appointed");
     }
 
     function test_GivenTheCallerIsAppointedByASigner() external whenCallingResolveEncryptionAccountStatus {
+        (bool ownerIsListed, bool appointed) = signerList.resolveEncryptionAccountStatus(david);
+
         // It ownerIsListed should be true
+        assertEq(ownerIsListed, true, "The owner should be listed");
+
         // It isAppointed should be true
-        vm.skip(true);
+        assertEq(appointed, true, "Should be appointed");
     }
 
     function test_GivenTheCallerIsNotListedOrAppointed() external whenCallingResolveEncryptionAccountStatus {
+        // 1
+        (bool ownerIsListed, bool appointed) = signerList.resolveEncryptionAccountStatus(carol);
+
         // It ownerIsListed should be false
+        assertEq(ownerIsListed, false, "The owner should be listed");
+
         // It isAppointed should be false
-        vm.skip(true);
+        assertEq(appointed, false, "Should be appointed");
+
+        // 2
+        (ownerIsListed, appointed) = signerList.resolveEncryptionAccountStatus(address(1234));
+
+        // It ownerIsListed should be false
+        assertEq(ownerIsListed, false, "The owner should not be listed");
+
+        // It isAppointed should be false
+        assertEq(appointed, false, "Should not be appointed");
     }
 
     modifier whenCallingResolveEncryptionOwner() {
+        // Alice (owner) appoints address(0x1234)
+        encryptionRegistry.appointWallet(address(0x1234));
+
+        // Bob (owner) appoints address(0x2345)
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x2345));
+
+        vm.startPrank(alice);
+
+        // Carol is owner
+        // David is owner
+
         _;
     }
 
-    modifier givenTheResolvedOwnerIsListed() {
+    modifier givenTheResolvedOwnerIsListedOnResolveEncryptionOwner() {
+        _;
+    }
+
+    function test_WhenTheGivenAddressIsTheOwner()
+        external
+        whenCallingResolveEncryptionOwner
+        givenTheResolvedOwnerIsListedOnResolveEncryptionOwner
+    {
+        address resolvedOwner;
+
+        // It should return the given address
+        resolvedOwner = signerList.resolveEncryptionOwner(alice);
+        assertEq(resolvedOwner, alice, "Should be alice");
+
+        resolvedOwner = signerList.resolveEncryptionOwner(bob);
+        assertEq(resolvedOwner, bob, "Should be bob");
+
+        resolvedOwner = signerList.resolveEncryptionOwner(carol);
+        assertEq(resolvedOwner, carol, "Should be carol");
+
+        resolvedOwner = signerList.resolveEncryptionOwner(david);
+        assertEq(resolvedOwner, david, "Should be david");
+    }
+
+    function test_WhenTheGivenAddressIsAppointedByTheOwner()
+        external
+        whenCallingResolveEncryptionOwner
+        givenTheResolvedOwnerIsListedOnResolveEncryptionOwner
+    {
+        address resolvedOwner;
+
+        // It should return the resolved owner
+        resolvedOwner = signerList.resolveEncryptionOwner(address(0x1234));
+        assertEq(resolvedOwner, alice, "Should be alice");
+
+        resolvedOwner = signerList.resolveEncryptionOwner(address(0x2345));
+        assertEq(resolvedOwner, bob, "Should be bob");
+    }
+
+    function test_GivenTheResolvedOwnerIsNotListedOnResolveEncryptionOwner()
+        external
+        whenCallingResolveEncryptionOwner
+    {
+        address resolvedOwner;
+
+        // It should return a zero value
+        resolvedOwner = signerList.resolveEncryptionOwner(address(0x3456));
+        assertEq(resolvedOwner, address(0), "Should be zero");
+
+        resolvedOwner = signerList.resolveEncryptionOwner(address(0x4567));
+        assertEq(resolvedOwner, address(0), "Should be zero");
+    }
+
+    modifier whenCallingResolveEncryptionAccount() {
+        // Alice (owner) appoints address(0x1234)
+        encryptionRegistry.appointWallet(address(0x1234));
+
+        // Bob (owner) appoints address(0x2345)
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x2345));
+
+        vm.startPrank(alice);
+
+        // Carol is owner
+        // David is owner
+
+        _;
+    }
+
+    modifier givenTheResolvedOwnerIsListedOnResolveEncryptionAccount() {
         _;
     }
 
     function test_WhenTheGivenAddressIsAppointed()
         external
-        whenCallingResolveEncryptionOwner
-        givenTheResolvedOwnerIsListed
+        whenCallingResolveEncryptionAccount
+        givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
     {
+        address resolvedOwner;
+        address appointedWallet;
+
         // It owner should be the resolved owner
-        // It appointedWallet should be the caller
-        vm.skip(true);
+        // It appointedWallet should be the given address
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x1234));
+        assertEq(resolvedOwner, alice, "Should be alice");
+        assertEq(appointedWallet, address(0x1234), "Should be 0x1234");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x2345));
+        assertEq(resolvedOwner, bob, "Should be bob");
+        assertEq(appointedWallet, address(0x2345), "Should be 0x2345");
     }
 
     function test_WhenTheGivenAddressIsNotAppointed()
         external
-        whenCallingResolveEncryptionOwner
-        givenTheResolvedOwnerIsListed
+        whenCallingResolveEncryptionAccount
+        givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
     {
-        // It owner should be the caller
-        // It appointedWallet should be resolved appointed wallet
-        vm.skip(true);
+        address resolvedOwner;
+        address appointedWallet;
+
+        // 1 - owner appoints
+
+        // It owner should be the given address
+        // It appointedWallet should be the resolved appointed wallet
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(alice);
+        assertEq(resolvedOwner, alice, "Should be alice");
+        assertEq(appointedWallet, address(0x1234), "Should be 0x1234");
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x1234));
+        assertEq(resolvedOwner, alice, "Should be alice");
+        assertEq(appointedWallet, address(0x1234), "Should be 0x1234");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(bob);
+        assertEq(resolvedOwner, bob, "Should be bob");
+        assertEq(appointedWallet, address(0x2345), "Should be 0x2345");
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x2345));
+        assertEq(resolvedOwner, bob, "Should be bob");
+        assertEq(appointedWallet, address(0x2345), "Should be 0x2345");
+
+        // 2 - No appointed wallet
+
+        // It owner should be the given address
+        // It appointedWallet should be the resolved appointed wallet
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(carol);
+        assertEq(resolvedOwner, carol, "Should be carol");
+        assertEq(appointedWallet, carol, "Should be carol");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(david);
+        assertEq(resolvedOwner, david, "Should be david");
+        assertEq(appointedWallet, david, "Should be david");
     }
 
-    function test_GivenTheResolvedOwnerIsNotListed() external whenCallingResolveEncryptionOwner {
+    function test_GivenTheResolvedOwnerIsNotListedOnResolveEncryptionAccount()
+        external
+        whenCallingResolveEncryptionAccount
+    {
+        address resolvedOwner;
+        address appointedWallet;
+
         // It should return a zero owner
         // It should return a zero appointedWallet
-        vm.skip(true);
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0));
+        assertEq(resolvedOwner, address(0), "Should be 0");
+        assertEq(appointedWallet, address(0), "Should be 0");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x5555));
+        assertEq(resolvedOwner, address(0), "Should be 0");
+        assertEq(appointedWallet, address(0), "Should be 0");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0xaaaa));
+        assertEq(resolvedOwner, address(0), "Should be 0");
+        assertEq(appointedWallet, address(0), "Should be 0");
+
+        // Formerly a signer
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Remove Bob (appointed 0x2345) and David
+        address[] memory rmSigners = new address[](2);
+        rmSigners[0] = bob;
+        rmSigners[1] = david;
+        signerList.removeSigners(rmSigners);
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(bob);
+        assertEq(resolvedOwner, address(0), "Should be 0");
+        assertEq(appointedWallet, address(0), "Should be 0");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x2345));
+        assertEq(resolvedOwner, address(0), "Should be 0");
+        assertEq(appointedWallet, address(0), "Should be 0");
+
+        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(david);
+        assertEq(resolvedOwner, address(0), "Should be 0");
+        assertEq(appointedWallet, address(0), "Should be 0");
     }
 
     modifier whenCallingGetEncryptionRecipients() {
@@ -775,5 +982,5 @@ contract SignerListTest is AragonTest {
         // It result does not contain unlisted addresses
         // It result does not contain non appointed addresses
         vm.skip(true);
-    }*/
+    }
 }

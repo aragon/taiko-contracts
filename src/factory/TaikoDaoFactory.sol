@@ -115,7 +115,7 @@ contract TaikoDaoFactory {
         deployment.dao = dao;
 
         // DEPLOY THE SIGNER LIST AND REGISTRY
-        deployment.signerList = deploySignerListNoSettings(dao);
+        deployment.signerList = deploySignerListWithoutSettings(dao);
         deployment.encryptionRegistry = deployEncryptionRegistry();
         // Link them together
         deployment.signerList.updateSettings(
@@ -313,10 +313,10 @@ contract TaikoDaoFactory {
         return (OptimisticTokenVotingPlugin(plugin), pluginRepo, preparedSetupData);
     }
 
-    function deploySignerListNoSettings(DAO dao) internal returns (SignerList helper) {
+    function deploySignerListWithoutSettings(DAO dao) internal returns (SignerList helper) {
         helper = new SignerList();
 
-        helper.initialize(dao, settings.multisigMembers, SignerList.Settings(EncryptionRegistry(address(0)), 0));
+        helper.initialize(dao, settings.multisigMembers);
     }
 
     function deployEncryptionRegistry() internal returns (EncryptionRegistry) {

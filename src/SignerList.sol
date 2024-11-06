@@ -47,12 +47,12 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
         _disableInitializers();
     }
 
-    /// @notice Initializes Release 1, Build 1.
+    /// @notice Initializes Release 1, Build 1 without any settings yet.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
+    /// @dev updateSettings() must be called after the EncryptionRegistry has been deployed.
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _signers The addresses of the initial signers to be added.
-    /// @param _settings The settings to define on the new instance.
-    function initialize(IDAO _dao, address[] calldata _signers, Settings calldata _settings) external initializer {
+    function initialize(IDAO _dao, address[] calldata _signers) external initializer {
         __DaoAuthorizableUpgradeable_init(_dao);
 
         // Validating _signers[]
@@ -62,13 +62,6 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
 
         _addAddresses(_signers);
         emit SignersAdded({signers: _signers});
-
-        // Settings (validated within _updateSettings)
-        _updateSettings(_settings);
-        emit SignerListSettingsUpdated({
-            encryptionRegistry: _settings.encryptionRegistry,
-            minSignerListLength: _settings.minSignerListLength
-        });
     }
 
     /// @inheritdoc ISignerList
