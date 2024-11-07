@@ -53,7 +53,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         builder = new DaoBuilder();
         // alice has root permission on the DAO, is a multisig member, holds tokens and can create proposals
         // on the optimistic token voting plugin
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.build();
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.build();
     }
 
     // Initialize
@@ -405,7 +405,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(bob, 200 ether)
+        (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(bob, 200 ether)
             .withTokenHolder(carol, 2.5 ether).build();
 
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 207.5 ether, "Incorrect total voting power");
@@ -413,7 +413,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 50 ether).withTokenHolder(bob, 30 ether)
+        (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 50 ether).withTokenHolder(bob, 30 ether)
             .withTokenHolder(carol, 0.1234 ether).withTokenHolder(david, 100 ether).build();
 
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 180.1234 ether, "Incorrect total voting power");
@@ -428,7 +428,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 1 bridged tokens
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) =
+        (, optimisticPlugin,,, votingToken,,,) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 10 ether, "Incorrect bridged voting power");
@@ -437,7 +437,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2 bridged tokens
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
+        (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
             .withTokenHolder(taikoBridge, 1).build();
 
         assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 1, "Incorrect bridged voting power");
@@ -460,7 +460,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 1 bridged tokens
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) =
+        (, optimisticPlugin,,, votingToken,,,) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         assertEq(
@@ -476,7 +476,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2 bridged tokens
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
+        (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
             .withTokenHolder(taikoBridge, 1234).build();
 
         assertEq(
@@ -496,19 +496,19 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withMinVetoRatio(1_000).build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withMinVetoRatio(1_000).build();
 
         assertEq(optimisticPlugin.minVetoRatio(), 1_000, "Incorrect minVetoRatio");
 
         // 3
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withMinVetoRatio(500_000).build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withMinVetoRatio(500_000).build();
 
         assertEq(optimisticPlugin.minVetoRatio(), 500_000, "Incorrect minVetoRatio");
 
         // 4
         builder = new DaoBuilder();
-        (, optimisticPlugin,,, votingToken,) = builder.withMinVetoRatio(300_000).build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withMinVetoRatio(300_000).build();
 
         assertEq(optimisticPlugin.minVetoRatio(), 300_000, "Incorrect minVetoRatio");
     }
@@ -552,16 +552,16 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
 
         // skipL2 setting
-        (, optimisticPlugin,,, votingToken,) = builder.withSkipL2().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withSkipL2().build();
         assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
         builder.withoutSkipL2();
 
         // paused
-        (, optimisticPlugin,,, votingToken,) = builder.withPausedTaikoL1().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withPausedTaikoL1().build();
         assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
 
         // out of sync
-        (, optimisticPlugin,,, votingToken,) = builder.withOutOfSyncTaikoL1().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withOutOfSyncTaikoL1().build();
         assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
 
         // out of sync: diff below lowerl2InactivityPeriod
@@ -570,12 +570,12 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // out of sync: still within the period
         vm.warp(50 days);
-        (, optimisticPlugin,,, votingToken,) = builder.withL2InactivityPeriod(50 days).build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withL2InactivityPeriod(50 days).build();
         assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
 
         // out of sync: over
         vm.warp(50 days + 1);
-        (, optimisticPlugin,,, votingToken,) = builder.withL2InactivityPeriod(50 days).build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withL2InactivityPeriod(50 days).build();
         assertEq(optimisticPlugin.isL2Available(), false, "isL2Available should be false");
     }
 
@@ -616,7 +616,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_CreateProposalRevertsIfThereIsNoVotingPowerOnlyL1Tokens() public {
         // 1
         // Paused L2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withPausedTaikoL1().withTokenHolder(alice, 0).withProposerOnOptimistic(alice).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -631,7 +631,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2
         // Out of sync L2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withOutOfSyncTaikoL1().withTokenHolder(alice, 0).withProposerOnOptimistic(alice).build();
 
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
@@ -646,7 +646,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3
         // Taiko Bridge now has voting power (should be ignored)
         // Paused L2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withPausedTaikoL1().withTokenHolder(
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withPausedTaikoL1().withTokenHolder(
             taikoBridge, 10000 ether
         ).withProposerOnOptimistic(alice).build();
 
@@ -661,7 +661,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 4
         // Out of sync L2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withOutOfSyncTaikoL1().withTokenHolder(
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOutOfSyncTaikoL1().withTokenHolder(
             taikoBridge, 10000 ether
         ).withProposerOnOptimistic(alice).build();
 
@@ -677,7 +677,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_CreateProposalRevertsIfThereIsNoVotingPowerWithL1L2Tokens() public {
         // 1
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withOkTaikoL1().withTokenHolder(alice, 0).withProposerOnOptimistic(alice).build();
 
         // Try to create
@@ -692,7 +692,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         // 2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withOkTaikoL1().withTokenHolder(taikoBridge, 0).withProposerOnOptimistic(alice).build();
 
         // Try to create
@@ -707,7 +707,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         // 2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withOkTaikoL1().withTokenHolder(taikoBridge, 0).withProposerOnOptimistic(alice).build();
 
         // Try to create
@@ -724,7 +724,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_CreateProposalRevertsIfDurationIsLowerThanMin() public {
         vm.startPrank(alice);
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withMinDuration(0).withProposerOnOptimistic(alice).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -733,7 +733,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 0);
 
         // 2 ko
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withMinDuration(10 minutes).withProposerOnOptimistic(alice).build();
 
         vm.expectRevert(
@@ -745,7 +745,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 10 minutes);
 
         // 4 ko
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withMinDuration(10 hours).withProposerOnOptimistic(alice).build();
 
         vm.expectRevert(
@@ -768,7 +768,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalStartsDespiteRevertingTaikoL1() public {
-        (dao, optimisticPlugin,,,,) = builder.withIncompatibleTaikoL1().build();
+        (dao, optimisticPlugin,,,,,,) = builder.withIncompatibleTaikoL1().build();
 
         vm.warp(2 days);
 
@@ -783,7 +783,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(50 days - 1);
 
         // L2 Paused
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withPausedTaikoL1().build();
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withPausedTaikoL1().build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
@@ -806,7 +806,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 out of sync
         vm.warp(50 days - 1);
 
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withOutOfSyncTaikoL1().build();
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOutOfSyncTaikoL1().build();
 
         actions = new IDAO.Action[](0);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
@@ -829,7 +829,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_CreateProposalEndsAfterMinDurationWithL1L2Tokens() public {
         // 1
         vm.warp(50 days - 1);
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.build();
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
@@ -852,7 +852,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2
         // With tokens on the Taiko Bridge
         vm.warp(50 days - 1);
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
@@ -1045,7 +1045,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2 - With L2 tokens
         vm.warp(3 days - 1);
-        (dao, optimisticPlugin,,, votingToken, taikoL1) =
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         vetoPeriod = 30 days;
@@ -1094,7 +1094,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3 with L2 paused
 
         vm.warp(3 days - 1);
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withPausedTaikoL1().build();
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withPausedTaikoL1().build();
         vetoPeriod = 15 days;
 
         actions[0].to = carol;
@@ -1141,7 +1141,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 4 with L2 out of sync
 
         vm.warp(3 days - 1);
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withOutOfSyncTaikoL1().build();
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOutOfSyncTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://my-uri", actions, failSafeBitmap, vetoPeriod);
 
@@ -1261,7 +1261,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CanVetoReturnsFalseForTheBridge() public {
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withOkTaikoL1().withTokenHolder(alice, 10 ether)
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOkTaikoL1().withTokenHolder(alice, 10 ether)
             .withTokenHolder(bob, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1351,7 +1351,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_VetoRevertsForTheBridge() public {
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withOkTaikoL1().withTokenHolder(alice, 10 ether)
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOkTaikoL1().withTokenHolder(alice, 10 ether)
             .withTokenHolder(bob, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1400,7 +1400,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.veto(proposalId);
 
         // 2
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(
             bob, 10 ether
         ).withTokenHolder(carol, 15 ether).build();
 
@@ -1423,7 +1423,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     // Has vetoed
     function test_HasVetoedReturnsTheRightValues() public {
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withTokenHolder(alice, 5 ether).withTokenHolder(
             bob, 10 ether
         ).withTokenHolder(carol, 15 ether).build();
 
@@ -1491,7 +1491,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2 vetoes required when L1 only
         // 3 vetoes required when L1+L2
 
-        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
+        (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
             .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1510,7 +1510,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 paused, less token supply
         // Alice and Bob are now 100%
 
-        (, optimisticPlugin,,, votingToken,) = builder.withPausedTaikoL1().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withPausedTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1526,7 +1526,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 out of sync, less token supply
         // Alice and Bob are now 100%
 
-        (, optimisticPlugin,,, votingToken,) = builder.withOutOfSyncTaikoL1().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withOutOfSyncTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1556,7 +1556,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_CanExecuteReturnsFalseWhenEndedButL2GracePeriodUnmet() public {
         // An ended proposal with L2 enabled has an additional grace period
 
-        (, optimisticPlugin,,,,) =
+        (, optimisticPlugin,,,,,,) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1617,7 +1617,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2 vetoes required when L1 only
         // 3 vetoes required when L1+L2
 
-        (, optimisticPlugin,,, votingToken,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
+        (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
             .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1640,7 +1640,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 paused, less token supply
         // Alice and Bob are now 100%
 
-        (, optimisticPlugin,,, votingToken,) = builder.withPausedTaikoL1().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withPausedTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1660,7 +1660,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 out of sync, less token supply
         // Alice and Bob are now 100%
 
-        (, optimisticPlugin,,, votingToken,) = builder.withOutOfSyncTaikoL1().build();
+        (, optimisticPlugin,,, votingToken,,,) = builder.withOutOfSyncTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -1681,7 +1681,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_CanExecuteReturnsTrueWhenSkipL2AndFullyEnded() public {
         // An ended proposal with L2 skipped
 
-        (, optimisticPlugin,,,,) =
+        (, optimisticPlugin,,,,,,) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).withSkipL2().build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1723,7 +1723,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CanExecuteReturnsTrueOnDurationZero_WithoutL2GracePeriodOrExitWindow() public {
-        (, optimisticPlugin,,,,) = builder.withMinDuration(0).build();
+        (, optimisticPlugin,,,,,,) = builder.withMinDuration(0).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 0 days);
@@ -1746,7 +1746,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
 
-        vm.warp(block.timestamp + 4 days - 1) ;
+        vm.warp(block.timestamp + 4 days - 1);
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
 
         // Ended
@@ -1754,7 +1754,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.canExecute(proposalId), false, "The proposal shouldn't be executable yet");
 
         // No L2 votes available, so no L2 aggregation period
-        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) = optimisticPlugin.getProposal(proposalId);
+        (,, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
+            optimisticPlugin.getProposal(proposalId);
         assertEq(parameters.unavailableL2, true, "unavailableL2 should be true");
 
         vm.warp(block.timestamp + optimisticPlugin.EXIT_WINDOW() - 1);
@@ -1767,7 +1768,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     // Veto threshold reached
     function test_IsMinVetoRatioReachedReturnsTheAppropriateValuesOnlyL1Tokens() public {
-        (dao, optimisticPlugin,,, votingToken, taikoL1) = builder.withMinVetoRatio(250_000).withTokenHolder(
+        (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withMinVetoRatio(250_000).withTokenHolder(
             alice, 24 ether
         ).withTokenHolder(bob, 1 ether).withTokenHolder(randomWallet, 75 ether).build();
 
@@ -1798,7 +1799,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_IsMinVetoRatioReachedReturnsTheAppropriateValuesWithL1L2Tokens() public {
         // 200/300 vs 200/400 scenario
         builder = new DaoBuilder();
-        (, optimisticPlugin,,,,) = builder.withOkTaikoL1().withMinVetoRatio(510_000).withTokenHolder(alice, 100 ether)
+        (, optimisticPlugin,,,,,,) = builder.withOkTaikoL1().withMinVetoRatio(510_000).withTokenHolder(alice, 100 ether)
             .withTokenHolder(bob, 100 ether).withTokenHolder(carol, 100 ether).withTokenHolder(taikoBridge, 100 ether).build(
         );
 
@@ -1822,7 +1823,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // L2 paused
         vm.startPrank(alice);
-        (, optimisticPlugin,,,,) = builder.withPausedTaikoL1().build();
+        (, optimisticPlugin,,,,,,) = builder.withPausedTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
@@ -1843,7 +1844,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // L2 out of sync
         vm.startPrank(alice);
-        (, optimisticPlugin,,,,) = builder.withOutOfSyncTaikoL1().build();
+        (, optimisticPlugin,,,,,,) = builder.withOutOfSyncTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
         (,, parameters,,,,) = optimisticPlugin.getProposal(proposalId);
@@ -1961,7 +1962,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2 vetoes required when L1 only
         // 3 vetoes required when L1+L2
 
-        (, optimisticPlugin,,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
+        (, optimisticPlugin,,,,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
             .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1989,7 +1990,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 paused, less token supply
         // Alice and Bob are now 100%
 
-        (, optimisticPlugin,,,,) = builder.withPausedTaikoL1().build();
+        (, optimisticPlugin,,,,,,) = builder.withPausedTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -2016,7 +2017,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // L2 out of sync, less token supply
         // Alice and Bob are now 100%
 
-        (, optimisticPlugin,,,,) = builder.withOutOfSyncTaikoL1().build();
+        (, optimisticPlugin,,,,,,) = builder.withOutOfSyncTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
 
@@ -2115,7 +2116,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_ExecuteRevertsWhenEndedBeforeGracePeriodOrExitWindow_L1L2Tokens() public {
         // An ended proposal with L2 enabled has an additional grace period
 
-        (, optimisticPlugin,,,,) =
+        (, optimisticPlugin,,,,,,) =
             builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);

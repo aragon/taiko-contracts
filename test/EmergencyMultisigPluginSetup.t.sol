@@ -4,28 +4,20 @@ pragma solidity ^0.8.17;
 import {AragonTest} from "./base/AragonTest.sol";
 import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
+import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
 import {
     SignerList,
     UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID,
     UPDATE_SIGNER_LIST_PERMISSION_ID
 } from "../src/SignerList.sol";
-import {EmergencyMultisigPluginSetup} from "../src/setup/EmergencyMultisigPluginSetup.sol";
-import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
-import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ERC20Mock} from "./mocks/ERC20Mock.sol";
-import {ITaikoL1} from "../src/adapted-dependencies/ITaikoL1.sol";
 
 contract EmergencyMultisigPluginSetupTest is AragonTest {
     EmergencyMultisigPluginSetup public pluginSetup;
-    GovernanceERC20 governanceERC20Base;
-    GovernanceWrappedERC20 governanceWrappedERC20Base;
     address immutable daoBase = address(new DAO());
     address immutable signerListBase = address(new SignerList());
     DAO dao;
