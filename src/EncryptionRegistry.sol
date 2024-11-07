@@ -87,15 +87,15 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function setPublicKey(address _account, bytes32 _publicKey) public {
-        if (!addresslist.isListed(_account)) {
+    function setPublicKey(address _accountOwner, bytes32 _publicKey) public {
+        if (!addresslist.isListed(_accountOwner)) {
             revert MustBeListed();
-        } else if (accounts[_account].appointedWallet != msg.sender) {
+        } else if (accounts[_accountOwner].appointedWallet != msg.sender) {
             revert MustBeAppointed();
         }
 
-        _setPublicKey(_account, _publicKey);
-        emit PublicKeySet(_account, _publicKey);
+        _setPublicKey(_accountOwner, _publicKey);
+        emit PublicKeySet(_accountOwner, _publicKey);
     }
 
     /// @inheritdoc IEncryptionRegistry

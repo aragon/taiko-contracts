@@ -953,9 +953,28 @@ contract SignerListTest is AragonTest {
     }
 
     function test_GivenTheEncryptionRegistryHasNoAccounts() external whenCallingGetEncryptionRecipients {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        // No accounts registered a public key
+
         // It returns an empty list, even with signers
+        address[] memory recipients = signerList.getEncryptionRecipients();
+        assertEq(recipients.length, 0, "Should be empty");
+
+        // Empty the list
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 0));
+
+        address[] memory rmSigners = new address[](4);
+        rmSigners[0] = alice;
+        rmSigners[1] = bob;
+        rmSigners[2] = carol;
+        rmSigners[3] = david;
+        signerList.removeSigners(rmSigners);
+
         // It returns an empty list, without signers
-        vm.skip(true);
+        recipients = signerList.getEncryptionRecipients();
+        assertEq(recipients.length, 0, "Should be empty");
     }
 
     modifier givenTheEncryptionRegistryHasAccounts() {
@@ -967,8 +986,50 @@ contract SignerListTest is AragonTest {
         whenCallingGetEncryptionRecipients
         givenTheEncryptionRegistryHasAccounts
     {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        // Old accounts register a public key or appoint
+        vm.startPrank(alice);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x5555)));
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x1234));
+        vm.startPrank(address(0x1234));
+        encryptionRegistry.setPublicKey(bob, bytes32(uint256(0x1234)));
+        vm.startPrank(carol);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x5555)));
+        vm.startPrank(david);
+        encryptionRegistry.appointWallet(address(0x2345));
+        vm.startPrank(address(0x2345));
+        encryptionRegistry.setPublicKey(david, bytes32(uint256(0x2345)));
+
         // It returns an empty list
-        vm.skip(true);
+        address[] memory recipients = signerList.getEncryptionRecipients();
+        assertEq(recipients.length, 4, "Should have 4 members");
+        assertEq(recipients[0], alice, "Should be alice");
+        assertEq(recipients[1], address(0x1234), "Should be 1234");
+        assertEq(recipients[2], carol, "Should be carol");
+        assertEq(recipients[3], address(0x2345), "Should be 2345");
+
+        vm.startPrank(alice);
+
+        // Replace the list of signers
+        address[] memory newSigners = new address[](4);
+        newSigners[0] = address(0);
+        newSigners[1] = address(1);
+        newSigners[2] = address(2);
+        newSigners[3] = address(3);
+        signerList.addSigners(newSigners);
+
+        address[] memory rmSigners = new address[](4);
+        rmSigners[0] = alice;
+        rmSigners[1] = bob;
+        rmSigners[2] = carol;
+        rmSigners[3] = david;
+        signerList.removeSigners(rmSigners);
+
+        // It returns an empty list
+        recipients = signerList.getEncryptionRecipients();
+        assertEq(recipients.length, 0, "Should be empty");
     }
 
     function test_GivenSomeAddressesAreRegisteredEverywhere()
@@ -981,6 +1042,63 @@ contract SignerListTest is AragonTest {
         // It result does not contain unregistered addresses
         // It result does not contain unlisted addresses
         // It result does not contain non appointed addresses
-        vm.skip(true);
+
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        address[] memory newSigners = new address[](4);
+        newSigners[0] = address(0x10);
+        newSigners[1] = address(0x11);
+        newSigners[2] = address(0x12);
+        newSigners[3] = address(0x13);
+        signerList.addSigners(newSigners);
+
+        // Owner
+        vm.startPrank(alice);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x5555)));
+        // Appointing 1234
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x1234));
+        // Appointed
+        vm.startPrank(address(0x1234));
+        encryptionRegistry.setPublicKey(bob, bytes32(uint256(0x1234)));
+        // Owner with no pubKey
+        // vm.startPrank(carol);
+        // encryptionRegistry.setOwnPublicKey(bytes32(uint256(0)));
+        // Appointing 2345
+        vm.startPrank(david);
+        encryptionRegistry.appointWallet(address(0x2345));
+        // Appointed with no pubKey
+        // vm.startPrank(address(0x2345));
+        // encryptionRegistry.setPublicKey(david, bytes32(uint256(0)));
+
+        address[] memory recipients = signerList.getEncryptionRecipients();
+        assertEq(recipients.length, 3, "Should have 3 members");
+        assertEq(recipients[0], alice, "Should be alice");
+        assertEq(recipients[1], address(0x1234), "Should be 1234");
+        // Carol didn't interact yet
+        assertEq(recipients[2], address(0x2345), "Should be 2345");
+
+        // Register the missing public keys
+        vm.startPrank(carol);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x7777)));
+        // Appointed by david
+        vm.startPrank(address(0x2345));
+        encryptionRegistry.setPublicKey(david, bytes32(uint256(0x2345)));
+
+        // Updated list
+        recipients = signerList.getEncryptionRecipients();
+        assertEq(recipients.length, 4, "Should have 4 members");
+        assertEq(recipients[0], alice, "Should be alice");
+        assertEq(recipients[1], address(0x1234), "Should be 1234");
+        assertEq(recipients[2], address(0x2345), "Should be 2345");
+        assertEq(recipients[3], carol, "Should be carol");
+    }
+
+    // Additional tests beyond SignerListTree.t.yaml
+
+    function testFuzz_IsMemberIsFalseByDefault(uint256 _randomEntropy) public view {
+        assertEq(
+            signerList.isListed(vm.addr(uint256(keccak256(abi.encodePacked(_randomEntropy))))), false, "Should be false"
+        );
     }
 }
