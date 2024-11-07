@@ -5,7 +5,7 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {Multisig} from "../Multisig.sol";
 import {EmergencyMultisig} from "../EmergencyMultisig.sol";
-import {SignerList} from "../SignerList.sol";
+import {SignerList, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID} from "../SignerList.sol";
 import {EncryptionRegistry} from "../EncryptionRegistry.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPluginSetup.sol";
@@ -115,12 +115,7 @@ contract TaikoDaoFactory {
         deployment.dao = dao;
 
         // DEPLOY THE SIGNER LIST AND REGISTRY
-        deployment.signerList = deploySignerListWithoutSettings(dao);
-        deployment.encryptionRegistry = deployEncryptionRegistry();
-        // Link them together
-        deployment.signerList.updateSettings(
-            SignerList.Settings(deployment.encryptionRegistry, uint16(settings.multisigMembers.length))
-        );
+        (deployment.signerList, deployment.encryptionRegistry) = prepareSignerListAndEncryptionRegistry(dao);
 
         // DEPLOY THE PLUGINS
         (deployment.multisigPlugin, deployment.multisigPluginRepo, preparedMultisigSetupData) =
@@ -194,6 +189,25 @@ contract TaikoDaoFactory {
         );
 
         dao.applySingleTargetPermissions(address(dao), items);
+    }
+
+    function prepareSignerListAndEncryptionRegistry(DAO dao)
+        internal
+        returns (SignerList signerList, EncryptionRegistry encryptionRegistry)
+    {
+        signerList = deploySignerListWithoutSettings(dao);
+        encryptionRegistry = new EncryptionRegistry(signerList);
+
+        // Link them together
+        {
+            // Grant temporary permission to update the settings
+            dao.grant(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+
+            signerList.updateSettings(SignerList.Settings(encryptionRegistry, uint16(settings.multisigMembers.length)));
+
+            // Revoke the remporary permission
+            dao.revoke(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        }
     }
 
     function prepareMultisig(DAO dao, SignerList signerList)
@@ -314,13 +328,11 @@ contract TaikoDaoFactory {
     }
 
     function deploySignerListWithoutSettings(DAO dao) internal returns (SignerList helper) {
-        helper = new SignerList();
-
-        helper.initialize(dao, settings.multisigMembers);
-    }
-
-    function deployEncryptionRegistry() internal returns (EncryptionRegistry) {
-        return new EncryptionRegistry(deployment.signerList);
+        helper = SignerList(
+            createERC1967Proxy(
+                address(new SignerList()), abi.encodeCall(SignerList.initialize, (dao, settings.multisigMembers))
+            )
+        );
     }
 
     function applyPluginInstallation(
