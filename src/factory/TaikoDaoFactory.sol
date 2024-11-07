@@ -114,7 +114,7 @@ contract TaikoDaoFactory {
         DAO dao = prepareDao();
         deployment.dao = dao;
 
-        // DEPLOY THE SIGNER LIST AND REGISTRY
+        // DEPLOY THE SIGNER LIST AND THE ENCRYPTION REGISTRY
         (deployment.signerList, deployment.encryptionRegistry) = prepareSignerListAndEncryptionRegistry(dao);
 
         // DEPLOY THE PLUGINS
