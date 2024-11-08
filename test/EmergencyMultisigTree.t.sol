@@ -1097,7 +1097,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(approvals, 0, "Should be 0");
     }
 
-    function test_WhenCallingHashActions() external {
+    function test_WhenCallingHashActions() external view {
         bytes32 hashedActions;
         IDAO.Action[] memory actions = new IDAO.Action[](0);
 
@@ -1126,12 +1126,21 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     modifier givenTheProposalIsNotCreated() {
+        // Alice: listed and self appointed
+
+        // Bob: listed, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+
+        // Random Wallet: appointed by a listed signer
+
+        // 0x1234: unlisted and unappointed
+
         _;
     }
 
-    function test_WhenCallingGetProposalBeingUncreated() external view givenTheProposalIsNotCreated {
+    function test_WhenCallingGetProposalBeingUncreated() external givenTheProposalIsNotCreated {
         // It should return empty values
-        uint256 pid;
         bool executed;
         uint16 approvals;
         EmergencyMultisig.ProposalParameters memory parameters;
@@ -1148,7 +1157,7 @@ contract EmergencyMultisigTest is AragonTest {
             publicMetadataUriHash,
             destinationActionsHash,
             destinationPlugin
-        ) = eMultisig.getProposal(pid);
+        ) = eMultisig.getProposal(1234);
 
         assertEq(executed, false, "Should be false");
         assertEq(approvals, 0, "Should be 0");
@@ -1162,34 +1171,245 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     function test_WhenCallingCanApproveAndApproveBeingUncreated() external givenTheProposalIsNotCreated {
+        uint256 randomProposalId = 1234;
+        bool canApprove;
+
         // It canApprove should return false (when currently listed and self appointed)
+        vm.startPrank(alice);
+        canApprove = eMultisig.canApprove(randomProposalId, alice);
+        assertEq(canApprove, false, "Should be false");
+
         // It approve should revert (when currently listed and self appointed)
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, alice)
+        );
+        eMultisig.approve(randomProposalId);
+
         // It canApprove should return false (when currently listed, appointing someone else now)
+        randomProposalId++;
+        vm.startPrank(bob);
+        canApprove = eMultisig.canApprove(randomProposalId, bob);
+        assertEq(canApprove, false, "Should be false");
+
         // It approve should revert (when currently listed, appointing someone else now)
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, bob));
+        eMultisig.approve(randomProposalId);
+
         // It canApprove should return false (when appointed by a listed signer)
+        randomProposalId++;
+        vm.startPrank(randomWallet);
+        canApprove = eMultisig.canApprove(randomProposalId, randomWallet);
+        assertEq(canApprove, false, "Should be false");
+
         // It approve should revert (when appointed by a listed signer)
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, randomWallet)
+        );
+        eMultisig.approve(randomProposalId);
+
         // It canApprove should return false (when currently unlisted and unappointed)
+        randomProposalId++;
+        vm.startPrank(address(1234));
+        canApprove = eMultisig.canApprove(randomProposalId, address(1234));
+        assertEq(canApprove, false, "Should be false");
+
         // It approve should revert (when currently unlisted and unappointed)
-        vm.skip(true);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, address(1234))
+        );
+        eMultisig.approve(randomProposalId);
     }
 
     function test_WhenCallingHasApprovedBeingUncreated() external givenTheProposalIsNotCreated {
+        bool hasApproved;
+        uint256 randomProposalId = 1234;
         // It hasApproved should always return false
-        vm.skip(true);
+
+        hasApproved = eMultisig.hasApproved(randomProposalId, alice);
+        assertEq(hasApproved, false, "Should be false");
+
+        randomProposalId++;
+        hasApproved = eMultisig.hasApproved(randomProposalId, bob);
+        assertEq(hasApproved, false, "Should be false");
+
+        randomProposalId++;
+        hasApproved = eMultisig.hasApproved(randomProposalId, randomWallet);
+        assertEq(hasApproved, false, "Should be false");
+
+        randomProposalId++;
+        hasApproved = eMultisig.hasApproved(randomProposalId, address(1234));
+        assertEq(hasApproved, false, "Should be false");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingUncreated() external givenTheProposalIsNotCreated {
+        uint256 randomProposalId = 1234;
         // It canExecute should always return false
-        vm.skip(true);
+
+        bool canExecute = eMultisig.canExecute(randomProposalId);
+        assertEq(canExecute, false, "Should be false");
+    }
+
+    function testFuzz_WhenCallingCanExecuteOrExecuteBeingUncreated(uint256 randomProposalId)
+        external
+        givenTheProposalIsNotCreated
+    {
+        // It canExecute should always return false
+
+        bool canExecute = eMultisig.canExecute(randomProposalId);
+        assertEq(canExecute, false, "Should be false");
     }
 
     modifier givenTheProposalIsOpen() {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Alice: listed on creation and self appointed
+
+        // Bob: listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+
+        // Random Wallet: appointed by a listed signer on creation
+
+        // 0x1234: unlisted and unappointed on creation
+
+        // Create proposal
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // Remove (later)
+        vm.roll(block.number + 50);
+        address[] memory addrs = new address[](2);
+        addrs[0] = alice;
+        addrs[1] = bob;
+
+        vm.startPrank(alice);
+        signerList.removeSigners(addrs);
+
         _;
+    }
+
+    function testFuzz_CanApproveReturnsfFalseIfNotCreated(uint256 randomProposalId) public view {
+        // returns `false` if the proposal doesn't exist
+
+        assertEq(eMultisig.canApprove(randomProposalId, alice), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, bob), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, carol), false, "Should be false");
+        assertEq(eMultisig.canApprove(randomProposalId, david), false, "Should be false");
+    }
+
+    function testFuzz_ApproveRevertsIfNotCreated(uint256 randomProposalId) public {
+        // Reverts if the proposal doesn't exist
+
+        vm.startPrank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, alice)
+        );
+        eMultisig.approve(randomProposalId);
+
+        // 2
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, bob));
+        eMultisig.approve(randomProposalId);
+
+        // 3
+        vm.startPrank(carol);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, carol)
+        );
+        eMultisig.approve(randomProposalId);
+
+        // 4
+        vm.startPrank(david);
+        vm.expectRevert(
+            abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, randomProposalId, david)
+        );
+        eMultisig.approve(randomProposalId);
+    }
+
+    function testFuzz_CanExecuteReturnsFalseIfNotCreated(uint256 randomProposalId) public view {
+        // returns `false` if the proposal doesn't exist
+
+        assertEq(eMultisig.canExecute(randomProposalId), false, "Should be false");
+    }
+
+    function testFuzz_ExecuteRevertsIfNotCreated(uint256 randomProposalId) public {
+        // reverts if the proposal doesn't exist
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalExecutionForbidden.selector, randomProposalId));
+        eMultisig.execute(randomProposalId, "", actions);
     }
 
     function test_WhenCallingGetProposalBeingOpen() external givenTheProposalIsOpen {
         // It should return the right values
-        vm.skip(true);
+
+        // Get proposal returns the right values
+
+        vm.warp(10);
+        {
+            (
+                bool executed,
+                uint16 approvals,
+                EmergencyMultisig.ProposalParameters memory parameters,
+                bytes memory encryptedPayloadURI,
+                bytes32 publicMetadataUriHash,
+                bytes32 destinationActionsHash,
+                OptimisticTokenVotingPlugin destinationPlugin
+            ) = eMultisig.getProposal(0);
+
+            assertEq(executed, false);
+            assertEq(approvals, 0);
+            assertEq(parameters.minApprovals, 3);
+            assertEq(parameters.snapshotBlock, block.number - 1);
+            assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+            assertEq(encryptedPayloadURI, "ipfs://");
+            assertEq(publicMetadataUriHash, hex"");
+            assertEq(destinationActionsHash, hex"");
+            assertEq(address(destinationPlugin), address(optimisticPlugin));
+        }
+        // new proposal
+
+        OptimisticTokenVotingPlugin newOptimisticPlugin;
+        (dao, newOptimisticPlugin,, eMultisig,,,,) = builder.build();
+        vm.deal(address(dao), 1 ether);
+
+        {
+            bytes32 metadataUriHash = keccak256("ipfs://another-public-metadata");
+
+            IDAO.Action[] memory actions = new IDAO.Action[](1);
+            actions[0].value = 1 ether;
+            actions[0].to = alice;
+            actions[0].data = hex"00112233";
+            bytes32 actionsHash = eMultisig.hashActions(actions);
+            eMultisig.createProposal("ipfs://12340000", metadataUriHash, actionsHash, newOptimisticPlugin, true);
+
+            (
+                bool executed,
+                uint16 approvals,
+                EmergencyMultisig.ProposalParameters memory parameters,
+                bytes memory encryptedPayloadURI,
+                bytes32 publicMetadataUriHash,
+                bytes32 destinationActionsHash,
+                OptimisticTokenVotingPlugin destinationPlugin
+            ) = eMultisig.getProposal(1);
+
+            assertEq(executed, false);
+            assertEq(approvals, 1);
+            assertEq(parameters.minApprovals, 3);
+            assertEq(parameters.snapshotBlock, block.number - 1);
+            assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+            assertEq(encryptedPayloadURI, "ipfs://12340000");
+            assertEq(publicMetadataUriHash, metadataUriHash);
+            assertEq(destinationActionsHash, actionsHash);
+            assertEq(address(destinationPlugin), address(newOptimisticPlugin));
+        }
     }
 
     function test_WhenCallingCanApproveAndApproveBeingOpen() external givenTheProposalIsOpen {
@@ -1204,6 +1424,56 @@ contract EmergencyMultisigTest is AragonTest {
         // It canApprove should return false (when unlisted on creation, unappointed now)
         // It approve should revert (when unlisted on creation, unappointed now)
         vm.skip(true);
+    }
+
+    function testFuzz_CanApproveReturnsfFalseIfNotListed(address randomWallet) public {
+        // returns `false` if the approver is not listed
+
+        {
+            // Leaving the deployment for fuzz efficiency
+            EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
+                onlyListed: false,
+                minApprovals: 1,
+                signerList: signerList,
+                proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+            });
+            eMultisig = EmergencyMultisig(
+                createProxyAndCall(
+                    address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+                )
+            );
+
+            vm.roll(block.number + 1);
+        }
+
+        uint256 pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        // ko
+        if (randomWallet != alice) {
+            assertEq(eMultisig.canApprove(pid, randomWallet), false, "Should be false");
+        }
+
+        // static ok
+        assertEq(eMultisig.canApprove(pid, alice), true, "Should be true");
+    }
+
+    function testFuzz_ApproveRevertsIfNotListed(address randomSigner) public {
+        // Reverts if the signer is not listed
+
+        builder = new DaoBuilder();
+        (,,, eMultisig,,,,) = builder.withMultisigMember(alice).withMinApprovals(1).build();
+        uint256 pid = eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        if (randomSigner == alice) {
+            return;
+        }
+
+        vm.startPrank(randomSigner);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, randomSigner));
+        eMultisig.approve(pid);
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ApprovalCastForbidden.selector, pid, randomSigner));
+        eMultisig.approve(pid);
     }
 
     function test_WhenCallingHasApprovedBeingOpen() external givenTheProposalIsOpen {
@@ -1224,12 +1494,76 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     modifier givenTheProposalWasApprovedByTheAddress() {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Alice: listed on creation and self appointed
+
+        // Bob: listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+
+        // Random Wallet: appointed by a listed signer on creation
+
+        // 0x1234: unlisted and unappointed on creation
+
+        // Create proposal
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // Remove (later)
+        vm.roll(block.number + 50);
+        address[] memory addrs = new address[](2);
+        addrs[0] = alice;
+        addrs[1] = bob;
+
+        vm.startPrank(alice);
+        signerList.removeSigners(addrs);
+
+        eMultisig.approve(0);
+
         _;
     }
 
     function test_WhenCallingGetProposalBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It should return the right values
         vm.skip(true);
+
+        // vm.startPrank(bob);
+        // eMultisig.approve(pid);
+        // vm.startPrank(carol);
+        // eMultisig.approve(pid);
+
+        // (
+        //     executed,
+        //     approvals,
+        //     parameters,
+        //     encryptedPayloadURI,
+        //     publicMetadataUriHash,
+        //     destinationActionsHash,
+        //     destinationPlugin
+        // ) = eMultisig.getProposal(pid);
+        // assertEq(executed, false, "Should not be executed");
+        // assertEq(approvals, 3, "Should be 3");
+
+        // assertEq(parameters.minApprovals, 3);
+        // assertEq(parameters.snapshotBlock, block.number - 1);
+        // assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        // assertEq(encryptedPayloadURI, "ipfs://12340000");
+        // assertEq(publicMetadataUriHash, metadataUriHash);
+        // assertEq(destinationActionsHash, actionsHash);
+        // assertEq(address(destinationPlugin), address(newOptimisticPlugin));
+
+        // // Execute
+        // vm.startPrank(alice);
+        // dao.grant(address(newOptimisticPlugin), address(eMultisig), newOptimisticPlugin.PROPOSER_PERMISSION_ID());
+        // eMultisig.execute(pid, "ipfs://another-public-metadata", actions);
     }
 
     function test_WhenCallingCanApproveAndApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
@@ -1254,12 +1588,95 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     modifier givenTheProposalPassed() {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Alice: listed on creation and self appointed
+
+        // Bob: listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+
+        // Random Wallet: appointed by a listed signer on creation
+
+        // 0x1234: unlisted and unappointed on creation
+
+        // Create proposal
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid =
+            eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // Remove (later)
+        vm.roll(block.number + 50);
+        address[] memory addrs = new address[](2);
+        addrs[0] = alice;
+        addrs[1] = bob;
+
+        vm.startPrank(alice);
+        signerList.removeSigners(addrs);
+
+        eMultisig.approve(pid);
+
+        vm.startPrank(bob);
+        eMultisig.approve(pid);
+
+        vm.startPrank(randomWallet);
+        eMultisig.approve(pid);
+
+        vm.startPrank(alice);
+
         _;
     }
 
     function test_WhenCallingGetProposalBeingPassed() external givenTheProposalPassed {
         // It should return the right values
         vm.skip(true);
+
+        // dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        // dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        // signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // // Alice: listed on creation and self appointed
+
+        // // Bob: listed on creation, appointing someone else now
+        // vm.startPrank(bob);
+        // encryptionRegistry.appointWallet(randomWallet);
+
+        // // Random Wallet: appointed by a listed signer on creation
+
+        // // 0x1234: unlisted and unappointed on creation
+
+        // // Create proposal
+        // IDAO.Action[] memory actions = new IDAO.Action[](1);
+        // actions[0].value = 1 ether;
+        // actions[0].to = address(bob);
+        // actions[0].data = hex"00112233";
+        // bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
+        // bytes32 actionsHash = eMultisig.hashActions(actions);
+        // eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // // Remove (later)
+        // vm.roll(block.number + 50);
+        // address[] memory addrs = new address[](2);
+        // addrs[0] = alice;
+        // addrs[1] = bob;
+
+        // vm.startPrank(alice);
+        // signerList.removeSigners(addrs);
+
+        // eMultisig.approve(0);
+
+        // vm.startPrank(bob);
+        // eMultisig.approve(0);
+
+        // vm.startPrank(randomWallet);
+        // eMultisig.approve(0);
     }
 
     function test_WhenCallingCanApproveAndApproveBeingPassed() external givenTheProposalPassed {
@@ -1303,12 +1720,78 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     modifier givenTheProposalIsAlreadyExecuted() {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Alice: listed on creation and self appointed
+
+        // Bob: listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+
+        // Random Wallet: appointed by a listed signer on creation
+
+        // 0x1234: unlisted and unappointed on creation
+
+        // Create proposal
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid =
+            eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // Remove (later)
+        vm.roll(block.number + 50);
+        address[] memory addrs = new address[](2);
+        addrs[0] = alice;
+        addrs[1] = bob;
+
+        vm.startPrank(alice);
+        signerList.removeSigners(addrs);
+
+        eMultisig.approve(pid);
+
+        vm.startPrank(bob);
+        eMultisig.approve(pid);
+
+        vm.startPrank(randomWallet);
+        eMultisig.approve(pid);
+
+        eMultisig.execute(pid, "ipfs://the-metadata", actions);
+
+        vm.startPrank(alice);
+
         _;
     }
 
     function test_WhenCallingGetProposalBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It should return the right values
         vm.skip(true);
+
+        // (
+        //     executed,
+        //     approvals,
+        //     parameters,
+        //     encryptedPayloadURI,
+        //     publicMetadataUriHash,
+        //     destinationActionsHash,
+        //     destinationPlugin
+        // ) = eMultisig.getProposal(pid);
+
+        // assertEq(executed, true, "Should be executed");
+        // assertEq(approvals, 3, "Should be 3");
+
+        // assertEq(parameters.minApprovals, 3);
+        // assertEq(parameters.snapshotBlock, block.number - 1);
+        // assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        // assertEq(encryptedPayloadURI, "ipfs://12340000");
+        // assertEq(publicMetadataUriHash, metadataUriHash);
+        // assertEq(destinationActionsHash, actionsHash);
+        // assertEq(address(destinationPlugin), address(newOptimisticPlugin));
     }
 
     function test_WhenCallingCanApproveAndApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
@@ -1341,6 +1824,51 @@ contract EmergencyMultisigTest is AragonTest {
     }
 
     modifier givenTheProposalExpired() {
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Alice: listed on creation and self appointed
+
+        // Bob: listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+
+        // Random Wallet: appointed by a listed signer on creation
+
+        // 0x1234: unlisted and unappointed on creation
+
+        // Create proposal
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 1 ether;
+        actions[0].to = address(bob);
+        actions[0].data = hex"00112233";
+        bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
+        bytes32 actionsHash = eMultisig.hashActions(actions);
+        uint256 pid =
+            eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
+
+        // Remove (later)
+        vm.roll(block.number + 50);
+        address[] memory addrs = new address[](2);
+        addrs[0] = alice;
+        addrs[1] = bob;
+
+        vm.startPrank(alice);
+        signerList.removeSigners(addrs);
+
+        eMultisig.approve(pid);
+
+        vm.startPrank(bob);
+        eMultisig.approve(pid);
+
+        vm.startPrank(randomWallet);
+        eMultisig.approve(pid);
+
+        vm.roll(block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+
+        vm.startPrank(alice);
+
         _;
     }
 

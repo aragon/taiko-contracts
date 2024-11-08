@@ -130,14 +130,14 @@ EmergencyMultisigTest:
       # Approval
       - when: calling canApprove or approve [being uncreated]
         then:
-          - it: canApprove should return false (when currently listed and self appointed)
-          - it: approve should revert (when currently listed and self appointed)
-          - it: canApprove should return false (when currently listed, appointing someone else now)
-          - it: approve should revert (when currently listed, appointing someone else now)
+          - it: canApprove should return false (when listed and self appointed)
+          - it: approve should revert (when listed and self appointed)
+          - it: canApprove should return false (when listed, appointing someone else now)
+          - it: approve should revert (when listed, appointing someone else now)
           - it: canApprove should return false (when appointed by a listed signer)
           - it: approve should revert (when appointed by a listed signer)
-          - it: canApprove should return false (when currently unlisted and unappointed)
-          - it: approve should revert (when currently unlisted and unappointed)
+          - it: canApprove should return false (when unlisted and unappointed)
+          - it: approve should revert (when unlisted and unappointed)
       # Has approved
       - when: calling hasApproved [being uncreated]
         then:
