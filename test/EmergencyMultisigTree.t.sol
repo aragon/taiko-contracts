@@ -1,9 +1,43 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import {Test} from "forge-std/Test.sol";
+import {AragonTest} from "./base/AragonTest.sol";
+import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
+import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
+import {SignerList} from "../src/SignerList.sol";
+import {DaoBuilder} from "./helpers/DaoBuilder.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
-contract EmergencyMultisigTest is Test {
+uint64 constant EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
+
+contract EmergencyMultisigTest is AragonTest {
+    SignerList signerList;
+    DaoBuilder builder;
+    DAO dao;
+    EmergencyMultisig eMultisig;
+
+    address immutable SIGNER_LIST_BASE = address(new SignerList());
+
+    // Events/errors to be tested here (duplicate)
+    error DaoUnauthorized(address dao, address where, address who, bytes32 permissionId);
+    error InvalidAddresslistUpdate(address member);
+
+    event MultisigSettingsUpdated(
+        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint64 proposalExpirationPeriod
+    );
+
+    function setUp() public {
+        vm.startPrank(alice);
+        vm.warp(1 days);
+        vm.roll(100);
+
+        builder = new DaoBuilder();
+        (dao,,, eMultisig,, signerList,,) = builder.withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(
+            carol
+        ).withMultisigMember(david).build();
+    }
+
     modifier givenANewlyDeployedContract() {
         _;
     }
@@ -13,15 +47,99 @@ contract EmergencyMultisigTest is Test {
     }
 
     function test_GivenCallingInitialize() external givenANewlyDeployedContract givenCallingInitialize {
+        EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            signerList: signerList,
+            proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
+
         // It should initialize the first time
+        eMultisig = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
+        );
+
         // It should refuse to initialize again
+        vm.expectRevert("Initializable: contract is already initialized");
+        eMultisig.initialize(dao, settings);
+
         // It should set the DAO address
+
+        assertEq((address(eMultisig.dao())), address(dao), "Incorrect dao");
+
         // It should set the minApprovals
+
+        (, uint16 minApprovals,,) = eMultisig.multisigSettings();
+        assertEq(minApprovals, uint16(3), "Incorrect minApprovals");
+        settings.minApprovals = 1;
+        eMultisig = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
+        );
+        (, minApprovals,,) = eMultisig.multisigSettings();
+        assertEq(minApprovals, uint16(1), "Incorrect minApprovals");
+
         // It should set onlyListed
+
+        (bool onlyListed,,,) = eMultisig.multisigSettings();
+        assertEq(onlyListed, true, "Incorrect onlyListed");
+        settings.onlyListed = false;
+        eMultisig = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
+        );
+        (onlyListed,,,) = eMultisig.multisigSettings();
+        assertEq(onlyListed, false, "Incorrect onlyListed");
+
         // It should set signerList
+
+        (,, Addresslist givenSignerList,) = eMultisig.multisigSettings();
+        assertEq(address(givenSignerList), address(signerList), "Incorrect addresslistSource");
+        (,,,,, signerList,,) = builder.build();
+        settings.signerList = signerList;
+        eMultisig = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
+        );
+        (,, signerList,) = eMultisig.multisigSettings();
+        assertEq(address(signerList), address(settings.signerList), "Incorrect addresslistSource");
+
         // It should set proposalExpirationPeriod
+
+        (,,, uint64 expirationPeriod) = eMultisig.multisigSettings();
+        assertEq(expirationPeriod, EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD, "Incorrect expirationPeriod");
+        settings.proposalExpirationPeriod = 3 days;
+        eMultisig = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
+        );
+        (,,, expirationPeriod) = eMultisig.multisigSettings();
+        assertEq(expirationPeriod, 3 days, "Incorrect expirationPeriod");
+
         // It should emit MultisigSettingsUpdated
-        vm.skip(true);
+
+        (,,,,, SignerList newSignerList,,) = builder.build();
+
+        settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 2,
+            signerList: newSignerList,
+            proposalExpirationPeriod: 15 days
+        });
+        vm.expectEmit();
+        emit MultisigSettingsUpdated(false, uint16(2), newSignerList, 15 days);
+
+        eMultisig = EmergencyMultisig(
+            createProxyAndCall(
+                address(EMERGENCY_MULTISIG_BASE), abi.encodeCall(EmergencyMultisig.initialize, (dao, settings))
+            )
+        );
     }
 
     function test_RevertWhen_MinApprovalsIsGreaterThanSignerListLengthOnInitialize()

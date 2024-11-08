@@ -1,9 +1,45 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import {Test} from "forge-std/Test.sol";
+import {AragonTest} from "./base/AragonTest.sol";
+import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
+import {Multisig} from "../src/Multisig.sol";
+import {SignerList} from "../src/SignerList.sol";
+import {DaoBuilder} from "./helpers/DaoBuilder.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {createProxyAndCall} from "../src/helpers/proxy.sol";
 
-contract MultisigTest is Test {
+uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
+
+contract MultisigTest is AragonTest {
+    SignerList signerList;
+    DaoBuilder builder;
+    DAO dao;
+    Multisig multisig;
+
+    address immutable SIGNER_LIST_BASE = address(new SignerList());
+
+    // Events/errors to be tested here (duplicate)
+    error DaoUnauthorized(address dao, address where, address who, bytes32 permissionId);
+    error InvalidAddresslistUpdate(address member);
+
+    event MultisigSettingsUpdated(
+        bool onlyListed,
+        uint16 indexed minApprovals,
+        uint64 destinationProposalDuration,
+        SignerList signerList,
+        uint64 proposalExpirationPeriod
+    );
+
+    function setUp() public {
+        vm.startPrank(alice);
+
+        builder = new DaoBuilder();
+        (dao,, multisig,,, signerList,,) = builder.withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(
+            carol
+        ).withMultisigMember(david).build();
+    }
+
     modifier givenANewlyDeployedContract() {
         _;
     }
@@ -13,16 +49,93 @@ contract MultisigTest is Test {
     }
 
     function test_GivenCallingInitialize() external givenANewlyDeployedContract givenCallingInitialize {
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            signerList: signerList,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
+
         // It should initialize the first time
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+
         // It should refuse to initialize again
+        vm.expectRevert("Initializable: contract is already initialized");
+        multisig.initialize(dao, settings);
+
         // It should set the DAO address
+
+        assertEq((address(multisig.dao())), address(dao), "Incorrect dao");
+
         // It should set the minApprovals
+
+        (, uint16 minApprovals,,,) = multisig.multisigSettings();
+        assertEq(minApprovals, uint16(3), "Incorrect minApprovals");
+        settings.minApprovals = 1;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+        (, minApprovals,,,) = multisig.multisigSettings();
+        assertEq(minApprovals, uint16(1), "Incorrect minApprovals");
+
         // It should set onlyListed
-        // It should set signerList
+
+        (bool onlyListed,,,,) = multisig.multisigSettings();
+        assertEq(onlyListed, true, "Incorrect onlyListed");
+        settings.onlyListed = false;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+        (onlyListed,,,,) = multisig.multisigSettings();
+        assertEq(onlyListed, false, "Incorrect onlyListed");
+
         // It should set destinationProposalDuration
+
+        (,, uint64 destinationProposalDuration,,) = multisig.multisigSettings();
+        assertEq(destinationProposalDuration, 4 days, "Incorrect destinationProposalDuration");
+        settings.destinationProposalDuration = 3 days;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+        (,, destinationProposalDuration,,) = multisig.multisigSettings();
+        assertEq(destinationProposalDuration, 3 days, "Incorrect destinationProposalDuration");
+
+        // It should set signerList
+
+        (,,, Addresslist givenSignerList,) = multisig.multisigSettings();
+        assertEq(address(givenSignerList), address(signerList), "Incorrect addresslistSource");
+        (,,,,, signerList,,) = builder.build();
+        settings.signerList = signerList;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+        (,,, signerList,) = multisig.multisigSettings();
+        assertEq(address(signerList), address(settings.signerList), "Incorrect addresslistSource");
+
         // It should set proposalExpirationPeriod
+
+        (,,,, uint64 expirationPeriod) = multisig.multisigSettings();
+        assertEq(expirationPeriod, MULTISIG_PROPOSAL_EXPIRATION_PERIOD, "Incorrect expirationPeriod");
+        settings.proposalExpirationPeriod = 3 days;
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
+        (,,,, expirationPeriod) = multisig.multisigSettings();
+        assertEq(expirationPeriod, 3 days, "Incorrect expirationPeriod");
+
         // It should emit MultisigSettingsUpdated
-        vm.skip(true);
+
+        (,,,,, SignerList newSignerList,,) = builder.build();
+
+        settings = Multisig.MultisigSettings({
+            onlyListed: false,
+            minApprovals: 2,
+            destinationProposalDuration: 4 days,
+            signerList: newSignerList,
+            proposalExpirationPeriod: 15 days
+        });
+        vm.expectEmit();
+        emit MultisigSettingsUpdated(false, uint16(2), 4 days, newSignerList, 15 days);
+
+        multisig =
+            Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
     function test_RevertWhen_MinApprovalsIsGreaterThanSignerListLengthOnInitialize()

@@ -124,8 +124,8 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     event MultisigSettingsUpdated(
         bool onlyListed,
         uint16 indexed minApprovals,
-        SignerList signerList,
         uint64 destinationProposalDuration,
+        SignerList signerList,
         uint64 proposalExpirationPeriod
     );
 
