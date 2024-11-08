@@ -5,7 +5,12 @@ import {AragonTest} from "./base/AragonTest.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {EmergencyMultisig} from "../src/EmergencyMultisig.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
-import {SignerList, UPDATE_SIGNER_LIST_PERMISSION_ID} from "../src/SignerList.sol";
+import {
+    SignerList,
+    UPDATE_SIGNER_LIST_PERMISSION_ID,
+    UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID
+} from "../src/SignerList.sol";
+import {EncryptionRegistry} from "../src/EncryptionRegistry.sol";
 import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
@@ -18,11 +23,12 @@ import {IEmergencyMultisig} from "../src/interfaces/IEmergencyMultisig.sol";
 uint64 constant EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 
 contract EmergencyMultisigTest is AragonTest {
-    SignerList signerList;
     DaoBuilder builder;
     DAO dao;
     EmergencyMultisig eMultisig;
     OptimisticTokenVotingPlugin optimisticPlugin;
+    SignerList signerList;
+    EncryptionRegistry encryptionRegistry;
 
     address immutable SIGNER_LIST_BASE = address(new SignerList());
 
@@ -57,9 +63,8 @@ contract EmergencyMultisigTest is AragonTest {
         vm.roll(100);
 
         builder = new DaoBuilder();
-        (dao,,, eMultisig,, signerList,,) = builder.withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(
-            carol
-        ).withMultisigMember(david).withMinApprovals(3).build();
+        (dao,,, eMultisig,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice).withMultisigMember(bob)
+            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
     }
 
     modifier givenANewlyDeployedContract() {
@@ -897,7 +902,18 @@ contract EmergencyMultisigTest is AragonTest {
 
     function test_GivenOnlyListedIsFalse() external whenCallingCreateProposal {
         // It allows anyone to create
-        vm.skip(true);
+
+        // Deploy a new instance with custom settings
+        (dao, optimisticPlugin,, eMultisig,,,,) = builder.withoutOnlyListed().build();
+
+        vm.startPrank(randomWallet);
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(address(0x1234));
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(address(0x22345));
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
     }
 
     modifier givenOnlyListedIsTrue() {
@@ -910,7 +926,31 @@ contract EmergencyMultisigTest is AragonTest {
         givenOnlyListedIsTrue
     {
         // It reverts
-        vm.skip(true);
+
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 3));
+
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, randomWallet));
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        // 2
+        vm.startPrank(taikoBridge);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoBridge));
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        // It reverts if listed before but not now
+
+        vm.startPrank(alice);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        address[] memory addrs = new address[](1);
+        addrs[0] = alice;
+        signerList.removeSigners(addrs);
+
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, alice));
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsAppointedByAFormerSigner()
@@ -919,7 +959,26 @@ contract EmergencyMultisigTest is AragonTest {
         givenOnlyListedIsTrue
     {
         // It reverts
-        vm.skip(true);
+
+        encryptionRegistry.appointWallet(randomWallet);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 3));
+
+        address[] memory addrs = new address[](1);
+        addrs[0] = alice;
+        signerList.removeSigners(addrs);
+
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, randomWallet));
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
+
+        // Undo
+        vm.startPrank(alice);
+        signerList.addSigners(addrs);
+
+        vm.startPrank(randomWallet);
+        eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsListedAndSelfAppointed()
@@ -928,7 +987,18 @@ contract EmergencyMultisigTest is AragonTest {
         givenOnlyListedIsTrue
     {
         // It creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        eMultisig.createProposal("a", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(bob);
+        eMultisig.createProposal("b", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(carol);
+        eMultisig.createProposal("c", 0, 0, optimisticPlugin, true);
+
+        vm.startPrank(david);
+        eMultisig.createProposal("d", 0, 0, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsListedAppointingSomeoneElseNow()
@@ -937,7 +1007,22 @@ contract EmergencyMultisigTest is AragonTest {
         givenOnlyListedIsTrue
     {
         // It creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        encryptionRegistry.appointWallet(address(0x1234));
+        eMultisig.createProposal("a", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x2345));
+        eMultisig.createProposal("b", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(carol);
+        encryptionRegistry.appointWallet(address(0x3456));
+        eMultisig.createProposal("c", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(david);
+        encryptionRegistry.appointWallet(address(0x4567));
+        eMultisig.createProposal("d", 0, 0, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsAppointedByACurrentSigner()
@@ -946,33 +1031,134 @@ contract EmergencyMultisigTest is AragonTest {
         givenOnlyListedIsTrue
     {
         // It creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        encryptionRegistry.appointWallet(address(0x1234));
+        vm.startPrank(address(0x1234));
+        eMultisig.createProposal("a", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x2345));
+        vm.startPrank(address(0x2345));
+        eMultisig.createProposal("b", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(carol);
+        encryptionRegistry.appointWallet(address(0x3456));
+        vm.startPrank(address(0x3456));
+        eMultisig.createProposal("c", 0, 0, optimisticPlugin, false);
+
+        vm.startPrank(david);
+        encryptionRegistry.appointWallet(address(0x4567));
+        vm.startPrank(address(0x4567));
+        eMultisig.createProposal("d", 0, 0, optimisticPlugin, false);
     }
 
     function test_GivenApproveProposalIsTrue() external whenCallingCreateProposal {
+        uint256 pid;
+        uint256 approvals;
+
         // It creates and calls approval in one go
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        pid = eMultisig.createProposal("a", 0, 0, optimisticPlugin, true);
+        (, approvals,,,,,) = eMultisig.getProposal(pid);
+        assertEq(approvals, 1, "Should be 1");
+
+        vm.startPrank(bob);
+        pid = eMultisig.createProposal("b", 0, 0, optimisticPlugin, true);
+        (, approvals,,,,,) = eMultisig.getProposal(pid);
+        assertEq(approvals, 1, "Should be 1");
     }
 
     function test_GivenApproveProposalIsFalse() external whenCallingCreateProposal {
+        uint256 pid;
+        uint256 approvals;
+
         // It only creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        pid = eMultisig.createProposal("a", 0, 0, optimisticPlugin, true);
+        (, approvals,,,,,) = eMultisig.getProposal(pid);
+        assertEq(approvals, 1, "Should be 1");
+
+        vm.startPrank(bob);
+        pid = eMultisig.createProposal("b", 0, 0, optimisticPlugin, true);
+        (, approvals,,,,,) = eMultisig.getProposal(pid);
+        assertEq(approvals, 1, "Should be 1");
+
+        vm.startPrank(carol);
+        pid = eMultisig.createProposal("c", 0, 0, optimisticPlugin, false);
+        (, approvals,,,,,) = eMultisig.getProposal(pid);
+        assertEq(approvals, 0, "Should be 0");
+
+        vm.startPrank(david);
+        pid = eMultisig.createProposal("d", 0, 0, optimisticPlugin, false);
+        (, approvals,,,,,) = eMultisig.getProposal(pid);
+        assertEq(approvals, 0, "Should be 0");
     }
 
     function test_WhenCallingHashActions() external {
+        bytes32 hashedActions;
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It returns the right result
         // It reacts to any of the values changing
         // It same input produces the same output
-        vm.skip(true);
+
+        hashedActions = eMultisig.hashActions(actions);
+        assertEq(hashedActions, hex"569e75fc77c1a856f6daaf9e69d8a9566ca34aa47f9133711ce065a571af0cfd");
+
+        actions = new IDAO.Action[](1);
+        actions[0] = IDAO.Action(address(0), 0, bytes(string("")));
+        hashedActions = eMultisig.hashActions(actions);
+        assertEq(hashedActions, hex"7cde746dfbb8dfd7721b5995769f873e3ff50416302673a354990b553bb0e208");
+
+        actions = new IDAO.Action[](1);
+        actions[0] = IDAO.Action(bob, 1 ether, bytes(string("")));
+        hashedActions = eMultisig.hashActions(actions);
+        assertEq(hashedActions, hex"e212a57e4595f81151b46333ea31e2d5043b53bd562141e1efa1b2778cb3c208");
+
+        actions = new IDAO.Action[](2);
+        actions[0] = IDAO.Action(bob, 1 ether, bytes(string("")));
+        actions[1] = IDAO.Action(carol, 2 ether, bytes(string("data")));
+        hashedActions = eMultisig.hashActions(actions);
+        assertEq(hashedActions, hex"4be399aee320511a56f584fae21b92c78f47bff143ec3965b7d911776d39bc7d");
     }
 
     modifier givenTheProposalIsNotCreated() {
         _;
     }
 
-    function test_WhenCallingGetProposalBeingUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingGetProposalBeingUncreated() external view givenTheProposalIsNotCreated {
         // It should return empty values
-        vm.skip(true);
+        uint256 pid;
+        bool executed;
+        uint16 approvals;
+        EmergencyMultisig.ProposalParameters memory parameters;
+        bytes memory encryptedPayloadURI;
+        bytes32 publicMetadataUriHash;
+        bytes32 destinationActionsHash;
+        OptimisticTokenVotingPlugin destinationPlugin;
+
+        (
+            executed,
+            approvals,
+            parameters,
+            encryptedPayloadURI,
+            publicMetadataUriHash,
+            destinationActionsHash,
+            destinationPlugin
+        ) = eMultisig.getProposal(pid);
+
+        assertEq(executed, false, "Should be false");
+        assertEq(approvals, 0, "Should be 0");
+        assertEq(parameters.minApprovals, 0, "Incorrect minApprovals");
+        assertEq(parameters.snapshotBlock, 0, "Incorrect snapshotBlock");
+        assertEq(parameters.expirationDate, 0, "Incorrect expirationDate");
+        assertEq(encryptedPayloadURI, "", "Incorrect encryptedPayloadURI");
+        assertEq(publicMetadataUriHash, bytes32(0), "Incorrect publicMetadataUriHash");
+        assertEq(destinationActionsHash, bytes32(0), "Incorrect destinationActionsHash");
+        assertEq(address(destinationPlugin), address(0), "Incorrect destinationPlugin");
     }
 
     function test_WhenCallingCanApproveAndApproveBeingUncreated() external givenTheProposalIsNotCreated {
@@ -992,7 +1178,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingCanExecuteOrExecuteBeingUncreated() external givenTheProposalIsNotCreated {
         // It canExecute should always return false
         vm.skip(true);
     }
@@ -1025,7 +1211,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingCanExecuteOrExecuteBeingOpen() external givenTheProposalIsOpen {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
@@ -1059,7 +1245,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingCanExecuteOrExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when currently appointed by a signer listed on creation)
@@ -1093,14 +1279,14 @@ contract EmergencyMultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteWithModifiedDataBeingPassed() external givenTheProposalPassed {
+    function test_WhenCallingCanExecuteOrExecuteWithModifiedDataBeingPassed() external givenTheProposalPassed {
         // It execute should revert with modified metadata
         // It execute should revert with modified actions
         // It execute should work with matching data
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingPassed() external givenTheProposalPassed {
+    function test_WhenCallingCanExecuteOrExecuteBeingPassed() external givenTheProposalPassed {
         // It canExecute should return true, always
         // It execute should work, when called by anyone with the actions
         // It execute should emit an event, when called by anyone with the actions
@@ -1142,7 +1328,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingCanExecuteOrExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
@@ -1180,7 +1366,7 @@ contract EmergencyMultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingExpired() external givenTheProposalExpired {
+    function test_WhenCallingCanExecuteOrExecuteBeingExpired() external givenTheProposalExpired {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)

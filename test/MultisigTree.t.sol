@@ -5,7 +5,12 @@ import {AragonTest} from "./base/AragonTest.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
-import {SignerList, UPDATE_SIGNER_LIST_PERMISSION_ID} from "../src/SignerList.sol";
+import {
+    SignerList,
+    UPDATE_SIGNER_LIST_PERMISSION_ID,
+    UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID
+} from "../src/SignerList.sol";
+import {EncryptionRegistry} from "../src/EncryptionRegistry.sol";
 import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
@@ -18,11 +23,12 @@ import {IMultisig} from "../src/interfaces/IMultisig.sol";
 uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 
 contract MultisigTest is AragonTest {
-    SignerList signerList;
     DaoBuilder builder;
     DAO dao;
     Multisig multisig;
     OptimisticTokenVotingPlugin optimisticPlugin;
+    SignerList signerList;
+    EncryptionRegistry encryptionRegistry;
 
     address immutable SIGNER_LIST_BASE = address(new SignerList());
 
@@ -58,9 +64,8 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
 
         builder = new DaoBuilder();
-        (dao,, multisig,,, signerList,,) = builder.withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(
-            carol
-        ).withMultisigMember(david).withMinApprovals(3).build();
+        (dao,, multisig,,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice).withMultisigMember(bob)
+            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
     }
 
     modifier givenANewlyDeployedContract() {
@@ -894,7 +899,14 @@ contract MultisigTest is AragonTest {
 
     function test_GivenOnlyListedIsFalse() external whenCallingCreateProposal {
         // It allows anyone to create
-        vm.skip(true);
+
+        builder = new DaoBuilder();
+        (, optimisticPlugin, multisig,,,,,) = builder.withMultisigMember(alice).withoutOnlyListed().build();
+
+        vm.startPrank(randomWallet);
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        multisig.createProposal("", actions, optimisticPlugin, false);
     }
 
     modifier givenOnlyListedIsTrue() {
@@ -906,8 +918,34 @@ contract MultisigTest is AragonTest {
         whenCallingCreateProposal
         givenOnlyListedIsTrue
     {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It reverts
-        vm.skip(true);
+
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 3));
+
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, randomWallet));
+        multisig.createProposal("", actions, optimisticPlugin, false);
+
+        // 2
+        vm.startPrank(taikoBridge);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, taikoBridge));
+        multisig.createProposal("", actions, optimisticPlugin, false);
+
+        // It reverts if listed before but not now
+
+        vm.startPrank(alice);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        address[] memory addrs = new address[](1);
+        addrs[0] = alice;
+        signerList.removeSigners(addrs);
+
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, alice));
+        multisig.createProposal("", actions, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsAppointedByAFormerSigner()
@@ -915,8 +953,29 @@ contract MultisigTest is AragonTest {
         whenCallingCreateProposal
         givenOnlyListedIsTrue
     {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It reverts
-        vm.skip(true);
+
+        encryptionRegistry.appointWallet(randomWallet);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 3));
+
+        address[] memory addrs = new address[](1);
+        addrs[0] = alice;
+        signerList.removeSigners(addrs);
+
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, randomWallet));
+        multisig.createProposal("", actions, optimisticPlugin, false);
+
+        // Undo
+        vm.startPrank(alice);
+        signerList.addSigners(addrs);
+
+        vm.startPrank(randomWallet);
+        multisig.createProposal("", actions, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsListedAndSelfAppointed()
@@ -924,8 +983,21 @@ contract MultisigTest is AragonTest {
         whenCallingCreateProposal
         givenOnlyListedIsTrue
     {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        multisig.createProposal("a", actions, optimisticPlugin, false);
+
+        vm.startPrank(bob);
+        multisig.createProposal("b", actions, optimisticPlugin, false);
+
+        vm.startPrank(carol);
+        multisig.createProposal("c", actions, optimisticPlugin, false);
+
+        vm.startPrank(david);
+        multisig.createProposal("d", actions, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsListedAppointingSomeoneElseNow()
@@ -933,8 +1005,25 @@ contract MultisigTest is AragonTest {
         whenCallingCreateProposal
         givenOnlyListedIsTrue
     {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        encryptionRegistry.appointWallet(address(0x1234));
+        multisig.createProposal("a", actions, optimisticPlugin, false);
+
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x2345));
+        multisig.createProposal("b", actions, optimisticPlugin, false);
+
+        vm.startPrank(carol);
+        encryptionRegistry.appointWallet(address(0x3456));
+        multisig.createProposal("c", actions, optimisticPlugin, false);
+
+        vm.startPrank(david);
+        encryptionRegistry.appointWallet(address(0x4567));
+        multisig.createProposal("d", actions, optimisticPlugin, false);
     }
 
     function test_GivenCreationCallerIsAppointedByACurrentSigner()
@@ -942,27 +1031,92 @@ contract MultisigTest is AragonTest {
         whenCallingCreateProposal
         givenOnlyListedIsTrue
     {
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        encryptionRegistry.appointWallet(address(0x1234));
+        vm.startPrank(address(0x1234));
+        multisig.createProposal("a", actions, optimisticPlugin, false);
+
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(address(0x2345));
+        vm.startPrank(address(0x2345));
+        multisig.createProposal("b", actions, optimisticPlugin, false);
+
+        vm.startPrank(carol);
+        encryptionRegistry.appointWallet(address(0x3456));
+        vm.startPrank(address(0x3456));
+        multisig.createProposal("c", actions, optimisticPlugin, false);
+
+        vm.startPrank(david);
+        encryptionRegistry.appointWallet(address(0x4567));
+        vm.startPrank(address(0x4567));
+        multisig.createProposal("d", actions, optimisticPlugin, false);
     }
 
     function test_GivenApproveProposalIsTrue() external whenCallingCreateProposal {
+        uint256 pid;
+        uint256 approvals;
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It creates and calls approval in one go
-        vm.skip(true);
+
+        vm.startPrank(alice);
+        pid = multisig.createProposal("a", actions, optimisticPlugin, true);
+        (, approvals,,,,) = multisig.getProposal(pid);
+        assertEq(approvals, 1, "Should be 1");
+
+        vm.startPrank(bob);
+        pid = multisig.createProposal("b", actions, optimisticPlugin, true);
+        (, approvals,,,,) = multisig.getProposal(pid);
+        assertEq(approvals, 1, "Should be 1");
     }
 
     function test_GivenApproveProposalIsFalse() external whenCallingCreateProposal {
+        uint256 pid;
+        uint256 approvals;
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+
         // It only creates the proposal
-        vm.skip(true);
+
+        vm.startPrank(carol);
+        pid = multisig.createProposal("c", actions, optimisticPlugin, false);
+        (, approvals,,,,) = multisig.getProposal(pid);
+        assertEq(approvals, 0, "Should be 0");
+
+        vm.startPrank(david);
+        pid = multisig.createProposal("d", actions, optimisticPlugin, false);
+        (, approvals,,,,) = multisig.getProposal(pid);
+        assertEq(approvals, 0, "Should be 0");
     }
 
     modifier givenTheProposalIsNotCreated() {
         _;
     }
 
-    function test_WhenCallingGetProposalBeingUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingGetProposalBeingUncreated() external view givenTheProposalIsNotCreated {
         // It should return empty values
-        vm.skip(true);
+
+        uint256 pid;
+        bool executed;
+        uint16 approvals;
+        Multisig.ProposalParameters memory parameters;
+        bytes memory metadataURI;
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        OptimisticTokenVotingPlugin destinationPlugin;
+
+        (executed, approvals, parameters, metadataURI, actions, destinationPlugin) = multisig.getProposal(pid);
+
+        assertEq(executed, false, "Should be false");
+        assertEq(approvals, 0, "Should be 0");
+        assertEq(parameters.minApprovals, 0, "Incorrect minApprovals");
+        assertEq(parameters.snapshotBlock, 0, "Incorrect snapshotBlock");
+        assertEq(parameters.expirationDate, 0, "Incorrect expirationDate");
+        assertEq(metadataURI, "", "Incorrect metadataURI");
+        assertEq(actions.length, 0, "Incorrect actions.length");
+        assertEq(address(destinationPlugin), address(0), "Incorrect destinationPlugin");
     }
 
     function test_WhenCallingCanApproveAndApproveBeingUncreated() external givenTheProposalIsNotCreated {
@@ -982,7 +1136,7 @@ contract MultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingCanExecuteOrExecuteBeingUncreated() external givenTheProposalIsNotCreated {
         // It canExecute should return false (when currently listed and self appointed)
         // It execute should revert (when currently listed and self appointed)
         // It canExecute should return false (when currently listed, appointing someone else now)
@@ -1031,7 +1185,7 @@ contract MultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingCanExecuteOrExecuteBeingOpen() external givenTheProposalIsOpen {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
@@ -1065,7 +1219,7 @@ contract MultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingCanExecuteOrExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when currently appointed by a signer listed on creation)
@@ -1099,7 +1253,7 @@ contract MultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingPassed() external givenTheProposalPassed {
+    function test_WhenCallingCanExecuteOrExecuteBeingPassed() external givenTheProposalPassed {
         // It canExecute should return true, always
         // It execute should work, when called by anyone
         // It execute should emit an event, when called by anyone
@@ -1141,7 +1295,7 @@ contract MultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingCanExecuteOrExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
@@ -1179,7 +1333,7 @@ contract MultisigTest is AragonTest {
         vm.skip(true);
     }
 
-    function test_WhenCallingCanExecuteAndExecuteBeingExpired() external givenTheProposalExpired {
+    function test_WhenCallingCanExecuteOrExecuteBeingExpired() external givenTheProposalExpired {
         // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)

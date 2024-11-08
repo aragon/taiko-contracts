@@ -95,6 +95,7 @@ MultisigTest:
           - given: creation caller is not listed or appointed
             then:
               - it: reverts
+              - it: reverts if listed before but not now
           - given: creation caller is appointed by a former signer
             then:
               - it: reverts
@@ -123,7 +124,7 @@ MultisigTest:
         then:
           - it: should return empty values
       # Approval
-      - when: calling canApprove and approve [being uncreated]
+      - when: calling canApprove or approve [being uncreated]
         then:
           - it: canApprove should return false (when currently listed and self appointed)
           - it: approve should revert (when currently listed and self appointed)
@@ -138,7 +139,7 @@ MultisigTest:
         then:
           - it: hasApproved should always return false
       # Execution
-      - when: calling canExecute and execute [being uncreated]
+      - when: calling canExecute or execute [being uncreated]
         then:
           - it: canExecute should return false (when currently listed and self appointed)
           - it: execute should revert (when currently listed and self appointed)
@@ -156,7 +157,7 @@ MultisigTest:
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [being open]
+      - when: calling canApprove or approve [being open]
         then:
           - it: canApprove should return true (when listed on creation, self appointed now)
           - it: approve should work (when listed on creation, self appointed now)
@@ -183,7 +184,7 @@ MultisigTest:
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [being open]
+      - when: calling canExecute or execute [being open]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -201,7 +202,7 @@ MultisigTest:
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [being approved]
+      - when: calling canApprove or approve [being approved]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -216,7 +217,7 @@ MultisigTest:
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [being approved]
+      - when: calling canExecute or execute [being approved]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -234,7 +235,7 @@ MultisigTest:
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [being passed]
+      - when: calling canApprove or approve [being passed]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -249,7 +250,7 @@ MultisigTest:
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [being passed]
+      - when: calling canExecute or execute [being passed]
         then:
           - it: canExecute should return true, always
           - it: execute should work, when called by anyone
@@ -270,7 +271,7 @@ MultisigTest:
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [being executed]
+      - when: calling canApprove or approve [being executed]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -285,7 +286,7 @@ MultisigTest:
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [being executed]
+      - when: calling canExecute or execute [being executed]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -303,7 +304,7 @@ MultisigTest:
         then:
           - it: should return the right values
       # Approval
-      - when: calling canApprove and approve [being expired]
+      - when: calling canApprove or approve [being expired]
         then:
           - it: canApprove should return false (when listed on creation, self appointed now)
           - it: approve should revert (when listed on creation, self appointed now)
@@ -318,7 +319,7 @@ MultisigTest:
         then:
           - it: hasApproved should return false until approved
       # Execution
-      - when: calling canExecute and execute [being expired]
+      - when: calling canExecute or execute [being expired]
         then:
           - it: canExecute should return false (when listed on creation, self appointed now)
           - it: execute should revert (when listed on creation, self appointed now)
@@ -328,4 +329,3 @@ MultisigTest:
           - it: execute should revert (when currently appointed by a signer listed on creation)
           - it: canExecute should return false (when unlisted on creation, unappointed now)
           - it: execute should revert (when unlisted on creation, unappointed now)
-
