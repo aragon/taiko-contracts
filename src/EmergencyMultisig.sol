@@ -238,7 +238,8 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
         }
 
         // Register the approval as being made by the owner
-        address _owner = multisigSettings.signerList.getListedOwnerAtBlock(_sender, proposal_.parameters.snapshotBlock);
+        address _owner =
+            multisigSettings.signerList.getListedEncryptionOwnerAtBlock(_sender, proposal_.parameters.snapshotBlock);
         proposal_.approvers[_owner] = true;
 
         // We emit the event as the owner's approval
@@ -294,7 +295,8 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     /// @inheritdoc IEmergencyMultisig
     function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
-        address _owner = multisigSettings.signerList.getListedOwnerAtBlock(_account, proposal_.parameters.snapshotBlock);
+        address _owner =
+            multisigSettings.signerList.getListedEncryptionOwnerAtBlock(_account, proposal_.parameters.snapshotBlock);
 
         return proposals[_proposalId].approvers[_owner];
     }
@@ -356,7 +358,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
         // This internally calls `isListedAtBlock`.
         // If not listed or resolved, it returns address(0)
         (address _resolvedOwner, address _resolvedVoter) =
-            multisigSettings.signerList.resolveAccountAtBlock(_approver, proposal_.parameters.snapshotBlock);
+            multisigSettings.signerList.resolveEncryptionAccountAtBlock(_approver, proposal_.parameters.snapshotBlock);
         if (_resolvedOwner == address(0) || _resolvedVoter == address(0)) {
             // Not listedAtBlock() nor appointed by a listed owner
             return false;

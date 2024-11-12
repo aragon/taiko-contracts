@@ -44,6 +44,8 @@ contract SignerListTest is AragonTest {
         (dao,, multisig,,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice).withMultisigMember(bob)
             .withMultisigMember(carol).withMultisigMember(david).build();
 
+        vm.roll(block.number + 1);
+
         signers = new address[](4);
         signers[0] = alice;
         signers[1] = bob;
@@ -684,7 +686,7 @@ contract SignerListTest is AragonTest {
         vm.assertEq(signerList.isListedAtBlock(david, block.number - 1), false, "Should not be a signer");
     }
 
-    modifier whenCallingResolveEncryptionAccountStatus() {
+    modifier whenCallingIsListedOrAppointedByListed() {
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
 
@@ -704,57 +706,42 @@ contract SignerListTest is AragonTest {
         _;
     }
 
-    function test_GivenTheCallerIsAListedSigner() external whenCallingResolveEncryptionAccountStatus {
+    function test_GivenTheCallerIsAListedSigner() external whenCallingIsListedOrAppointedByListed {
         // 1
-        (bool ownerIsListed, bool appointed) = signerList.resolveEncryptionAccountStatus(alice);
+        bool listedOrAppointedByListed = signerList.isListedOrAppointedByListed(alice);
 
-        // It ownerIsListed should be true
-        assertEq(ownerIsListed, true, "The owner should be listed");
-
-        // It isAppointed should be false
-        assertEq(appointed, false, "Should not be appointed");
+        // It listedOrAppointedByListed should be true
+        assertEq(listedOrAppointedByListed, true, "listedOrAppointedByListed should be true");
 
         // 2
-        (ownerIsListed, appointed) = signerList.resolveEncryptionAccountStatus(bob);
+        listedOrAppointedByListed = signerList.isListedOrAppointedByListed(bob);
 
-        // It ownerIsListed should be true
-        assertEq(ownerIsListed, true, "The owner should be listed");
-
-        // It isAppointed should be false
-        assertEq(appointed, false, "Should not be appointed");
+        // It listedOrAppointedByListed should be true
+        assertEq(listedOrAppointedByListed, true, "listedOrAppointedByListed should be true");
     }
 
-    function test_GivenTheCallerIsAppointedByASigner() external whenCallingResolveEncryptionAccountStatus {
-        (bool ownerIsListed, bool appointed) = signerList.resolveEncryptionAccountStatus(david);
+    function test_GivenTheCallerIsAppointedByASigner() external whenCallingIsListedOrAppointedByListed {
+        bool listedOrAppointedByListed = signerList.isListedOrAppointedByListed(david);
 
-        // It ownerIsListed should be true
-        assertEq(ownerIsListed, true, "The owner should be listed");
-
-        // It isAppointed should be true
-        assertEq(appointed, true, "Should be appointed");
+        // It listedOrAppointedByListed should be true
+        assertEq(listedOrAppointedByListed, true, "listedOrAppointedByListed should be true");
     }
 
-    function test_GivenTheCallerIsNotListedOrAppointed() external whenCallingResolveEncryptionAccountStatus {
+    function test_GivenTheCallerIsNotListedOrAppointed() external whenCallingIsListedOrAppointedByListed {
         // 1
-        (bool ownerIsListed, bool appointed) = signerList.resolveEncryptionAccountStatus(carol);
+        bool listedOrAppointedByListed = signerList.isListedOrAppointedByListed(carol);
 
-        // It ownerIsListed should be false
-        assertEq(ownerIsListed, false, "The owner should be listed");
-
-        // It isAppointed should be false
-        assertEq(appointed, false, "Should be appointed");
+        // It listedOrAppointedByListed should be false
+        assertEq(listedOrAppointedByListed, false, "listedOrAppointedByListed should be false");
 
         // 2
-        (ownerIsListed, appointed) = signerList.resolveEncryptionAccountStatus(address(1234));
+        listedOrAppointedByListed = signerList.isListedOrAppointedByListed(address(1234));
 
-        // It ownerIsListed should be false
-        assertEq(ownerIsListed, false, "The owner should not be listed");
-
-        // It isAppointed should be false
-        assertEq(appointed, false, "Should not be appointed");
+        // It listedOrAppointedByListed should be false
+        assertEq(listedOrAppointedByListed, false, "listedOrAppointedByListed should be false");
     }
 
-    modifier whenCallingResolveEncryptionOwner() {
+    modifier whenCallingGetListedEncryptionOwnerAtBlock() {
         // Alice (owner) appoints address(0x1234)
         encryptionRegistry.appointWallet(address(0x1234));
 
@@ -776,55 +763,129 @@ contract SignerListTest is AragonTest {
 
     function test_WhenTheGivenAddressIsTheOwner()
         external
-        whenCallingResolveEncryptionOwner
+        whenCallingGetListedEncryptionOwnerAtBlock
         givenTheResolvedOwnerIsListedOnResolveEncryptionOwner
     {
         address resolvedOwner;
 
         // It should return the given address
-        resolvedOwner = signerList.resolveEncryptionOwner(alice);
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(alice, block.number - 1);
         assertEq(resolvedOwner, alice, "Should be alice");
 
-        resolvedOwner = signerList.resolveEncryptionOwner(bob);
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(bob, block.number - 1);
         assertEq(resolvedOwner, bob, "Should be bob");
 
-        resolvedOwner = signerList.resolveEncryptionOwner(carol);
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(carol, block.number - 1);
         assertEq(resolvedOwner, carol, "Should be carol");
 
-        resolvedOwner = signerList.resolveEncryptionOwner(david);
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(david, block.number - 1);
         assertEq(resolvedOwner, david, "Should be david");
     }
 
     function test_WhenTheGivenAddressIsAppointedByTheOwner()
         external
-        whenCallingResolveEncryptionOwner
+        whenCallingGetListedEncryptionOwnerAtBlock
         givenTheResolvedOwnerIsListedOnResolveEncryptionOwner
     {
         address resolvedOwner;
 
         // It should return the resolved owner
-        resolvedOwner = signerList.resolveEncryptionOwner(address(0x1234));
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x1234), block.number - 1);
         assertEq(resolvedOwner, alice, "Should be alice");
 
-        resolvedOwner = signerList.resolveEncryptionOwner(address(0x2345));
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x2345), block.number - 1);
         assertEq(resolvedOwner, bob, "Should be bob");
     }
 
     function test_GivenTheResolvedOwnerIsNotListedOnResolveEncryptionOwner()
         external
-        whenCallingResolveEncryptionOwner
+        whenCallingGetListedEncryptionOwnerAtBlock
     {
         address resolvedOwner;
 
         // It should return a zero value
-        resolvedOwner = signerList.resolveEncryptionOwner(address(0x3456));
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x3456), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be zero");
 
-        resolvedOwner = signerList.resolveEncryptionOwner(address(0x4567));
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x4567), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be zero");
     }
 
-    modifier whenCallingResolveEncryptionAccount() {
+    modifier givenTheResolvedOwnerWasListedOnResolveEncryptionOwner() {
+        // But not listed now
+        // Prior appointments are still in place
+
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        address[] memory mvSigners = new address[](4);
+        mvSigners[0] = address(0x5555);
+        mvSigners[1] = address(0x6666);
+        mvSigners[2] = address(0x7777);
+        mvSigners[3] = address(0x8888);
+        signerList.addSigners(mvSigners);
+
+        vm.roll(block.number + 1);
+
+        mvSigners[0] = alice;
+        mvSigners[1] = bob;
+        mvSigners[2] = carol;
+        mvSigners[3] = david;
+        signerList.removeSigners(mvSigners);
+
+        _;
+    }
+
+    function test_WhenTheGivenAddressIsTheOwner2()
+        external
+        whenCallingGetListedEncryptionOwnerAtBlock
+        givenTheResolvedOwnerWasListedOnResolveEncryptionOwner
+    {
+        address resolvedOwner;
+
+        // It should return the given address
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(alice, block.number - 1);
+        assertEq(resolvedOwner, alice, "Should be alice");
+
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(bob, block.number - 1);
+        assertEq(resolvedOwner, bob, "Should be bob");
+
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(carol, block.number - 1);
+        assertEq(resolvedOwner, carol, "Should be carol");
+
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(david, block.number - 1);
+        assertEq(resolvedOwner, david, "Should be david");
+    }
+
+    function test_WhenTheGivenAddressIsAppointedByTheOwner2()
+        external
+        whenCallingGetListedEncryptionOwnerAtBlock
+        givenTheResolvedOwnerWasListedOnResolveEncryptionOwner
+    {
+        address resolvedOwner;
+
+        // It should return the resolved owner
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x1234), block.number - 1);
+        assertEq(resolvedOwner, alice, "Should be alice");
+
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x2345), block.number - 1);
+        assertEq(resolvedOwner, bob, "Should be bob");
+    }
+
+    function test_GivenTheResolvedOwnerWasNotListedOnResolveEncryptionOwner()
+        external
+        whenCallingGetListedEncryptionOwnerAtBlock
+    {
+        address resolvedOwner;
+
+        // It should return a zero value
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x3456), block.number - 1);
+        assertEq(resolvedOwner, address(0), "Should be zero");
+
+        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x4567), block.number - 1);
+        assertEq(resolvedOwner, address(0), "Should be zero");
+    }
+
+    modifier whenCallingResolveEncryptionAccountAtBlock() {
         // Alice (owner) appoints address(0x1234)
         encryptionRegistry.appointWallet(address(0x1234));
 
@@ -844,108 +905,178 @@ contract SignerListTest is AragonTest {
         _;
     }
 
-    function test_WhenTheGivenAddressIsAppointed()
+    function test_WhenTheGivenAddressIsOwner()
         external
-        whenCallingResolveEncryptionAccount
+        whenCallingResolveEncryptionAccountAtBlock
         givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
     {
         address resolvedOwner;
-        address appointedWallet;
-
-        // It owner should be the resolved owner
-        // It appointedWallet should be the given address
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x1234));
-        assertEq(resolvedOwner, alice, "Should be alice");
-        assertEq(appointedWallet, address(0x1234), "Should be 0x1234");
-
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x2345));
-        assertEq(resolvedOwner, bob, "Should be bob");
-        assertEq(appointedWallet, address(0x2345), "Should be 0x2345");
-    }
-
-    function test_WhenTheGivenAddressIsNotAppointed()
-        external
-        whenCallingResolveEncryptionAccount
-        givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
-    {
-        address resolvedOwner;
-        address appointedWallet;
+        address votingWallet;
 
         // 1 - owner appoints
 
         // It owner should be the given address
-        // It appointedWallet should be the resolved appointed wallet
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(alice);
+        // It votingWallet should be the resolved appointed wallet
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(alice, block.number - 1);
         assertEq(resolvedOwner, alice, "Should be alice");
-        assertEq(appointedWallet, address(0x1234), "Should be 0x1234");
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x1234));
-        assertEq(resolvedOwner, alice, "Should be alice");
-        assertEq(appointedWallet, address(0x1234), "Should be 0x1234");
+        assertEq(votingWallet, address(0x1234), "Should be 0x1234");
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(bob);
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(bob, block.number - 1);
         assertEq(resolvedOwner, bob, "Should be bob");
-        assertEq(appointedWallet, address(0x2345), "Should be 0x2345");
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x2345));
-        assertEq(resolvedOwner, bob, "Should be bob");
-        assertEq(appointedWallet, address(0x2345), "Should be 0x2345");
+        assertEq(votingWallet, address(0x2345), "Should be 0x2345");
 
         // 2 - No appointed wallet
 
         // It owner should be the given address
-        // It appointedWallet should be the resolved appointed wallet
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(carol);
+        // It votingWallet should be the resolved appointed wallet
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(carol, block.number - 1);
         assertEq(resolvedOwner, carol, "Should be carol");
-        assertEq(appointedWallet, carol, "Should be carol");
+        assertEq(votingWallet, carol, "Should be carol");
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(david);
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(david, block.number - 1);
         assertEq(resolvedOwner, david, "Should be david");
-        assertEq(appointedWallet, david, "Should be david");
+        assertEq(votingWallet, david, "Should be david");
+    }
+
+    function test_WhenTheGivenAddressIsAppointed()
+        external
+        whenCallingResolveEncryptionAccountAtBlock
+        givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
+    {
+        address resolvedOwner;
+        address votingWallet;
+
+        // It owner should be the resolved owner
+        // It votingWallet should be the given address
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x1234), block.number - 1);
+        assertEq(resolvedOwner, alice, "Should be alice");
+        assertEq(votingWallet, address(0x1234), "Should be 0x1234");
+
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x2345), block.number - 1);
+        assertEq(resolvedOwner, bob, "Should be bob");
+        assertEq(votingWallet, address(0x2345), "Should be 0x2345");
     }
 
     function test_GivenTheResolvedOwnerIsNotListedOnResolveEncryptionAccount()
         external
-        whenCallingResolveEncryptionAccount
+        whenCallingResolveEncryptionAccountAtBlock
     {
         address resolvedOwner;
-        address appointedWallet;
+        address votingWallet;
 
         // It should return a zero owner
-        // It should return a zero appointedWallet
+        // It should return a zero votingWallet
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0));
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(appointedWallet, address(0), "Should be 0");
+        assertEq(votingWallet, address(0), "Should be 0");
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x5555));
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x5555), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(appointedWallet, address(0), "Should be 0");
+        assertEq(votingWallet, address(0), "Should be 0");
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0xaaaa));
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0xaaaa), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(appointedWallet, address(0), "Should be 0");
+        assertEq(votingWallet, address(0), "Should be 0");
+    }
 
-        // Formerly a signer
-        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+    modifier givenTheResolvedOwnerWasListedOnResolveEncryptionAccount() {
+        // But not listed now
+        // Prior appointments are still in place
+
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
-        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
 
-        // Remove Bob (appointed 0x2345) and David
-        address[] memory rmSigners = new address[](2);
-        rmSigners[0] = bob;
-        rmSigners[1] = david;
-        signerList.removeSigners(rmSigners);
+        address[] memory mvSigners = new address[](4);
+        mvSigners[0] = address(0x5555);
+        mvSigners[1] = address(0x6666);
+        mvSigners[2] = address(0x7777);
+        mvSigners[3] = address(0x8888);
+        signerList.addSigners(mvSigners);
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(bob);
+        vm.roll(block.number + 1);
+
+        mvSigners[0] = alice;
+        mvSigners[1] = bob;
+        mvSigners[2] = carol;
+        mvSigners[3] = david;
+        signerList.removeSigners(mvSigners);
+
+        _;
+    }
+
+    function test_WhenTheGivenAddressIsOwner2()
+        external
+        whenCallingResolveEncryptionAccountAtBlock
+        givenTheResolvedOwnerWasListedOnResolveEncryptionAccount
+    {
+        address resolvedOwner;
+        address votingWallet;
+
+        // 1 - owner appoints
+
+        // It owner should be the given address
+        // It votingWallet should be the resolved appointed wallet
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(alice, block.number - 1);
+        assertEq(resolvedOwner, alice, "Should be alice");
+        assertEq(votingWallet, address(0x1234), "Should be 0x1234");
+
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(bob, block.number - 1);
+        assertEq(resolvedOwner, bob, "Should be bob");
+        assertEq(votingWallet, address(0x2345), "Should be 0x2345");
+
+        // 2 - No appointed wallet
+
+        // It owner should be the given address
+        // It votingWallet should be the resolved appointed wallet
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(carol, block.number - 1);
+        assertEq(resolvedOwner, carol, "Should be carol");
+        assertEq(votingWallet, carol, "Should be carol");
+
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(david, block.number - 1);
+        assertEq(resolvedOwner, david, "Should be david");
+        assertEq(votingWallet, david, "Should be david");
+    }
+
+    function test_WhenTheGivenAddressIsAppointed2()
+        external
+        whenCallingResolveEncryptionAccountAtBlock
+        givenTheResolvedOwnerWasListedOnResolveEncryptionAccount
+    {
+        address resolvedOwner;
+        address votingWallet;
+
+        // It owner should be the resolved owner
+        // It votingWallet should be the given address
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x1234), block.number - 1);
+        assertEq(resolvedOwner, alice, "Should be alice");
+        assertEq(votingWallet, address(0x1234), "Should be 0x1234");
+
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x2345), block.number - 1);
+        assertEq(resolvedOwner, bob, "Should be bob");
+        assertEq(votingWallet, address(0x2345), "Should be 0x2345");
+    }
+
+    function test_GivenTheResolvedOwnerWasNotListedOnResolveEncryptionAccount()
+        external
+        whenCallingResolveEncryptionAccountAtBlock
+    {
+        address resolvedOwner;
+        address votingWallet;
+
+        // It should return a zero owner
+        // It should return a zero votingWallet
+
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(appointedWallet, address(0), "Should be 0");
+        assertEq(votingWallet, address(0), "Should be 0");
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(address(0x2345));
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x5555), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(appointedWallet, address(0), "Should be 0");
+        assertEq(votingWallet, address(0), "Should be 0");
 
-        (resolvedOwner, appointedWallet) = signerList.resolveEncryptionAccount(david);
+        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0xaaaa), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(appointedWallet, address(0), "Should be 0");
+        assertEq(votingWallet, address(0), "Should be 0");
     }
 
     modifier whenCallingGetEncryptionRecipients() {

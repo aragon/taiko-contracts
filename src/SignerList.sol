@@ -114,7 +114,11 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function getListedOwnerAtBlock(address _address, uint256 _blockNumber) public view returns (address _owner) {
+    function getListedEncryptionOwnerAtBlock(address _address, uint256 _blockNumber)
+        public
+        view
+        returns (address _owner)
+    {
         if (isListedAtBlock(_address, _blockNumber)) {
             return _address;
         }
@@ -127,7 +131,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function resolveAccountAtBlock(address _address, uint256 _blockNumber)
+    function resolveEncryptionAccountAtBlock(address _address, uint256 _blockNumber)
         public
         view
         returns (address _owner, address _voter)

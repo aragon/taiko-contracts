@@ -108,24 +108,21 @@ SignerListTest:
               - it: returns false
 
   # Encryption getters
-  - when: calling resolveEncryptionAccountStatus
+  - when: calling isListedOrAppointedByListed
     and:
       - given: the caller is a listed signer
         then:
-          - it: ownerIsListed should be true
-          - it: isAppointed should be false
+          - it: listedOrAppointedByListed should be true
       - given: the caller is appointed by a signer
         then:
-          - it: ownerIsListed should be true
-          - it: isAppointed should be true
+          - it: listedOrAppointedByListed should be true
       - given: the caller is not listed or appointed
         then:
-          - it: ownerIsListed should be false
-          - it: isAppointed should be false
+          - it: listedOrAppointedByListed should be false
 
-  - when: calling resolveEncryptionOwner
+  - when: calling getListedEncryptionOwnerAtBlock
     and:
-      - given: the resolved owner is listed [on resolveEncryptionOwner]
+      - given: the resolved owner is listed [on getListedEncryptionOwnerAtBlock]
         and:
           - when: the given address is the owner
             then:
@@ -134,24 +131,44 @@ SignerListTest:
             then:
               - it: should return the resolved owner
 
-      - given: the resolved owner is not listed [on resolveEncryptionOwner]
+      - given: the resolved owner was listed [on getListedEncryptionOwnerAtBlock]
+        and:
+          - when: the given address is the owner 2
+            then:
+              - it: should return the given address
+          - when: the given address is appointed by the owner 2
+            then:
+              - it: should return the resolved owner
+
+      - given: the resolved owner is not listed [on getListedEncryptionOwnerAtBlock]
         then:
           - it: should return a zero value
 
-  - when: calling resolveEncryptionAccount
+  - when: calling resolveEncryptionAccountAtBlock
     and:
-      - given: the resolved owner is listed [on resolveEncryptionAccount]
+      - given: the resolved owner is listed [on resolveEncryptionAccountAtBlock]
         and:
+          - when: the given address is owner
+            then:
+              - it: owner should be itself
+              - it: votingWallet should be the appointed address
           - when: the given address is appointed
             then:
               - it: owner should be the resolved owner
-              - it: appointedWallet should be the given address
-          - when: the given address is not appointed
-            then:
-              - it: owner should be the given address
-              - it: appointedWallet should be the resolved appointed wallet
+              - it: votingWallet should be the given address
 
-      - given: the resolved owner is not listed [on resolveEncryptionAccount]
+      - given: the resolved owner was listed [on resolveEncryptionAccountAtBlock]
+        and:
+          - when: the given address is owner 2
+            then:
+              - it: owner should be itself
+              - it: votingWallet should be the appointed address
+          - when: the given address is appointed 2
+            then:
+              - it: owner should be the resolved owner
+              - it: votingWallet should be the given address
+
+      - given: the resolved owner is not listed [on resolveEncryptionAccountAtBlock]
         then:
           - it: should return a zero owner
           - it: should return a zero appointedWallet

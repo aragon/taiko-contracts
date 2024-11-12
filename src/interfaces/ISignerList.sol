@@ -28,12 +28,12 @@ interface ISignerList {
     /// @param sender The address to check within the list of signers or the appointed accounts.
     /// @param blockNumber The block at which the list should be checked
     /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    function getListedOwnerAtBlock(address sender, uint256 blockNumber) external returns (address owner);
+    function getListedEncryptionOwnerAtBlock(address sender, uint256 blockNumber) external returns (address owner);
 
     /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
     /// @return owner If listed and resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
     /// @return voter If listed and resolved, it contains the wallet address appointed for decryption, if any. Returns address(0) otherwise.
-    function resolveAccountAtBlock(address sender, uint256 _blockNumber)
+    function resolveEncryptionAccountAtBlock(address sender, uint256 _blockNumber)
         external
         returns (address owner, address voter);
 
