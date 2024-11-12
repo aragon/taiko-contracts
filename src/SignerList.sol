@@ -103,48 +103,60 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function resolveEncryptionAccountStatus(address _address)
+    function isListedOrAppointedByListed(address _address) public view returns (bool listedOrAppointedByListed) {
+        if (isListed(_address)) {
+            return true;
+        } else if (isListed(settings.encryptionRegistry.appointedBy(_address))) {
+            return true;
+        }
+
+        // Not found, return blank (false)
+    }
+
+    /// @inheritdoc ISignerList
+    function getCurrentOwner(address _address) public view returns (address _owner) {
+        if (isListed(_address)) {
+            return _address;
+        }
+        address _appointer = settings.encryptionRegistry.appointedBy(_address);
+        if (isListed(_appointer)) {
+            return _appointer;
+        }
+
+        // Not found, return a blank address
+    }
+
+    /// @inheritdoc ISignerList
+    function getOwnerAtBlock(address _address, uint256 _blockNumber) public view returns (address _owner) {
+        if (isListedAtBlock(_address, _blockNumber)) {
+            return _address;
+        }
+        address _appointer = settings.encryptionRegistry.appointedBy(_address);
+        if (isListedAtBlock(_appointer, _blockNumber)) {
+            return _appointer;
+        }
+
+        // Not found, return a blank address
+    }
+
+    /// @inheritdoc ISignerList
+    function resolveAccountAtBlock(address _address, uint256 _blockNumber)
         public
         view
-        returns (bool ownerIsListed, bool isAppointed)
+        returns (address _owner, address _voter)
     {
-        if (this.isListed(_address)) {
-            ownerIsListed = true;
-        } else if (this.isListed(settings.encryptionRegistry.appointedBy(_address))) {
-            ownerIsListed = true;
-            isAppointed = true;
+        if (isListedAtBlock(_address, _blockNumber)) {
+            // The owner + the voter
+            return (_address, settings.encryptionRegistry.getAppointedWallet(_address));
         }
 
-        // Not found, return blank values
-    }
-
-    /// @inheritdoc ISignerList
-    function resolveEncryptionOwner(address _address) public view returns (address owner) {
-        (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_address);
-
-        if (!ownerIsListed) {
-            return address(0);
-        } else if (isAppointed) {
-            return settings.encryptionRegistry.appointedBy(_address);
-        }
-        return _address;
-    }
-
-    /// @inheritdoc ISignerList
-    function resolveEncryptionAccount(address _address) public view returns (address owner, address appointedWallet) {
-        (bool ownerIsListed, bool isAppointed) = resolveEncryptionAccountStatus(_address);
-
-        if (ownerIsListed) {
-            if (isAppointed) {
-                owner = settings.encryptionRegistry.appointedBy(_address);
-                appointedWallet = _address;
-            } else {
-                owner = _address;
-                appointedWallet = settings.encryptionRegistry.getAppointedWallet(_address);
-            }
+        address _appointer = settings.encryptionRegistry.appointedBy(_address);
+        if (this.isListedAtBlock(_appointer, _blockNumber)) {
+            // The appointed wallet votes
+            return (_appointer, _address);
         }
 
-        // Not found, return blank values
+        // Not found, returning empty addresses
     }
 
     /// @inheritdoc ISignerList

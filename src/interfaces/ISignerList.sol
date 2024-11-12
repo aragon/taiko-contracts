@@ -19,25 +19,29 @@ interface ISignerList {
     /// @param signers The addresses of the signers to be removed.
     function removeSigners(address[] calldata signers) external;
 
+    /// @notice Given an address, determines whether it is a listed signer or a wallet appointed by a listed owner.
+    /// @dev NOTE: This function will only resolve based on the current state. Do not use it as an alias of `isListedAtBock()`.
+    /// @return listedOrAppointedByListed If resolved, whether the given address is currently listed as a member. False otherwise.
+    function isListedOrAppointedByListed(address _address) external returns (bool listedOrAppointedByListed);
+
     /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
     /// @dev NOTE: This function will only resolve based on the current state. Do not use it as an alias of `isListedAtBock()`.
-    /// @return ownerIsListed If resolved, whether the given address is currently listed as a member. False otherwise.
-    /// @return isAppointed If resolved, whether the given address is appointed by the owner. False otherwise.
-    function resolveEncryptionAccountStatus(address _sender)
+    /// @param sender The address to check within the list of signers or the appointed accounts.
+    /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
+    function getCurrentOwner(address sender) external returns (address owner);
+
+    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
+    /// @param sender The address to check within the list of signers or the appointed accounts.
+    /// @param blockNumber The block at which the list should be checked
+    /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
+    function getOwnerAtBlock(address sender, uint256 blockNumber) external returns (address owner);
+
+    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
+    /// @return owner If listed and resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
+    /// @return voter If listed and resolved, it contains the wallet address appointed for decryption, if any. Returns address(0) otherwise.
+    function resolveAccountAtBlock(address sender, uint256 _blockNumber)
         external
-        view
-        returns (bool ownerIsListed, bool isAppointed);
-
-    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
-    /// @dev NOTE: This function will only resolve based on the current state. Do not use it as an alias of `isListedAtBock()`.
-    /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    function resolveEncryptionOwner(address _sender) external view returns (address owner);
-
-    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
-    /// @dev NOTE: This function will only resolve based on the current state. Do not use it as an alias of `isListedAtBock()`.
-    /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    /// @return appointedWallet If resolved, it contains the wallet address appointed for decryption, if any. Returns address(0) otherwise.
-    function resolveEncryptionAccount(address sender) external view returns (address owner, address appointedWallet);
+        returns (address owner, address voter);
 
     /// @notice Among the SignerList's members registered on the EncryptionRegistry, return the effective address they use for encryption
     function getEncryptionRecipients() external view returns (address[] memory);

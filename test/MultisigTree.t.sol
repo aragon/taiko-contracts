@@ -64,8 +64,8 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
 
         builder = new DaoBuilder();
-        (dao,, multisig,,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice).withMultisigMember(bob)
-            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
+        (dao, optimisticPlugin, multisig,,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice)
+            .withMultisigMember(bob).withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
     }
 
     modifier givenANewlyDeployedContract() {
@@ -1253,11 +1253,13 @@ contract MultisigTest is AragonTest {
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
+        actions[0].value = 0;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
 
         // Remove (later)
@@ -1429,11 +1431,13 @@ contract MultisigTest is AragonTest {
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
+        actions[0].value = 0;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
 
         // Remove (later)
@@ -1489,11 +1493,13 @@ contract MultisigTest is AragonTest {
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
+        actions[0].value = 0;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
 
         // Remove (later)
@@ -1504,9 +1510,6 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
         signerList.removeSigners(addrs);
 
-        multisig.approve(pid, false);
-
-        vm.startPrank(bob);
         multisig.approve(pid, false);
 
         vm.startPrank(randomWallet);
@@ -1520,7 +1523,6 @@ contract MultisigTest is AragonTest {
     function test_WhenCallingGetProposalBeingPassed() external givenTheProposalPassed {
         // It should return the right values
         vm.skip(true);
-
 
         // dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
         // dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
@@ -1536,11 +1538,13 @@ contract MultisigTest is AragonTest {
 
         // // 0x1234: unlisted and unappointed on creation
 
-        // // Create proposal
+        // vm.deal(address(dao), 1 ether);
+        // 
+        // Create proposal
         // IDAO.Action[] memory actions = new IDAO.Action[](1);
-        // actions[0].value = 1 ether;
+        // actions[0].value = 0;
         // actions[0].to = address(bob);
-        // actions[0].data = hex"00112233";
+        // actions[0].data = hex"";
         // bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         // bytes32 actionsHash = eMultisig.hashActions(actions);
         // eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
@@ -1610,11 +1614,13 @@ contract MultisigTest is AragonTest {
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
+        actions[0].value = 0;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
 
         // Remove (later)
@@ -1627,10 +1633,10 @@ contract MultisigTest is AragonTest {
 
         multisig.approve(pid, false);
 
-        vm.startPrank(bob);
+        vm.startPrank(randomWallet);
         multisig.approve(pid, false);
 
-        vm.startPrank(randomWallet);
+        vm.startPrank(carol);
         multisig.approve(pid, false);
 
         multisig.execute(pid);
@@ -1643,7 +1649,6 @@ contract MultisigTest is AragonTest {
     function test_WhenCallingGetProposalBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It should return the right values
         vm.skip(true);
-
 
         // (
         //     executed,
@@ -1665,7 +1670,6 @@ contract MultisigTest is AragonTest {
         // assertEq(publicMetadataUriHash, metadataUriHash);
         // assertEq(destinationActionsHash, actionsHash);
         // assertEq(address(destinationPlugin), address(newOptimisticPlugin));
-
     }
 
     function test_WhenCallingCanApproveAndApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
@@ -1711,11 +1715,13 @@ contract MultisigTest is AragonTest {
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 1 ether;
+        actions[0].value = 0;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
 
         // Remove (later)
@@ -1726,9 +1732,6 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
         signerList.removeSigners(addrs);
 
-        multisig.approve(pid, false);
-
-        vm.startPrank(bob);
         multisig.approve(pid, false);
 
         vm.startPrank(randomWallet);

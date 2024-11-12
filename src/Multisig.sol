@@ -175,10 +175,10 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
         bool _approveProposal
     ) external returns (uint256 proposalId) {
         if (multisigSettings.onlyListed) {
-            (bool ownerIsListed,) = multisigSettings.signerList.resolveEncryptionAccountStatus(msg.sender);
+            bool _listedOrAppointedByListed = multisigSettings.signerList.isListedOrAppointedByListed(msg.sender);
 
             // Only the account or its appointed address may create proposals
-            if (!ownerIsListed) {
+            if (!_listedOrAppointedByListed) {
                 revert ProposalCreationForbidden(msg.sender);
             }
         }
@@ -241,10 +241,11 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
             proposal_.approvals += 1;
         }
 
-        // Register the approval as being made by the owner, the one who isListed() relates to
-        address _owner = multisigSettings.signerList.resolveEncryptionOwner(_sender);
+        // Register the approval as being made by the owner. isListedAtBlock() relates to it
+        address _owner = multisigSettings.signerList.getOwnerAtBlock(_sender, proposal_.parameters.snapshotBlock);
         proposal_.approvers[_owner] = true;
 
+        // We emit the event as the owner's approval
         emit Approved({proposalId: _proposalId, approver: _owner});
 
         if (_tryExecution && _canExecute(_proposalId)) {
@@ -294,7 +295,7 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
 
     /// @inheritdoc IMultisig
     function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
-        address _owner = multisigSettings.signerList.resolveEncryptionOwner(_account);
+        address _owner = multisigSettings.signerList.getCurrentOwner(_account);
 
         return proposals[_proposalId].approvers[_owner];
     }
@@ -336,24 +337,19 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
             return false;
         }
 
-        (address _owner, address _appointedWallet) = multisigSettings.signerList.resolveEncryptionAccount(_approver);
-
-        if (_owner == address(0)) {
-            // Not resolved
+        // This internally calls `isListedAtBlock`.
+        // If not listed or resolved, it returns address(0)
+        (address _resolvedOwner, address _resolvedVoter) =
+            multisigSettings.signerList.resolveAccountAtBlock(_approver, proposal_.parameters.snapshotBlock);
+        if (_resolvedOwner == address(0) || _resolvedVoter == address(0)) {
+            // Not listedAtBlock() nor appointed by a listed owner
             return false;
-        } else if (!multisigSettings.signerList.isListedAtBlock(_owner, proposal_.parameters.snapshotBlock)) {
-            // The owner account had no voting power
+        } else if (_approver != _resolvedVoter) {
+            // Only the voter account can vote (owners who appointed, can't)
             return false;
         }
-        // If there is an appointed wallet, only that wallet can approve
-        else if (_appointedWallet != address(0)) {
-            // Someone else is appointed
-            if (_approver != _appointedWallet) return false;
-        }
 
-        // If _appointedWallet == address(0), then _owner == _approver. No need to check.
-
-        if (proposal_.approvers[_owner]) {
+        if (proposal_.approvers[_resolvedOwner]) {
             // The account already approved
             return false;
         }

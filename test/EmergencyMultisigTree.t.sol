@@ -63,8 +63,10 @@ contract EmergencyMultisigTest is AragonTest {
         vm.roll(100);
 
         builder = new DaoBuilder();
-        (dao,,, eMultisig,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice).withMultisigMember(bob)
-            .withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
+        (dao, optimisticPlugin,, eMultisig,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice)
+            .withMultisigMember(bob).withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).withMinDuration(
+            0
+        ).build();
     }
 
     modifier givenANewlyDeployedContract() {
@@ -1274,11 +1276,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         bytes32 actionsHash = eMultisig.hashActions(actions);
         eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
@@ -1378,15 +1382,17 @@ contract EmergencyMultisigTest is AragonTest {
 
         OptimisticTokenVotingPlugin newOptimisticPlugin;
         (dao, newOptimisticPlugin,, eMultisig,,,,) = builder.build();
+        
         vm.deal(address(dao), 1 ether);
 
         {
             bytes32 metadataUriHash = keccak256("ipfs://another-public-metadata");
 
+
             IDAO.Action[] memory actions = new IDAO.Action[](1);
             actions[0].value = 1 ether;
             actions[0].to = alice;
-            actions[0].data = hex"00112233";
+            actions[0].data = hex"";
             bytes32 actionsHash = eMultisig.hashActions(actions);
             eMultisig.createProposal("ipfs://12340000", metadataUriHash, actionsHash, newOptimisticPlugin, true);
 
@@ -1508,11 +1514,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         bytes32 actionsHash = eMultisig.hashActions(actions);
         eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
@@ -1535,7 +1543,7 @@ contract EmergencyMultisigTest is AragonTest {
         // It should return the right values
         vm.skip(true);
 
-        // vm.startPrank(bob);
+        // vm.startPrank(randomWallet); // Appointed by Bob
         // eMultisig.approve(pid);
         // vm.startPrank(carol);
         // eMultisig.approve(pid);
@@ -1602,11 +1610,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         bytes32 actionsHash = eMultisig.hashActions(actions);
         uint256 pid =
@@ -1621,9 +1631,6 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(alice);
         signerList.removeSigners(addrs);
 
-        eMultisig.approve(pid);
-
-        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         vm.startPrank(randomWallet);
@@ -1652,11 +1659,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // // 0x1234: unlisted and unappointed on creation
 
-        // // Create proposal
+        // vm.deal(address(dao), 1 ether);//
+
+        // Create proposal
         // IDAO.Action[] memory actions = new IDAO.Action[](1);
         // actions[0].value = 1 ether;
         // actions[0].to = address(bob);
-        // actions[0].data = hex"00112233";
+        // actions[0].data = hex"";
         // bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         // bytes32 actionsHash = eMultisig.hashActions(actions);
         // eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
@@ -1670,9 +1679,6 @@ contract EmergencyMultisigTest is AragonTest {
         // vm.startPrank(alice);
         // signerList.removeSigners(addrs);
 
-        // eMultisig.approve(0);
-
-        // vm.startPrank(bob);
         // eMultisig.approve(0);
 
         // vm.startPrank(randomWallet);
@@ -1734,11 +1740,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         bytes32 actionsHash = eMultisig.hashActions(actions);
         uint256 pid =
@@ -1755,10 +1763,10 @@ contract EmergencyMultisigTest is AragonTest {
 
         eMultisig.approve(pid);
 
-        vm.startPrank(bob);
+        vm.startPrank(randomWallet);
         eMultisig.approve(pid);
 
-        vm.startPrank(randomWallet);
+        vm.startPrank(carol);
         eMultisig.approve(pid);
 
         eMultisig.execute(pid, "ipfs://the-metadata", actions);
@@ -1838,11 +1846,13 @@ contract EmergencyMultisigTest is AragonTest {
 
         // 0x1234: unlisted and unappointed on creation
 
+        vm.deal(address(dao), 1 ether);
+
         // Create proposal
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0].value = 1 ether;
         actions[0].to = address(bob);
-        actions[0].data = hex"00112233";
+        actions[0].data = hex"";
         bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
         bytes32 actionsHash = eMultisig.hashActions(actions);
         uint256 pid =
@@ -1857,9 +1867,6 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(alice);
         signerList.removeSigners(addrs);
 
-        eMultisig.approve(pid);
-
-        vm.startPrank(bob);
         eMultisig.approve(pid);
 
         vm.startPrank(randomWallet);
