@@ -242,7 +242,7 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
         }
 
         // Register the approval as being made by the owner. isListedAtBlock() relates to it
-        address _owner = multisigSettings.signerList.getOwnerAtBlock(_sender, proposal_.parameters.snapshotBlock);
+        address _owner = multisigSettings.signerList.getListedOwnerAtBlock(_sender, proposal_.parameters.snapshotBlock);
         proposal_.approvers[_owner] = true;
 
         // We emit the event as the owner's approval
@@ -295,7 +295,8 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
 
     /// @inheritdoc IMultisig
     function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
-        address _owner = multisigSettings.signerList.getCurrentOwner(_account);
+        Proposal storage proposal_ = proposals[_proposalId];
+        address _owner = multisigSettings.signerList.getListedOwnerAtBlock(_account, proposal_.parameters.snapshotBlock);
 
         return proposals[_proposalId].approvers[_owner];
     }

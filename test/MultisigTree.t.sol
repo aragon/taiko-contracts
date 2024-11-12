@@ -1362,7 +1362,7 @@ contract MultisigTest is AragonTest {
         uint256 pid = multisig.createProposal("", actions, optimisticPlugin, false);
 
         // ko
-        if (randomWallet != alice) {
+        if (randomWallet != alice && randomWallet != bob && randomWallet != carol && randomWallet != david) {
             assertEq(multisig.canApprove(pid, randomWallet), false, "Should be false");
         }
 

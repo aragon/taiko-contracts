@@ -25,16 +25,10 @@ interface ISignerList {
     function isListedOrAppointedByListed(address _address) external returns (bool listedOrAppointedByListed);
 
     /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
-    /// @dev NOTE: This function will only resolve based on the current state. Do not use it as an alias of `isListedAtBock()`.
-    /// @param sender The address to check within the list of signers or the appointed accounts.
-    /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    function getCurrentOwner(address sender) external returns (address owner);
-
-    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
     /// @param sender The address to check within the list of signers or the appointed accounts.
     /// @param blockNumber The block at which the list should be checked
     /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    function getOwnerAtBlock(address sender, uint256 blockNumber) external returns (address owner);
+    function getListedOwnerAtBlock(address sender, uint256 blockNumber) external returns (address owner);
 
     /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
     /// @return owner If listed and resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.

@@ -114,20 +114,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function getCurrentOwner(address _address) public view returns (address _owner) {
-        if (isListed(_address)) {
-            return _address;
-        }
-        address _appointer = settings.encryptionRegistry.appointedBy(_address);
-        if (isListed(_appointer)) {
-            return _appointer;
-        }
-
-        // Not found, return a blank address
-    }
-
-    /// @inheritdoc ISignerList
-    function getOwnerAtBlock(address _address, uint256 _blockNumber) public view returns (address _owner) {
+    function getListedOwnerAtBlock(address _address, uint256 _blockNumber) public view returns (address _owner) {
         if (isListedAtBlock(_address, _blockNumber)) {
             return _address;
         }
