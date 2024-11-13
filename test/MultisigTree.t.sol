@@ -21,6 +21,7 @@ import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
 import {IMultisig} from "../src/interfaces/IMultisig.sol";
 
 uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
+uint32 constant DESTINATION_PROPOSAL_DURATION = 9 days;
 
 contract MultisigTest is AragonTest {
     DaoBuilder builder;
@@ -44,9 +45,7 @@ contract MultisigTest is AragonTest {
         SignerList signerList,
         uint64 proposalExpirationPeriod
     );
-    // Multisig proposal
-    event ProposalCreated(uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI);
-    // OptimisticTokenVotingPlugin's event
+    // Multisig and OptimisticTokenVotingPlugin's event
     event ProposalCreated(
         uint256 indexed proposalId,
         address indexed creator,
@@ -65,7 +64,9 @@ contract MultisigTest is AragonTest {
 
         builder = new DaoBuilder();
         (dao, optimisticPlugin, multisig,,, signerList, encryptionRegistry,) = builder.withMultisigMember(alice)
-            .withMultisigMember(bob).withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).build();
+            .withMultisigMember(bob).withMultisigMember(carol).withMultisigMember(david).withMinApprovals(3).withDuration(
+            DESTINATION_PROPOSAL_DURATION
+        ).build();
     }
 
     modifier givenANewlyDeployedContract() {
@@ -554,7 +555,7 @@ contract MultisigTest is AragonTest {
         ) = multisig.multisigSettings();
         assertEq(onlyListed, true);
         assertEq(minApprovals, 3);
-        assertEq(currentDestinationProposalDuration, 10 days);
+        assertEq(currentDestinationProposalDuration, 9 days);
         assertEq(address(currentSource), address(signerList));
         assertEq(expiration, 10 days);
 
@@ -685,7 +686,7 @@ contract MultisigTest is AragonTest {
             multisig.multisigSettings();
         assertEq(minApprovals, 3, "Should be 3");
         assertEq(onlyListed, true, "Should be true");
-        assertEq(destMinDuration, 10 days, "Incorrect destMinDuration");
+        assertEq(destMinDuration, 9 days, "Incorrect destMinDuration");
         assertEq(address(givenSignerList), address(signerList), "Incorrect addresslistSource");
         assertEq(expiration, 10 days, "Should be 10");
 
@@ -786,7 +787,7 @@ contract MultisigTest is AragonTest {
             creator: alice,
             metadata: "ipfs://",
             startDate: uint64(block.timestamp),
-            endDate: uint64(block.timestamp) + 10 days,
+            endDate: uint64(block.timestamp) + DESTINATION_PROPOSAL_DURATION,
             actions: inputActions,
             allowFailureMap: 0
         });
@@ -823,7 +824,7 @@ contract MultisigTest is AragonTest {
             creator: bob,
             metadata: "ipfs://more",
             startDate: uint64(block.timestamp),
-            endDate: uint64(block.timestamp) + 10 days,
+            endDate: uint64(block.timestamp) + DESTINATION_PROPOSAL_DURATION,
             actions: inputActions,
             allowFailureMap: 0
         });
@@ -861,7 +862,7 @@ contract MultisigTest is AragonTest {
             creator: carol,
             metadata: "ipfs://1234",
             startDate: uint64(block.timestamp),
-            endDate: uint64(block.timestamp) + 10 days,
+            endDate: uint64(block.timestamp) + DESTINATION_PROPOSAL_DURATION,
             actions: inputActions,
             allowFailureMap: 0
         });
@@ -1256,11 +1257,14 @@ contract MultisigTest is AragonTest {
         vm.deal(address(dao), 1 ether);
 
         // Create proposal 0
-        IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 0;
-        actions[0].to = address(bob);
+        IDAO.Action[] memory actions = new IDAO.Action[](2);
+        actions[0].value = 0.25 ether;
+        actions[0].to = address(alice);
         actions[0].data = hex"";
-        multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
+        actions[1].value = 0.75 ether;
+        actions[1].to = address(dao);
+        actions[1].data = abi.encodeCall(DAO.setMetadata, "ipfs://new-metadata");
+        multisig.createProposal("ipfs://pub-metadata", actions, optimisticPlugin, false);
 
         // Remove (later)
         vm.roll(block.number + 50);
@@ -1320,21 +1324,114 @@ contract MultisigTest is AragonTest {
 
     function test_WhenCallingGetProposalBeingOpen() external givenTheProposalIsOpen {
         // It should return the right values
-        vm.skip(true);
+
+        (
+            bool executed,
+            uint16 approvals,
+            Multisig.ProposalParameters memory parameters,
+            bytes memory metadataURI,
+            IDAO.Action[] memory proposalActions,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = multisig.getProposal(0);
+
+        // Check basic proposal state
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 0, "Should have no approvals");
+
+        // Check parameters
+        assertEq(parameters.minApprovals, 3, "Should require 3 approvals");
+        assertEq(parameters.snapshotBlock, block.number - 1 - 50, "Incorrect snapshot block");
+        assertEq(
+            parameters.expirationDate,
+            block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD,
+            "Incorrect expiration date"
+        );
+
+        // Check metadata and plugin
+        assertEq(metadataURI, "ipfs://pub-metadata", "Incorrect metadata URI");
+        assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destination plugin");
+
+        // Verify actions
+        IDAO.Action[] memory actions = new IDAO.Action[](2);
+        actions[0].value = 0.25 ether;
+        actions[0].to = address(alice);
+        actions[0].data = hex"";
+        actions[1].value = 0.75 ether;
+        actions[1].to = address(dao);
+        actions[1].data = abi.encodeCall(DAO.setMetadata, "ipfs://new-metadata");
+
+        assertEq(proposalActions.length, actions.length, "Actions length should match");
+        for (uint256 i = 0; i < actions.length; i++) {
+            assertEq(proposalActions[i].to, actions[i].to, "Action to should match");
+            assertEq(proposalActions[i].value, actions[i].value, "Action value should match");
+            assertEq(proposalActions[i].data, actions[i].data, "Action data should match");
+        }
     }
 
     function test_WhenCallingCanApproveAndApproveBeingOpen() external givenTheProposalIsOpen {
         // It canApprove should return true (when listed on creation, self appointed now)
         // It approve should work (when listed on creation, self appointed now)
         // It approve should emit an event (when listed on creation, self appointed now)
+        assertEq(multisig.canApprove(0, alice), true, "Alice should be able to approve");
+        vm.expectEmit();
+        emit Approved(0, alice);
+        multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, alice), true, "Alice's approval should be recorded");
+
         // It canApprove should return false (when listed on creation, appointing someone else now)
         // It approve should revert (when listed on creation, appointing someone else now)
+        assertEq(multisig.canApprove(0, bob), false, "Bob should be able to approve");
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, bob));
+        multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, bob), false, "Bob's approval should not be recorded");
+
         // It canApprove should return true (when currently appointed by a signer listed on creation)
         // It approve should work (when currently appointed by a signer listed on creation)
         // It approve should emit an event (when currently appointed by a signer listed on creation)
+        assertEq(multisig.canApprove(0, randomWallet), true, "RandomWallet should be able to approve");
+        vm.startPrank(randomWallet);
+        vm.expectEmit();
+        emit Approved(0, randomWallet);
+        multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, randomWallet), true, "RandomWallet's approval should be recorded");
+
         // It canApprove should return false (when unlisted on creation, unappointed now)
         // It approve should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+        assertEq(multisig.canApprove(0, address(0x5555)), false, "Random wallet should not be able to approve");
+        vm.startPrank(address(0x5555));
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, address(0x5555)));
+        multisig.approve(0, false);
+
+        // Check approval count
+        (, uint16 approvals,,,,) = multisig.getProposal(0);
+        assertEq(approvals, 2, "Should have 2 approvals total");
+
+        // Test tryExecution parameter
+        vm.startPrank(randomWallet);
+        // Should not be able to approve again even with tryExecution
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
+        multisig.approve(0, true);
+
+        // Carol
+        vm.startPrank(carol);
+        assertEq(multisig.canApprove(0, carol), true, "Carol should be able to approve");
+        multisig.approve(0, false);
+
+        // Should approve, pass but not execute (yet)
+        bool executed;
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 3, "Should have 3 approvals total");
+
+        // David should approve and trigger auto execution
+        vm.startPrank(david);
+        assertEq(multisig.canApprove(0, david), true, "David should be able to approve");
+        multisig.approve(0, true);
+
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, true, "Should have executed");
+        assertEq(approvals, 4, "Should have 4 approvals total");
     }
 
     function testFuzz_CanApproveReturnsfFalseIfNotListed(address randomWallet) public {
@@ -1391,30 +1488,64 @@ contract MultisigTest is AragonTest {
         multisig.approve(pid, true);
     }
 
-    function test_WhenCallingApproveWithTryExecutionAndAlmostPassedBeingOpen() external givenTheProposalIsOpen {
-        // It approve should also execute the proposal
-        // It approve should emit an Executed event
-        // It approve recreates the proposal on the destination plugin
-        // It The parameters of the recreated proposal match those of the approved one
-        // It A ProposalCreated event is emitted on the destination plugin
-        vm.skip(true);
-    }
-
     function test_WhenCallingHasApprovedBeingOpen() external givenTheProposalIsOpen {
         // It hasApproved should return false until approved
-        vm.skip(true);
+
+        assertEq(multisig.hasApproved(0, alice), false, "Alice should not have approved");
+        assertEq(multisig.hasApproved(0, bob), false, "Bob should not have approved");
+        assertEq(multisig.hasApproved(0, carol), false, "Carol should not have approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingOpen() external givenTheProposalIsOpen {
         // It canExecute should return false (when listed on creation, self appointed now)
-        // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
-        // It execute should revert (when listed on creation, appointing someone else now)
         // It canExecute should return false (when currently appointed by a signer listed on creation)
-        // It execute should revert (when currently appointed by a signer listed on creation)
         // It canExecute should return false (when unlisted on creation, unappointed now)
+
+        // vm.startPrank(alice);
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 1 approval");
+        vm.startPrank(bob);
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 1 approval");
+        vm.startPrank(randomWallet);
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 1 approval");
+        vm.startPrank(address(0x5555));
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 1 approval");
+
+        // It execute should revert (when listed on creation, self appointed now)
+        // It execute should revert (when listed on creation, appointing someone else now)
+        // It execute should revert (when currently appointed by a signer listed on creation)
         // It execute should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+        vm.startPrank(address(0x5555));
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // More approvals
+        vm.startPrank(randomWallet);
+        multisig.approve(0, false);
+
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 2 approvals");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // Add final approval
+        vm.startPrank(carol);
+        multisig.approve(0, false);
+
+        assertEq(multisig.canExecute(0), true, "Should be executable with 3 approvals");
+        multisig.execute(0);
+
+        // Verify execution
+        (bool executed,,,,,) = multisig.getProposal(0);
+        assertEq(executed, true, "Should now be executed");
     }
 
     modifier givenTheProposalWasApprovedByTheAddress() {
@@ -1435,10 +1566,10 @@ contract MultisigTest is AragonTest {
 
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 0;
-        actions[0].to = address(bob);
+        actions[0].value = 0.3 ether;
+        actions[0].to = address(carol);
         actions[0].data = hex"";
-        uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
+        uint256 pid = multisig.createProposal("ipfs://more-metadata", actions, optimisticPlugin, false);
 
         // Remove (later)
         vm.roll(block.number + 50);
@@ -1448,6 +1579,7 @@ contract MultisigTest is AragonTest {
         vm.startPrank(alice);
         signerList.removeSigners(addrs);
 
+        // Alice approves
         multisig.approve(pid, false);
 
         _;
@@ -1455,28 +1587,144 @@ contract MultisigTest is AragonTest {
 
     function test_WhenCallingGetProposalBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It should return the right values
-        vm.skip(true);
+
+        (
+            bool executed,
+            uint16 approvals,
+            Multisig.ProposalParameters memory parameters,
+            bytes memory metadataURI,
+            IDAO.Action[] memory proposalActions,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = multisig.getProposal(0);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 1, "Should have 1 approval");
+        assertEq(parameters.minApprovals, 3, "Should require 3 approvals");
+        assertEq(parameters.snapshotBlock, block.number - 1 - 50, "Incorrect snapshot block"); // -51 due to vm.roll(block.number + 50)
+        assertEq(
+            parameters.expirationDate, block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD, "Incorrect expiration"
+        );
+        assertEq(metadataURI, "ipfs://more-metadata", "Incorrect metadata URI");
+        assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destination plugin");
+
+        // Verify actions
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 0.3 ether;
+        actions[0].to = address(carol);
+        actions[0].data = hex"";
+
+        assertEq(proposalActions.length, actions.length, "Actions length should match");
+        for (uint256 i = 0; i < actions.length; i++) {
+            assertEq(proposalActions[i].to, actions[i].to, "Action to should match");
+            assertEq(proposalActions[i].value, actions[i].value, "Action value should match");
+            assertEq(proposalActions[i].data, actions[i].data, "Action data should match");
+        }
     }
 
     function test_WhenCallingCanApproveAndApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
+        // Approve without executing
+        vm.startPrank(randomWallet);
+        multisig.approve(0, false);
+
         // It canApprove should return false (when listed on creation, self appointed now)
-        // It approve should revert (when listed on creation, self appointed now)
+        // It canApprove should return false (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
+        // It canApprove should return false (when unlisted on creation, unappointed now)
+
+        // It approve should revert (when listed on creation, self appointed now)
+        // It approve should revert (when listed on creation, appointing someone else now)
         // It approve should revert (when currently appointed by a signer listed on creation)
-        vm.skip(true);
+        // It approve should revert (when unlisted on creation, unappointed now)
+
+        // When listed on creation, self appointed now
+        assertEq(multisig.canApprove(0, alice), false, "Alice should not be able to approve");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, alice));
+        multisig.approve(0, false);
+
+        // When listed on creation, appointing someone else now
+        assertEq(multisig.canApprove(0, bob), false, "Bob should not be able to approve");
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, bob));
+        multisig.approve(0, false);
+
+        // When currently appointed by a signer listed on creation
+        // RandomWallet should not be able to approve again
+        assertEq(multisig.canApprove(0, randomWallet), false, "Random wallet should not be able to approve again");
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
+        multisig.approve(0, false);
+
+        // When unlisted on creation, unappointed now
+        assertEq(multisig.canApprove(0, address(0x1234)), false, "Unlisted address should not be able to approve");
+        vm.startPrank(address(0x1234));
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, address(0x1234)));
+        multisig.approve(0, false);
     }
 
     function test_WhenCallingHasApprovedBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It hasApproved should return false until approved
-        vm.skip(true);
+
+        assertEq(multisig.hasApproved(0, alice), true, "Alice should have approved");
+        assertEq(multisig.hasApproved(0, bob), false, "Bob should not have approved");
+        assertEq(multisig.hasApproved(0, carol), false, "Carol should not have approved");
+        assertEq(multisig.hasApproved(0, david), false, "David should not have approved");
+        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not have approved");
+
+        vm.startPrank(randomWallet); // Appointed
+        multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, bob), true, "Bob should have approved");
+
+        vm.startPrank(carol);
+        multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, carol), true, "Carol should have approved");
+
+        vm.startPrank(david);
+        multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, david), true, "Bob should have approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
-        // It canExecute should return false (when listed on creation, self appointed now)
         // It execute should revert (when listed on creation, self appointed now)
-        // It canExecute should return false (when currently appointed by a signer listed on creation)
         // It execute should revert (when currently appointed by a signer listed on creation)
-        vm.skip(true);
+
+        // It canExecute should return false (when listed on creation, self appointed now)
+        // It canExecute should return false (when currently appointed by a signer listed on creation)
+
+        // It canExecute should return false with insufficient approvals
+        // vm.startPrank(alice);
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 1 approval");
+        vm.startPrank(randomWallet);
+        assertEq(multisig.canExecute(0), false, "Should not be executable with only 1 approval");
+
+        // It execute should revert with insufficient approvals
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // Add remaining approvals
+        vm.startPrank(randomWallet);
+        multisig.approve(0, false);
+
+        // It canExecute should return false with insufficient approvals
+        assertEq(multisig.canExecute(0), false, "Should not be executable with 2 approvals");
+
+        vm.startPrank(carol);
+        multisig.approve(0, false);
+
+        // It canExecute should return true with sufficient approvals
+        assertEq(multisig.canExecute(0), true, "Should be executable with 3 approvals");
+
+        // It execute should work with sufficient approvals
+        vm.expectEmit();
+        emit Executed(0);
+        multisig.execute(0);
+
+        // Verify execution
+        (bool executed,,,,,) = multisig.getProposal(0);
+        assertEq(executed, true, "Should be executed");
     }
 
     modifier givenTheProposalPassed() {
@@ -1497,10 +1745,10 @@ contract MultisigTest is AragonTest {
 
         // Create proposal 0
         IDAO.Action[] memory actions = new IDAO.Action[](1);
-        actions[0].value = 0;
-        actions[0].to = address(bob);
+        actions[0].value = 0.65 ether;
+        actions[0].to = address(david);
         actions[0].data = hex"";
-        uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
+        uint256 pid = multisig.createProposal("ipfs://proposal-metadata-here", actions, optimisticPlugin, false);
 
         // Remove (later)
         vm.roll(block.number + 50);
@@ -1515,6 +1763,9 @@ contract MultisigTest is AragonTest {
         vm.startPrank(randomWallet);
         multisig.approve(pid, false);
 
+        vm.startPrank(carol);
+        multisig.approve(pid, false);
+
         vm.startPrank(alice);
 
         _;
@@ -1522,82 +1773,201 @@ contract MultisigTest is AragonTest {
 
     function test_WhenCallingGetProposalBeingPassed() external givenTheProposalPassed {
         // It should return the right values
-        vm.skip(true);
+        (
+            bool executed,
+            uint16 approvals,
+            Multisig.ProposalParameters memory parameters,
+            bytes memory metadataURI,
+            IDAO.Action[] memory proposalActions,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = multisig.getProposal(0);
 
-        // dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
-        // dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
-        // signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+        assertEq(executed, false, "Should not be executed yet");
+        assertEq(approvals, 3, "Should have 3 approvals");
+        assertEq(parameters.minApprovals, 3, "Should require 3 approvals");
+        assertEq(parameters.snapshotBlock, block.number - 1 - 50, "Incorrect snapshot block"); // -51 due to vm.roll(block.number + 50)
+        assertEq(
+            parameters.expirationDate, block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD, "Incorrect expiration"
+        );
+        assertEq(metadataURI, "ipfs://proposal-metadata-here", "Incorrect metadata URI");
+        assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destination plugin");
 
-        // // Alice: listed on creation and self appointed
+        // Verify actions
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 0.65 ether;
+        actions[0].to = address(david);
+        actions[0].data = hex"";
 
-        // // Bob: listed on creation, appointing someone else now
-        // vm.startPrank(bob);
-        // encryptionRegistry.appointWallet(randomWallet);
-
-        // // Random Wallet: appointed by a listed signer on creation
-
-        // // 0x1234: unlisted and unappointed on creation
-
-        // vm.deal(address(dao), 1 ether);
-        // 
-        // Create proposal
-        // IDAO.Action[] memory actions = new IDAO.Action[](1);
-        // actions[0].value = 0;
-        // actions[0].to = address(bob);
-        // actions[0].data = hex"";
-        // bytes32 metadataUriHash = keccak256("ipfs://the-metadata");
-        // bytes32 actionsHash = eMultisig.hashActions(actions);
-        // eMultisig.createProposal("ipfs://encrypted", metadataUriHash, actionsHash, optimisticPlugin, false);
-
-        // // Remove (later)
-        // vm.roll(block.number + 50);
-        // address[] memory addrs = new address[](2);
-        // addrs[0] = alice;
-        // addrs[1] = bob;
-
-        // vm.startPrank(alice);
-        // signerList.removeSigners(addrs);
-
-        // eMultisig.approve(0);
-
-        // vm.startPrank(bob);
-        // eMultisig.approve(0);
-
-        // vm.startPrank(randomWallet);
-        // eMultisig.approve(0);
+        assertEq(proposalActions.length, actions.length, "Actions length should match");
+        for (uint256 i = 0; i < actions.length; i++) {
+            assertEq(proposalActions[i].to, actions[i].to, "Action to should match");
+            assertEq(proposalActions[i].value, actions[i].value, "Action value should match");
+            assertEq(proposalActions[i].data, actions[i].data, "Action data should match");
+        }
     }
 
     function test_WhenCallingCanApproveAndApproveBeingPassed() external givenTheProposalPassed {
         // It canApprove should return false (when listed on creation, self appointed now)
-        // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
-        // It approve should revert (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
-        // It approve should revert (when currently appointed by a signer listed on creation)
         // It canApprove should return false (when unlisted on creation, unappointed now)
+
+        // It approve should revert (when listed on creation, self appointed now)
+        // It approve should revert (when listed on creation, appointing someone else now)
+        // It approve should revert (when currently appointed by a signer listed on creation)
         // It approve should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+
+        // When listed on creation, self appointed now
+        assertEq(multisig.canApprove(0, alice), false, "Alice should not be able to approve");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, alice));
+        multisig.approve(0, false);
+
+        // When listed on creation, appointing someone else now
+        assertEq(multisig.canApprove(0, bob), false, "Bob should not be able to approve");
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, bob));
+        multisig.approve(0, false);
+
+        // When currently appointed by a signer listed on creation
+        assertEq(multisig.canApprove(0, randomWallet), false, "Random wallet should not be able to approve");
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
+        multisig.approve(0, false);
+
+        // When unlisted on creation, unappointed now
+        assertEq(multisig.canApprove(0, address(0x1234)), false, "Unlisted address should not be able to approve");
+        vm.startPrank(address(0x1234));
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, address(0x1234)));
+        multisig.approve(0, false);
     }
 
     function test_WhenCallingHasApprovedBeingPassed() external givenTheProposalPassed {
         // It hasApproved should return false until approved
-        vm.skip(true);
+
+        assertEq(multisig.hasApproved(0, alice), true, "Alice should show as approved");
+        assertEq(multisig.hasApproved(0, bob), true, "Bob should show as approved");
+        assertEq(multisig.hasApproved(0, carol), true, "Carol should show as approved");
+        assertEq(multisig.hasApproved(0, david), false, "David should not show as approved");
+        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not show as approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingPassed() external givenTheProposalPassed {
-        // It canExecute should return true, always
-        // It execute should work, when called by anyone
-        // It execute should emit an event, when called by anyone
         // It execute recreates the proposal on the destination plugin
         // It The parameters of the recreated proposal match those of the executed one
         // It The proposal duration on the destination plugin matches the multisig settings
         // It A ProposalCreated event is emitted on the destination plugin
-        vm.skip(true);
+
+        // It canExecute should return true, always
+        // vm.startPrank(alice);
+        assertEq(multisig.canExecute(0), true, "Should be executable");
+        vm.startPrank(randomWallet);
+        assertEq(multisig.canExecute(0), true, "Should be executable");
+        vm.startPrank(carol);
+        assertEq(multisig.canExecute(0), true, "Should be executable");
+        vm.startPrank(address(0x5555));
+        assertEq(multisig.canExecute(0), true, "Should be executable");
+
+        // It execute should work, when called by anyone
+        vm.expectEmit();
+        emit Executed(0);
+
+        // It execute should emit an event, when called by anyone
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 0.65 ether;
+        actions[0].to = address(david);
+        actions[0].data = hex"";
+
+        // It execute recreates the proposal on the destination plugin
+        uint256 targetPid = (block.timestamp << 128) | ((block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64);
+        vm.expectEmit();
+        emit ProposalCreated(
+            targetPid,
+            address(multisig),
+            uint64(block.timestamp),
+            uint64(block.timestamp + DESTINATION_PROPOSAL_DURATION),
+            "ipfs://proposal-metadata-here",
+            actions,
+            0
+        );
+
+        multisig.execute(0);
+
+        // Verify execution
+        (bool executed,,,,,) = multisig.getProposal(0);
+        assertEq(executed, true, "Should be executed");
+
+        // Verify proposal recreation in destination plugin
+        (
+            bool open,
+            bool destExecuted,
+            ,
+            uint256 vetoTally,
+            bytes memory metadataUri,
+            IDAO.Action[] memory destActions,
+            uint256 allowFailureMap
+        ) = optimisticPlugin.getProposal(targetPid);
+
+        assertEq(open, true, "Destination proposal should be open");
+        assertEq(destExecuted, false, "Destination proposal should not be executed");
+        assertEq(vetoTally, 0, "Veto tally should be 0");
+        assertEq(metadataUri, "ipfs://proposal-metadata-here", "Metadata URI should match");
+        assertEq(destActions.length, actions.length, "Actions should match");
+        assertEq(allowFailureMap, 0, "Allow failure map should be 0");
     }
 
     function test_GivenTaikoL1IsIncompatible() external givenTheProposalPassed {
+        // Recreate with L1 incompatible
+        (dao, optimisticPlugin, multisig,,, signerList, encryptionRegistry,) = builder.withIncompatibleTaikoL1().build();
+
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 1));
+
+        // Alice: listed on creation and self appointed
+        // Bob: listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        encryptionRegistry.appointWallet(randomWallet);
+        // Random Wallet: appointed by a listed signer on creation
+        // 0x1234: unlisted and unappointed on creation
+
+        vm.deal(address(dao), 1 ether);
+
+        // Create proposal 0
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 0.65 ether;
+        actions[0].to = address(david);
+        actions[0].data = hex"";
+        uint256 pid = multisig.createProposal("ipfs://proposal-metadata-here", actions, optimisticPlugin, false);
+
+        vm.startPrank(alice);
+        multisig.approve(pid, false);
+        vm.startPrank(randomWallet);
+        multisig.approve(pid, false);
+        vm.startPrank(carol);
+        multisig.approve(pid, false);
+
+        vm.startPrank(alice);
+
         // It executes successfully, regardless
-        vm.skip(true);
+        vm.expectEmit();
+        emit Executed(0);
+
+        vm.expectEmit();
+        emit ProposalCreated(
+            ((uint256(block.timestamp) << 128) | (uint256(block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64)),
+            address(multisig),
+            uint64(block.timestamp),
+            uint64(block.timestamp + DESTINATION_PROPOSAL_DURATION),
+            "ipfs://proposal-metadata-here",
+            actions,
+            0
+        );
+
+        multisig.execute(0);
+
+        // Verify execution
+        (bool executed,,,,,) = multisig.getProposal(0);
+        assertEq(executed, true, "Should be executed");
     }
 
     modifier givenTheProposalIsAlreadyExecuted() {
@@ -1621,7 +1991,7 @@ contract MultisigTest is AragonTest {
         actions[0].value = 0;
         actions[0].to = address(bob);
         actions[0].data = hex"";
-        uint256 pid = multisig.createProposal("ipfs://", actions, optimisticPlugin, false);
+        uint256 pid = multisig.createProposal("ipfs://the-metadata-here", actions, optimisticPlugin, false);
 
         // Remove (later)
         vm.roll(block.number + 50);
@@ -1648,57 +2018,117 @@ contract MultisigTest is AragonTest {
 
     function test_WhenCallingGetProposalBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It should return the right values
-        vm.skip(true);
 
-        // (
-        //     executed,
-        //     approvals,
-        //     parameters,
-        //     encryptedPayloadURI,
-        //     publicMetadataUriHash,
-        //     destinationActionsHash,
-        //     destinationPlugin
-        // ) = eMultisig.getProposal(pid);
+        (
+            bool executed,
+            uint16 approvals,
+            Multisig.ProposalParameters memory parameters,
+            bytes memory metadataURI,
+            IDAO.Action[] memory proposalActions,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = multisig.getProposal(0);
 
-        // assertEq(executed, true, "Should be executed");
-        // assertEq(approvals, 3, "Should be 3");
+        assertEq(executed, true, "Should be executed");
+        assertEq(approvals, 3, "Should have 3 approvals");
+        assertEq(parameters.minApprovals, 3, "Should require 3 approvals");
+        assertEq(parameters.snapshotBlock, block.number - 1 - 50, "Incorrect snapshot block"); // -51 due to vm.roll(block.number + 50)
+        assertEq(
+            parameters.expirationDate, block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD, "Incorrect expiration"
+        );
+        assertEq(metadataURI, "ipfs://the-metadata-here", "Incorrect metadata URI");
+        assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destination plugin");
 
-        // assertEq(parameters.minApprovals, 3);
-        // assertEq(parameters.snapshotBlock, block.number - 1);
-        // assertEq(parameters.expirationDate, block.timestamp + EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
-        // assertEq(encryptedPayloadURI, "ipfs://12340000");
-        // assertEq(publicMetadataUriHash, metadataUriHash);
-        // assertEq(destinationActionsHash, actionsHash);
-        // assertEq(address(destinationPlugin), address(newOptimisticPlugin));
+        // Verify actions
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0].value = 0;
+        actions[0].to = address(bob);
+        actions[0].data = hex"";
+
+        assertEq(proposalActions.length, actions.length, "Actions length should match");
+        for (uint256 i = 0; i < actions.length; i++) {
+            assertEq(proposalActions[i].to, actions[i].to, "Action to should match");
+            assertEq(proposalActions[i].value, actions[i].value, "Action value should match");
+            assertEq(proposalActions[i].data, actions[i].data, "Action data should match");
+        }
     }
 
     function test_WhenCallingCanApproveAndApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canApprove should return false (when listed on creation, self appointed now)
-        // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
-        // It approve should revert (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
-        // It approve should revert (when currently appointed by a signer listed on creation)
         // It canApprove should return false (when unlisted on creation, unappointed now)
+        // It approve should revert (when listed on creation, self appointed now)
+        // It approve should revert (when listed on creation, appointing someone else now)
+        // It approve should revert (when currently appointed by a signer listed on creation)
         // It approve should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+
+        // When listed on creation, self appointed now
+        assertEq(multisig.canApprove(0, alice), false, "Alice should not be able to approve");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, alice));
+        multisig.approve(0, false);
+
+        // When listed on creation, appointing someone else now
+        assertEq(multisig.canApprove(0, bob), false, "Bob should not be able to approve");
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, bob));
+        multisig.approve(0, false);
+
+        // When currently appointed by a signer listed on creation
+        assertEq(multisig.canApprove(0, randomWallet), false, "Random wallet should not be able to approve");
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
+        multisig.approve(0, false);
+
+        // When unlisted on creation, unappointed now
+        assertEq(multisig.canApprove(0, address(0x1234)), false, "Unlisted address should not be able to approve");
+        vm.startPrank(address(0x1234));
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, address(0x1234)));
+        multisig.approve(0, false);
     }
 
     function test_WhenCallingHasApprovedBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It hasApproved should return false until approved
-        vm.skip(true);
+
+        assertEq(multisig.hasApproved(0, alice), true, "Alice should show as approved");
+        assertEq(multisig.hasApproved(0, bob), true, "Bob should show as approved");
+        assertEq(multisig.hasApproved(0, carol), true, "Carol should show as approved");
+        assertEq(multisig.hasApproved(0, david), false, "David should not show as approved");
+        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not show as approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canExecute should return false (when listed on creation, self appointed now)
-        // It execute should revert (when listed on creation, self appointed now)
         // It canExecute should return false (when listed on creation, appointing someone else now)
-        // It execute should revert (when listed on creation, appointing someone else now)
         // It canExecute should return false (when currently appointed by a signer listed on creation)
-        // It execute should revert (when currently appointed by a signer listed on creation)
         // It canExecute should return false (when unlisted on creation, unappointed now)
+        // It execute should revert (when listed on creation, self appointed now)
+        // It execute should revert (when listed on creation, appointing someone else now)
+        // It execute should revert (when currently appointed by a signer listed on creation)
         // It execute should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+
+        // When listed on creation, self appointed now
+        // vm.startPrank(alice);
+        assertEq(multisig.canExecute(0), false, "Should not be executable after execution");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // When listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        assertEq(multisig.canExecute(0), false, "Should not be executable after execution");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // When currently appointed by a signer listed on creation
+        vm.startPrank(randomWallet);
+        assertEq(multisig.canExecute(0), false, "Should not be executable after execution");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // When unlisted on creation, unappointed now
+        vm.startPrank(address(0x1234));
+        assertEq(multisig.canExecute(0), false, "Should not be executable after execution");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
     }
 
     modifier givenTheProposalExpired() {
@@ -1737,7 +2167,7 @@ contract MultisigTest is AragonTest {
         vm.startPrank(randomWallet);
         multisig.approve(pid, false);
 
-        vm.roll(block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
+        vm.warp(block.timestamp + MULTISIG_PROPOSAL_EXPIRATION_PERIOD);
 
         vm.startPrank(alice);
 
@@ -1746,24 +2176,80 @@ contract MultisigTest is AragonTest {
 
     function test_WhenCallingGetProposalBeingExpired() external givenTheProposalExpired {
         // It should return the right values
-        vm.skip(true);
+
+        (
+            bool executed,
+            uint16 approvals,
+            Multisig.ProposalParameters memory parameters,
+            bytes memory metadataURI,
+            IDAO.Action[] memory proposalActions,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = multisig.getProposal(0);
+
+        assertEq(executed, false, "Should not be executed");
+        assertEq(approvals, 2, "Should have 2 approvals");
+        assertEq(parameters.minApprovals, 3, "Should require 3 approvals");
+        assertEq(parameters.snapshotBlock, block.number - 1 - 50, "Incorrect snapshot block");
+        assertEq(parameters.expirationDate, block.timestamp, "Should be expired");
+        assertEq(metadataURI, "ipfs://", "Incorrect metadata URI");
+        assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destination plugin");
+
+        // Verify actions
+        assertEq(proposalActions.length, 1, "Should have 1 action");
+        assertEq(proposalActions[0].to, address(bob), "Incorrect action target");
+        assertEq(proposalActions[0].value, 0, "Incorrect action value");
+        assertEq(proposalActions[0].data, "", "Incorrect action data");
     }
 
     function test_WhenCallingCanApproveAndApproveBeingExpired() external givenTheProposalExpired {
         // It canApprove should return false (when listed on creation, self appointed now)
-        // It approve should revert (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
-        // It approve should revert (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
-        // It approve should revert (when currently appointed by a signer listed on creation)
         // It canApprove should return false (when unlisted on creation, unappointed now)
+        // It approve should revert (when listed on creation, self appointed now)
+        // It approve should revert (when listed on creation, appointing someone else now)
+        // It approve should revert (when currently appointed by a signer listed on creation)
         // It approve should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+
+        // When listed on creation, self appointed now
+        assertEq(multisig.canApprove(0, alice), false, "Alice should not be able to approve expired proposal");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, alice));
+        multisig.approve(0, false);
+
+        // When listed on creation, appointing someone else now
+        assertEq(multisig.canApprove(0, bob), false, "Bob should not be able to approve expired proposal");
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, bob));
+        multisig.approve(0, false);
+
+        // When currently appointed by a signer listed on creation
+        assertEq(
+            multisig.canApprove(0, randomWallet), false, "Random wallet should not be able to approve expired proposal"
+        );
+        vm.startPrank(randomWallet);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
+        multisig.approve(0, false);
+
+        // When unlisted on creation, unappointed now
+        address unlistedAddress = address(0x1234);
+        assertEq(
+            multisig.canApprove(0, unlistedAddress),
+            false,
+            "Unlisted address should not be able to approve expired proposal"
+        );
+        vm.startPrank(unlistedAddress);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, unlistedAddress));
+        multisig.approve(0, false);
     }
 
     function test_WhenCallingHasApprovedBeingExpired() external givenTheProposalExpired {
         // It hasApproved should return false until approved
-        vm.skip(true);
+
+        assertEq(multisig.hasApproved(0, alice), true, "Alice should show as approved");
+        assertEq(multisig.hasApproved(0, bob), true, "Bob should show as approved");
+        assertEq(multisig.hasApproved(0, carol), false, "Carol should not show as approved");
+        assertEq(multisig.hasApproved(0, david), false, "David should not show as approved");
+        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not show as approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingExpired() external givenTheProposalExpired {
@@ -1775,6 +2261,28 @@ contract MultisigTest is AragonTest {
         // It execute should revert (when currently appointed by a signer listed on creation)
         // It canExecute should return false (when unlisted on creation, unappointed now)
         // It execute should revert (when unlisted on creation, unappointed now)
-        vm.skip(true);
+
+        // When listed on creation, self appointed now
+        assertEq(multisig.canExecute(0), false, "Should not be executable when expired");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // When listed on creation, appointing someone else now
+        vm.startPrank(bob);
+        assertEq(multisig.canExecute(0), false, "Should not be executable when expired");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // When currently appointed by a signer listed on creation
+        vm.startPrank(randomWallet);
+        assertEq(multisig.canExecute(0), false, "Should not be executable when expired");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
+
+        // When unlisted on creation, unappointed now
+        vm.startPrank(address(0x1234));
+        assertEq(multisig.canExecute(0), false, "Should not be executable when expired");
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
+        multisig.execute(0);
     }
 }

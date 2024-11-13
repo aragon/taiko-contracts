@@ -1447,6 +1447,29 @@ contract EmergencyMultisigTest is AragonTest {
         vm.expectEmit();
         emit Approved(0, bob); // Note: Event shows the owner, not the appointed wallet
         eMultisig.approve(0);
+
+        // Check approval count
+        (, uint16 approvals,,,,,) = eMultisig.getProposal(0);
+        assertEq(approvals, 2, "Should have 2 approvals total");
+
+        vm.startPrank(carol);
+        assertEq(eMultisig.canApprove(0, carol), true, "Carol should be able to approve");
+        eMultisig.approve(0);
+
+        // Should approve, pass but not execute
+        bool executed;
+        (executed, approvals,,,,,) = eMultisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 3, "Should have 3 approvals total");
+
+        // More approvals
+        vm.startPrank(david);
+        assertEq(eMultisig.canApprove(0, david), true, "David should be able to approve");
+        eMultisig.approve(0);
+
+        (executed, approvals,,,,,) = eMultisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 4, "Should have 4 approvals total");
     }
 
     function testFuzz_CanApproveReturnsfFalseIfNotListed(address randomWallet) public {
