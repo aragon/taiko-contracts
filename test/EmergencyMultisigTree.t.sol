@@ -1172,6 +1172,28 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(0), "Incorrect destinationPlugin");
     }
 
+    function testFuzz_GetProposalReturnsEmptyValuesForNonExistingOnes(uint256 randomProposalId) public view {
+        (
+            bool executed,
+            uint16 approvals,
+            EmergencyMultisig.ProposalParameters memory parameters,
+            bytes memory encryptedPayloadURI,
+            bytes32 publicMetadataUriHash,
+            bytes32 destinationActionsHash,
+            OptimisticTokenVotingPlugin destinationPlugin
+        ) = eMultisig.getProposal(randomProposalId);
+
+        assertEq(executed, false, "The proposal should not be executed");
+        assertEq(approvals, 0, "The tally should be zero");
+        assertEq(encryptedPayloadURI, "", "Incorrect encryptedPayloadURI");
+        assertEq(parameters.expirationDate, 0, "Incorrect expirationDate");
+        assertEq(parameters.snapshotBlock, 0, "Incorrect snapshotBlock");
+        assertEq(parameters.minApprovals, 0, "Incorrect minApprovals");
+        assertEq(publicMetadataUriHash, 0, "Metadata URI hash should have no items");
+        assertEq(destinationActionsHash, 0, "Actions hash should have no items");
+        assertEq(address(destinationPlugin), address(0), "Incorrect destination plugin");
+    }
+
     function test_WhenCallingCanApproveOrApproveBeingUncreated() external givenTheProposalIsNotCreated {
         uint256 randomProposalId = 1234;
         bool canApprove;

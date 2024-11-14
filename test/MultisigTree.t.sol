@@ -1489,6 +1489,26 @@ contract MultisigTest is AragonTest {
         // David should approve and trigger auto execution
         vm.startPrank(david);
         assertEq(multisig.canApprove(0, david), true, "David should be able to approve");
+
+        // It execute recreates the proposal on the destination plugin
+        uint256 targetPid = (block.timestamp << 128) | ((block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64);
+        IDAO.Action[] memory actions = new IDAO.Action[](2);
+        actions[0].value = 0.25 ether;
+        actions[0].to = address(alice);
+        actions[0].data = hex"";
+        actions[1].value = 0.75 ether;
+        actions[1].to = address(dao);
+        actions[1].data = abi.encodeCall(DAO.setMetadata, "ipfs://new-metadata");
+        vm.expectEmit();
+        emit ProposalCreated(
+            targetPid,
+            address(multisig),
+            uint64(block.timestamp),
+            uint64(block.timestamp + DESTINATION_PROPOSAL_DURATION),
+            "ipfs://pub-metadata",
+            actions,
+            0
+        );
         multisig.approve(0, true);
 
         (executed, approvals,,,,) = multisig.getProposal(0);
