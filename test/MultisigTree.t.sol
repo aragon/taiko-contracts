@@ -787,7 +787,7 @@ contract MultisigTest is AragonTest {
             creator: alice,
             metadata: "ipfs://",
             startDate: uint64(block.timestamp),
-            endDate: uint64(block.timestamp) + DESTINATION_PROPOSAL_DURATION,
+            endDate: uint64(block.timestamp) + MULTISIG_PROPOSAL_EXPIRATION_PERIOD,
             actions: inputActions,
             allowFailureMap: 0
         });
@@ -824,7 +824,7 @@ contract MultisigTest is AragonTest {
             creator: bob,
             metadata: "ipfs://more",
             startDate: uint64(block.timestamp),
-            endDate: uint64(block.timestamp) + DESTINATION_PROPOSAL_DURATION,
+            endDate: uint64(block.timestamp) + MULTISIG_PROPOSAL_EXPIRATION_PERIOD,
             actions: inputActions,
             allowFailureMap: 0
         });
@@ -862,7 +862,7 @@ contract MultisigTest is AragonTest {
             creator: carol,
             metadata: "ipfs://1234",
             startDate: uint64(block.timestamp),
-            endDate: uint64(block.timestamp) + DESTINATION_PROPOSAL_DURATION,
+            endDate: uint64(block.timestamp) + MULTISIG_PROPOSAL_EXPIRATION_PERIOD,
             actions: inputActions,
             allowFailureMap: 0
         });
@@ -1392,8 +1392,9 @@ contract MultisigTest is AragonTest {
         assertEq(multisig.canApprove(0, randomWallet), true, "RandomWallet should be able to approve");
         vm.startPrank(randomWallet);
         vm.expectEmit();
-        emit Approved(0, randomWallet);
+        emit Approved(0, bob);
         multisig.approve(0, false);
+        assertEq(multisig.hasApproved(0, bob), true, "RandomWallet's approval should be recorded");
         assertEq(multisig.hasApproved(0, randomWallet), true, "RandomWallet's approval should be recorded");
 
         // It canApprove should return false (when unlisted on creation, unappointed now)
@@ -1528,7 +1529,9 @@ contract MultisigTest is AragonTest {
         vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalExecutionForbidden.selector, 0));
         multisig.execute(0);
 
-        // More approvals
+        // Approvals
+        vm.startPrank(alice);
+        multisig.approve(0, false);
         vm.startPrank(randomWallet);
         multisig.approve(0, false);
 
@@ -1637,6 +1640,7 @@ contract MultisigTest is AragonTest {
         // It approve should revert (when unlisted on creation, unappointed now)
 
         // When listed on creation, self appointed now
+        vm.startPrank(alice);
         assertEq(multisig.canApprove(0, alice), false, "Alice should not be able to approve");
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, alice));
         multisig.approve(0, false);
@@ -1846,9 +1850,9 @@ contract MultisigTest is AragonTest {
 
         assertEq(multisig.hasApproved(0, alice), true, "Alice should show as approved");
         assertEq(multisig.hasApproved(0, bob), true, "Bob should show as approved");
+        assertEq(multisig.hasApproved(0, randomWallet), true, "Random wallet should show as approved");
         assertEq(multisig.hasApproved(0, carol), true, "Carol should show as approved");
         assertEq(multisig.hasApproved(0, david), false, "David should not show as approved");
-        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not show as approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingPassed() external givenTheProposalPassed {
@@ -2091,9 +2095,9 @@ contract MultisigTest is AragonTest {
 
         assertEq(multisig.hasApproved(0, alice), true, "Alice should show as approved");
         assertEq(multisig.hasApproved(0, bob), true, "Bob should show as approved");
+        assertEq(multisig.hasApproved(0, randomWallet), true, "Random wallet should show as approved");
         assertEq(multisig.hasApproved(0, carol), true, "Carol should show as approved");
         assertEq(multisig.hasApproved(0, david), false, "David should not show as approved");
-        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not show as approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingExecuted() external givenTheProposalIsAlreadyExecuted {
@@ -2247,9 +2251,9 @@ contract MultisigTest is AragonTest {
 
         assertEq(multisig.hasApproved(0, alice), true, "Alice should show as approved");
         assertEq(multisig.hasApproved(0, bob), true, "Bob should show as approved");
+        assertEq(multisig.hasApproved(0, randomWallet), true, "Random wallet should show as approved");
         assertEq(multisig.hasApproved(0, carol), false, "Carol should not show as approved");
         assertEq(multisig.hasApproved(0, david), false, "David should not show as approved");
-        assertEq(multisig.hasApproved(0, randomWallet), false, "Random wallet should not show as approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingExpired() external givenTheProposalExpired {

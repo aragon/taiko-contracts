@@ -1537,6 +1537,9 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(randomWallet);
         eMultisig.approve(0);
         assertEq(eMultisig.hasApproved(0, bob), true, "Should be true after approval by appointed wallet");
+        assertEq(eMultisig.hasApproved(0, randomWallet), true, "Should be true after approval");
+
+        assertEq(eMultisig.hasApproved(0, address(0x5555)), false, "5555 should not have approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingOpen() external givenTheProposalIsOpen {
@@ -1664,6 +1667,9 @@ contract EmergencyMultisigTest is AragonTest {
         vm.startPrank(randomWallet);
         eMultisig.approve(0);
         assertEq(eMultisig.hasApproved(0, bob), true, "Should be true for bob after appointed wallet approves");
+        assertEq(eMultisig.hasApproved(0, randomWallet), true, "Should be true after approval");
+
+        assertEq(eMultisig.hasApproved(0, address(0x5555)), false, "5555 should not have approved");
     }
 
     function test_WhenCallingCanExecuteOrExecuteBeingApproved() external givenTheProposalWasApprovedByTheAddress {
@@ -2188,7 +2194,11 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(publicMetadataUriHash, keccak256("ipfs://the-metadata"), "Incorrect publicMetadataUriHash");
 
         // Assert the destination actions hash
-        assertEq(destinationActionsHash, hex"3626b3f254463d63d9bd5ff77ff99d2691b20f0db6347f685befae593d8f4e6f", "Incorrect destinationActionsHash");
+        assertEq(
+            destinationActionsHash,
+            hex"3626b3f254463d63d9bd5ff77ff99d2691b20f0db6347f685befae593d8f4e6f",
+            "Incorrect destinationActionsHash"
+        );
 
         // Assert the destination plugin
         assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destinationPlugin");
