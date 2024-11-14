@@ -1129,7 +1129,7 @@ contract MultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(0), "Incorrect destinationPlugin");
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingCanApproveOrApproveBeingUncreated() external givenTheProposalIsNotCreated {
         uint256 randomProposalId = 1234;
         bool canApprove;
 
@@ -1368,7 +1368,7 @@ contract MultisigTest is AragonTest {
         }
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingCanApproveOrApproveBeingOpen() external givenTheProposalIsOpen {
         // It canApprove should return true (when listed on creation, self appointed now)
         // It approve should work (when listed on creation, self appointed now)
         // It approve should emit an event (when listed on creation, self appointed now)
@@ -1408,7 +1408,67 @@ contract MultisigTest is AragonTest {
         (, uint16 approvals,,,,) = multisig.getProposal(0);
         assertEq(approvals, 2, "Should have 2 approvals total");
 
-        // Test tryExecution parameter
+        // Try to approve again
+        vm.startPrank(randomWallet);
+        // Should not be able to approve again
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
+        multisig.approve(0, false);
+
+        // Carol
+        vm.startPrank(carol);
+        assertEq(multisig.canApprove(0, carol), true, "Carol should be able to approve");
+        multisig.approve(0, false);
+
+        // Should approve, pass but not execute
+        bool executed;
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 3, "Should have 3 approvals total");
+
+        // David should approve
+        vm.startPrank(david);
+        assertEq(multisig.canApprove(0, david), true, "David should be able to approve");
+        multisig.approve(0, false);
+
+        // Should approve, pass but not execute
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 4, "Should have 4 approvals total");
+    }
+
+    function test_WhenCallingApproveWithTryExecutionAndAlmostPassedBeingOpen() external givenTheProposalIsOpen {
+        // It approve should also execute the proposal
+        // It approve should emit an Executed event
+        // It approve recreates the proposal on the destination plugin
+        // It The parameters of the recreated proposal match those of the approved one
+        // It A ProposalCreated event is emitted on the destination plugin
+
+        bool executed;
+        uint16 approvals;
+
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 0, "Should have 0 approvals total");
+
+        // Approve with tryExecute on
+        multisig.approve(0, true);
+        // Should not be able to approve again even with tryExecution
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, alice));
+        multisig.approve(0, true);
+
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 1, "Should have 1 approvals total");
+
+        vm.startPrank(randomWallet);
+        multisig.approve(0, true);
+        assertEq(multisig.hasApproved(0, bob), true, "RandomWallet's approval should be recorded for Bob");
+        assertEq(multisig.hasApproved(0, randomWallet), true, "RandomWallet's approval should be recorded");
+
+        (executed, approvals,,,,) = multisig.getProposal(0);
+        assertEq(executed, false, "Should not have executed");
+        assertEq(approvals, 2, "Should have 2 approvals total");
+
         vm.startPrank(randomWallet);
         // Should not be able to approve again even with tryExecution
         vm.expectRevert(abi.encodeWithSelector(Multisig.ApprovalCastForbidden.selector, 0, randomWallet));
@@ -1420,10 +1480,11 @@ contract MultisigTest is AragonTest {
         multisig.approve(0, false);
 
         // Should approve, pass but not execute (yet)
-        bool executed;
         (executed, approvals,,,,) = multisig.getProposal(0);
         assertEq(executed, false, "Should not have executed");
         assertEq(approvals, 3, "Should have 3 approvals total");
+
+        assertEq(multisig.canExecute(0), true, "Should be already executable");
 
         // David should approve and trigger auto execution
         vm.startPrank(david);
@@ -1624,7 +1685,7 @@ contract MultisigTest is AragonTest {
         }
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingCanApproveOrApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // Approve without executing
         vm.startPrank(randomWallet);
         multisig.approve(0, false);
@@ -1810,7 +1871,7 @@ contract MultisigTest is AragonTest {
         }
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingPassed() external givenTheProposalPassed {
+    function test_WhenCallingCanApproveOrApproveBeingPassed() external givenTheProposalPassed {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
@@ -2056,7 +2117,7 @@ contract MultisigTest is AragonTest {
         }
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingCanApproveOrApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
@@ -2205,7 +2266,7 @@ contract MultisigTest is AragonTest {
         assertEq(proposalActions[0].data, "", "Incorrect action data");
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingExpired() external givenTheProposalExpired {
+    function test_WhenCallingCanApproveOrApproveBeingExpired() external givenTheProposalExpired {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)

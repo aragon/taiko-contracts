@@ -140,7 +140,7 @@ SignerListTest:
             then:
               - it: should return the resolved owner
 
-      - given: the resolved owner is not listed [on getListedEncryptionOwnerAtBlock]
+      - given: the resolved owner was not listed [on getListedEncryptionOwnerAtBlock]
         then:
           - it: should return a zero value
 
@@ -168,7 +168,7 @@ SignerListTest:
               - it: owner should be the resolved owner
               - it: votingWallet should be the given address
 
-      - given: the resolved owner is not listed [on resolveEncryptionAccountAtBlock]
+      - given: the resolved owner was not listed [on resolveEncryptionAccountAtBlock]
         then:
           - it: should return a zero owner
           - it: should return a zero appointedWallet

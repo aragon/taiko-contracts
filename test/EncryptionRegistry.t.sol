@@ -439,7 +439,7 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function test_ShouldRevertOnSetPublicKeyIfNotAppointed(address appointedWallet) public {
-        if (Address.isContract(appointedWallet)) return;
+        if (Address.isContract(appointedWallet) || Address.isContract(address(uint160(appointedWallet) + 1))) return;
 
         address addrValue;
         bytes32 bytesValue;

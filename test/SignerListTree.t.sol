@@ -757,14 +757,14 @@ contract SignerListTest is AragonTest {
         _;
     }
 
-    modifier givenTheResolvedOwnerIsListedOnResolveEncryptionOwner() {
+    modifier givenTheResolvedOwnerIsListedOnGetListedEncryptionOwnerAtBlock() {
         _;
     }
 
     function test_WhenTheGivenAddressIsTheOwner()
         external
         whenCallingGetListedEncryptionOwnerAtBlock
-        givenTheResolvedOwnerIsListedOnResolveEncryptionOwner
+        givenTheResolvedOwnerIsListedOnGetListedEncryptionOwnerAtBlock
     {
         address resolvedOwner;
 
@@ -785,7 +785,7 @@ contract SignerListTest is AragonTest {
     function test_WhenTheGivenAddressIsAppointedByTheOwner()
         external
         whenCallingGetListedEncryptionOwnerAtBlock
-        givenTheResolvedOwnerIsListedOnResolveEncryptionOwner
+        givenTheResolvedOwnerIsListedOnGetListedEncryptionOwnerAtBlock
     {
         address resolvedOwner;
 
@@ -797,21 +797,7 @@ contract SignerListTest is AragonTest {
         assertEq(resolvedOwner, bob, "Should be bob");
     }
 
-    function test_GivenTheResolvedOwnerIsNotListedOnResolveEncryptionOwner()
-        external
-        whenCallingGetListedEncryptionOwnerAtBlock
-    {
-        address resolvedOwner;
-
-        // It should return a zero value
-        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x3456), block.number - 1);
-        assertEq(resolvedOwner, address(0), "Should be zero");
-
-        resolvedOwner = signerList.getListedEncryptionOwnerAtBlock(address(0x4567), block.number - 1);
-        assertEq(resolvedOwner, address(0), "Should be zero");
-    }
-
-    modifier givenTheResolvedOwnerWasListedOnResolveEncryptionOwner() {
+    modifier givenTheResolvedOwnerWasListedOnGetListedEncryptionOwnerAtBlock() {
         // But not listed now
         // Prior appointments are still in place
 
@@ -838,7 +824,7 @@ contract SignerListTest is AragonTest {
     function test_WhenTheGivenAddressIsTheOwner2()
         external
         whenCallingGetListedEncryptionOwnerAtBlock
-        givenTheResolvedOwnerWasListedOnResolveEncryptionOwner
+        givenTheResolvedOwnerWasListedOnGetListedEncryptionOwnerAtBlock
     {
         address resolvedOwner;
 
@@ -859,7 +845,7 @@ contract SignerListTest is AragonTest {
     function test_WhenTheGivenAddressIsAppointedByTheOwner2()
         external
         whenCallingGetListedEncryptionOwnerAtBlock
-        givenTheResolvedOwnerWasListedOnResolveEncryptionOwner
+        givenTheResolvedOwnerWasListedOnGetListedEncryptionOwnerAtBlock
     {
         address resolvedOwner;
 
@@ -871,7 +857,7 @@ contract SignerListTest is AragonTest {
         assertEq(resolvedOwner, bob, "Should be bob");
     }
 
-    function test_GivenTheResolvedOwnerWasNotListedOnResolveEncryptionOwner()
+    function test_GivenTheResolvedOwnerWasNotListedOnGetListedEncryptionOwnerAtBlock()
         external
         whenCallingGetListedEncryptionOwnerAtBlock
     {
@@ -901,14 +887,14 @@ contract SignerListTest is AragonTest {
         _;
     }
 
-    modifier givenTheResolvedOwnerIsListedOnResolveEncryptionAccount() {
+    modifier givenTheResolvedOwnerIsListedOnResolveEncryptionAccountAtBlock() {
         _;
     }
 
     function test_WhenTheGivenAddressIsOwner()
         external
         whenCallingResolveEncryptionAccountAtBlock
-        givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
+        givenTheResolvedOwnerIsListedOnResolveEncryptionAccountAtBlock
     {
         address resolvedOwner;
         address votingWallet;
@@ -941,7 +927,7 @@ contract SignerListTest is AragonTest {
     function test_WhenTheGivenAddressIsAppointed()
         external
         whenCallingResolveEncryptionAccountAtBlock
-        givenTheResolvedOwnerIsListedOnResolveEncryptionAccount
+        givenTheResolvedOwnerIsListedOnResolveEncryptionAccountAtBlock
     {
         address resolvedOwner;
         address votingWallet;
@@ -957,30 +943,7 @@ contract SignerListTest is AragonTest {
         assertEq(votingWallet, address(0x2345), "Should be 0x2345");
     }
 
-    function test_GivenTheResolvedOwnerIsNotListedOnResolveEncryptionAccount()
-        external
-        whenCallingResolveEncryptionAccountAtBlock
-    {
-        address resolvedOwner;
-        address votingWallet;
-
-        // It should return a zero owner
-        // It should return a zero votingWallet
-
-        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0), block.number - 1);
-        assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(votingWallet, address(0), "Should be 0");
-
-        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0x5555), block.number - 1);
-        assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(votingWallet, address(0), "Should be 0");
-
-        (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0xaaaa), block.number - 1);
-        assertEq(resolvedOwner, address(0), "Should be 0");
-        assertEq(votingWallet, address(0), "Should be 0");
-    }
-
-    modifier givenTheResolvedOwnerWasListedOnResolveEncryptionAccount() {
+    modifier givenTheResolvedOwnerWasListedOnResolveEncryptionAccountAtBlock() {
         // But not listed now
         // Prior appointments are still in place
 
@@ -1007,7 +970,7 @@ contract SignerListTest is AragonTest {
     function test_WhenTheGivenAddressIsOwner2()
         external
         whenCallingResolveEncryptionAccountAtBlock
-        givenTheResolvedOwnerWasListedOnResolveEncryptionAccount
+        givenTheResolvedOwnerWasListedOnResolveEncryptionAccountAtBlock
     {
         address resolvedOwner;
         address votingWallet;
@@ -1040,7 +1003,7 @@ contract SignerListTest is AragonTest {
     function test_WhenTheGivenAddressIsAppointed2()
         external
         whenCallingResolveEncryptionAccountAtBlock
-        givenTheResolvedOwnerWasListedOnResolveEncryptionAccount
+        givenTheResolvedOwnerWasListedOnResolveEncryptionAccountAtBlock
     {
         address resolvedOwner;
         address votingWallet;
@@ -1056,7 +1019,7 @@ contract SignerListTest is AragonTest {
         assertEq(votingWallet, address(0x2345), "Should be 0x2345");
     }
 
-    function test_GivenTheResolvedOwnerWasNotListedOnResolveEncryptionAccount()
+    function test_GivenTheResolvedOwnerWasNotListedOnResolveEncryptionAccountAtBlock()
         external
         whenCallingResolveEncryptionAccountAtBlock
     {

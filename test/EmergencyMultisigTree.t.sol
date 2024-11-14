@@ -1172,7 +1172,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(0), "Incorrect destinationPlugin");
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingUncreated() external givenTheProposalIsNotCreated {
+    function test_WhenCallingCanApproveOrApproveBeingUncreated() external givenTheProposalIsNotCreated {
         uint256 randomProposalId = 1234;
         bool canApprove;
 
@@ -1416,7 +1416,7 @@ contract EmergencyMultisigTest is AragonTest {
         }
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingOpen() external givenTheProposalIsOpen {
+    function test_WhenCallingCanApproveOrApproveBeingOpen() external givenTheProposalIsOpen {
         // It canApprove should return true (when listed on creation, self appointed now)
         bool canApprove = eMultisig.canApprove(0, alice);
         assertEq(canApprove, true, "Alice should be able to approve");
@@ -1639,7 +1639,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(optimisticPlugin));
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
+    function test_WhenCallingCanApproveOrApproveBeingApproved() external givenTheProposalWasApprovedByTheAddress {
         // It canApprove should return false (when listed on creation, self appointed now)
         assertEq(eMultisig.canApprove(0, alice), false, "Alice should not be able to approve again");
 
@@ -1792,7 +1792,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destinationPlugin");
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingPassed() external givenTheProposalPassed {
+    function test_WhenCallingCanApproveOrApproveBeingPassed() external givenTheProposalPassed {
         // It canApprove should return false (when listed on creation, self appointed now)
         // vm.startPrank(alice);
         assertEq(eMultisig.canApprove(0, alice), false, "Alice should not be able to approve");
@@ -2031,7 +2031,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destinationPlugin");
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
+    function test_WhenCallingCanApproveOrApproveBeingExecuted() external givenTheProposalIsAlreadyExecuted {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
@@ -2204,7 +2204,7 @@ contract EmergencyMultisigTest is AragonTest {
         assertEq(address(destinationPlugin), address(optimisticPlugin), "Incorrect destinationPlugin");
     }
 
-    function test_WhenCallingCanApproveAndApproveBeingExpired() external givenTheProposalExpired {
+    function test_WhenCallingCanApproveOrApproveBeingExpired() external givenTheProposalExpired {
         // It canApprove should return false (when listed on creation, self appointed now)
         // It canApprove should return false (when listed on creation, appointing someone else now)
         // It canApprove should return false (when currently appointed by a signer listed on creation)
