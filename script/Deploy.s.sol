@@ -68,17 +68,19 @@ contract Deploy is Script {
         console.log("- Optimistic token voting plugin:", address(daoDeployment.optimisticTokenVotingPlugin));
         console.log("");
 
+        console.log("Helpers");
+        console.log("- Signer list", address(daoDeployment.signerList));
+        console.log("- Encryption registry", address(daoDeployment.encryptionRegistry));
+        console.log("- Delegation wall", address(delegationWall));
+
+        console.log("");
+
         console.log("Plugin repositories");
         console.log("- Multisig plugin repository:", address(daoDeployment.multisigPluginRepo));
         console.log("- Emergency multisig plugin repository:", address(daoDeployment.emergencyMultisigPluginRepo));
         console.log(
             "- Optimistic token voting plugin repository:", address(daoDeployment.optimisticTokenVotingPluginRepo)
         );
-        console.log("");
-
-        console.log("Helpers");
-        console.log("- Encryption registry", address(daoDeployment.encryptionRegistry));
-        console.log("- Delegation wall", address(delegationWall));
     }
 
     function getProductionSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
