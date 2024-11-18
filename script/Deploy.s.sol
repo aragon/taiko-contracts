@@ -21,9 +21,20 @@ contract Deploy is Script {
     EmergencyMultisigPluginSetup emergencyMultisigPluginSetup;
     OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup;
 
-    function run() public {
-        vm.startBroadcast(vm.envUint("DEPLOYMENT_PRIVATE_KEY"));
+    /// @dev Thrown when attempting to deploy a multisig with no members
+    error EmptyMultisig();
 
+    modifier broadcast() {
+        uint256 privKey = vm.envUint("DEPLOYMENT_PRIVATE_KEY");
+        vm.startBroadcast(privKey);
+        console.log("Deploying from:", vm.addr(privKey));
+
+        _;
+
+        vm.stopBroadcast();
+    }
+
+    function run() public broadcast {
         // NOTE: Deploying the plugin setup's separately because of the code size limit
         //       EncryptionRegistry and DelegationWall are deployed by the TaikoDaoFactory
 
@@ -36,51 +47,23 @@ contract Deploy is Script {
         );
 
         console.log("Chain ID:", block.chainid);
-        console.log("Deploying from:", vm.addr(vm.envUint("DEPLOYMENT_PRIVATE_KEY")));
 
         TaikoDaoFactory.DeploymentSettings memory settings;
-        if (vm.envBool("DEPLOY_AS_PRODUCTION")) {
-            settings = getProductionSettings();
+        if (vm.envOr("MINT_TEST_TOKENS", false)) {
+            settings = getTestTokenSettings();
         } else {
-            settings = getInternalTestingSettings();
+            settings = getProductionSettings();
         }
 
         console.log("");
 
         TaikoDaoFactory factory = new TaikoDaoFactory(settings);
         factory.deployOnce();
-        TaikoDaoFactory.Deployment memory daoDeployment = factory.getDeployment();
+
         address delegationWall = address(new DelegationWall());
 
-        vm.stopBroadcast();
-
-        // Print summary
-        console.log("Factory:", address(factory));
-        console.log("");
-        console.log("DAO:", address(daoDeployment.dao));
-        console.log("Voting token:", address(settings.tokenAddress));
-        console.log("Taiko Bridge:", settings.taikoBridgeAddress);
-        console.log("");
-
-        console.log("Plugins");
-        console.log("- Multisig plugin:", address(daoDeployment.multisigPlugin));
-        console.log("- Emergency multisig plugin:", address(daoDeployment.emergencyMultisigPlugin));
-        console.log("- Optimistic token voting plugin:", address(daoDeployment.optimisticTokenVotingPlugin));
-        console.log("");
-
-        console.log("Helpers");
-        console.log("- Signer list", address(daoDeployment.signerList));
-        console.log("- Encryption registry", address(daoDeployment.encryptionRegistry));
-        console.log("- Delegation wall", address(delegationWall));
-
-        console.log("");
-
-        console.log("Plugin repositories");
-        console.log("- Multisig plugin repository:", address(daoDeployment.multisigPluginRepo));
-        console.log("- Emergency multisig plugin repository:", address(daoDeployment.emergencyMultisigPluginRepo));
-        console.log(
-            "- Optimistic token voting plugin repository:", address(daoDeployment.optimisticTokenVotingPluginRepo)
-        );
+        // Done
+        printDeploymentSummary(factory, delegationWall);
     }
 
     function getProductionSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
@@ -117,8 +100,8 @@ contract Deploy is Script {
         });
     }
 
-    function getInternalTestingSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
-        console.log("Using internal testing settings");
+    function getTestTokenSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
+        console.log("Using test token settings");
 
         address taikoBridgeAddress = address(0x1234567890);
         address[] memory multisigMembers = readMultisigMembers();
@@ -155,11 +138,50 @@ contract Deploy is Script {
         });
     }
 
-    function readMultisigMembers() internal view returns (address[] memory) {
+    function printDeploymentSummary(TaikoDaoFactory factory, address delegationWall) internal view {
+        TaikoDaoFactory.DeploymentSettings memory settings = factory.getSettings();
+        TaikoDaoFactory.Deployment memory daoDeployment = factory.getDeployment();
+
+        console.log("Factory:", address(factory));
+        console.log("");
+        console.log("DAO:", address(daoDeployment.dao));
+        console.log("Voting token:", address(settings.tokenAddress));
+        console.log("Taiko Bridge:", settings.taikoBridgeAddress);
+        console.log("");
+
+        console.log("Plugins");
+        console.log("- Multisig plugin:", address(daoDeployment.multisigPlugin));
+        console.log("- Emergency multisig plugin:", address(daoDeployment.emergencyMultisigPlugin));
+        console.log("- Optimistic token voting plugin:", address(daoDeployment.optimisticTokenVotingPlugin));
+        console.log("");
+
+        console.log("Helpers");
+        console.log("- Signer list", address(daoDeployment.signerList));
+        console.log("- Encryption registry", address(daoDeployment.encryptionRegistry));
+        console.log("- Delegation wall", address(delegationWall));
+
+        console.log("");
+
+        console.log("Plugin repositories");
+        console.log("- Multisig plugin repository:", address(daoDeployment.multisigPluginRepo));
+        console.log("- Emergency multisig plugin repository:", address(daoDeployment.emergencyMultisigPluginRepo));
+        console.log(
+            "- Optimistic token voting plugin repository:", address(daoDeployment.optimisticTokenVotingPluginRepo)
+        );
+    }
+
+    function readMultisigMembers() public view returns (address[] memory result) {
         // JSON list of members
-        string memory path = string.concat(vm.projectRoot(), "/script/multisig-members.json");
-        string memory json = vm.readFile(path);
-        return vm.parseJsonAddressArray(json, "$.members");
+        string memory membersFilePath = vm.envString("MULTISIG_MEMBERS_JSON_FILE_NAME");
+        string memory path = string.concat(vm.projectRoot(), membersFilePath);
+        string memory strJson = vm.readFile(path);
+
+        bool exists = vm.keyExistsJson(strJson, "$.members");
+        if (!exists) revert EmptyMultisig();
+
+        result = vm.parseJsonAddressArray(strJson, "$.members");
+
+        if (result.length == 0) revert EmptyMultisig();
     }
 
     function createTestToken(address[] memory members, address taikoBridge) internal returns (address) {

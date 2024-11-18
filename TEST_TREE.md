@@ -67,7 +67,8 @@ EmergencyMultisigTest
 │   │   └── It allows anyone to create
 │   ├── Given onlyListed is true
 │   │   ├── Given creation caller is not listed or appointed
-│   │   │   └── It reverts
+│   │   │   ├── It reverts
+│   │   │   └── It reverts if listed before but not now
 │   │   ├── Given creation caller is appointed by a former signer
 │   │   │   └── It reverts
 │   │   ├── Given creation caller is listed and self appointed
@@ -87,23 +88,23 @@ EmergencyMultisigTest
 ├── Given The proposal is not created
 │   ├── When calling getProposal being uncreated
 │   │   └── It should return empty values
-│   ├── When calling canApprove and approve being uncreated
-│   │   ├── It canApprove should return false (when currently listed and self appointed)
-│   │   ├── It approve should revert (when currently listed and self appointed)
-│   │   ├── It canApprove should return false (when currently listed, appointing someone else now)
-│   │   ├── It approve should revert (when currently listed, appointing someone else now)
+│   ├── When calling canApprove or approve being uncreated
+│   │   ├── It canApprove should return false (when listed and self appointed)
+│   │   ├── It approve should revert (when listed and self appointed)
+│   │   ├── It canApprove should return false (when listed, appointing someone else now)
+│   │   ├── It approve should revert (when listed, appointing someone else now)
 │   │   ├── It canApprove should return false (when appointed by a listed signer)
 │   │   ├── It approve should revert (when appointed by a listed signer)
-│   │   ├── It canApprove should return false (when currently unlisted and unappointed)
-│   │   └── It approve should revert (when currently unlisted and unappointed)
+│   │   ├── It canApprove should return false (when unlisted and unappointed)
+│   │   └── It approve should revert (when unlisted and unappointed)
 │   ├── When calling hasApproved being uncreated
 │   │   └── It hasApproved should always return false
-│   └── When calling canExecute and execute being uncreated
+│   └── When calling canExecute or execute being uncreated
 │       └── It canExecute should always return false
 ├── Given The proposal is open
 │   ├── When calling getProposal being open
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being open
+│   ├── When calling canApprove or approve being open
 │   │   ├── It canApprove should return true (when listed on creation, self appointed now)
 │   │   ├── It approve should work (when listed on creation, self appointed now)
 │   │   ├── It approve should emit an event (when listed on creation, self appointed now)
@@ -116,7 +117,7 @@ EmergencyMultisigTest
 │   │   └── It approve should revert (when unlisted on creation, unappointed now)
 │   ├── When calling hasApproved being open
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute being open
+│   └── When calling canExecute or execute being open
 │       ├── It canExecute should return false (when listed on creation, self appointed now)
 │       ├── It execute should revert (when listed on creation, self appointed now)
 │       ├── It canExecute should return false (when listed on creation, appointing someone else now)
@@ -128,14 +129,14 @@ EmergencyMultisigTest
 ├── Given The proposal was approved by the address
 │   ├── When calling getProposal being approved
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being approved
+│   ├── When calling canApprove or approve being approved
 │   │   ├── It canApprove should return false (when listed on creation, self appointed now)
 │   │   ├── It approve should revert (when listed on creation, self appointed now)
 │   │   ├── It canApprove should return false (when currently appointed by a signer listed on creation)
 │   │   └── It approve should revert (when currently appointed by a signer listed on creation)
 │   ├── When calling hasApproved being approved
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute being approved
+│   └── When calling canExecute or execute being approved
 │       ├── It canExecute should return false (when listed on creation, self appointed now)
 │       ├── It execute should revert (when listed on creation, self appointed now)
 │       ├── It canExecute should return false (when currently appointed by a signer listed on creation)
@@ -143,7 +144,7 @@ EmergencyMultisigTest
 ├── Given The proposal passed
 │   ├── When calling getProposal being passed
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being passed
+│   ├── When calling canApprove or approve being passed
 │   │   ├── It canApprove should return false (when listed on creation, self appointed now)
 │   │   ├── It approve should revert (when listed on creation, self appointed now)
 │   │   ├── It canApprove should return false (when listed on creation, appointing someone else now)
@@ -154,11 +155,11 @@ EmergencyMultisigTest
 │   │   └── It approve should revert (when unlisted on creation, unappointed now)
 │   ├── When calling hasApproved being passed
 │   │   └── It hasApproved should return false until approved
-│   ├── When calling canExecute and execute with modified data being passed
+│   ├── When calling canExecute or execute with modified data being passed
 │   │   ├── It execute should revert with modified metadata
 │   │   ├── It execute should revert with modified actions
 │   │   └── It execute should work with matching data
-│   ├── When calling canExecute and execute being passed
+│   ├── When calling canExecute or execute being passed
 │   │   ├── It canExecute should return true, always
 │   │   ├── It execute should work, when called by anyone with the actions
 │   │   ├── It execute should emit an event, when called by anyone with the actions
@@ -171,7 +172,7 @@ EmergencyMultisigTest
 ├── Given The proposal is already executed
 │   ├── When calling getProposal being executed
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being executed
+│   ├── When calling canApprove or approve being executed
 │   │   ├── It canApprove should return false (when listed on creation, self appointed now)
 │   │   ├── It approve should revert (when listed on creation, self appointed now)
 │   │   ├── It canApprove should return false (when listed on creation, appointing someone else now)
@@ -182,7 +183,7 @@ EmergencyMultisigTest
 │   │   └── It approve should revert (when unlisted on creation, unappointed now)
 │   ├── When calling hasApproved being executed
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute being executed
+│   └── When calling canExecute or execute being executed
 │       ├── It canExecute should return false (when listed on creation, self appointed now)
 │       ├── It execute should revert (when listed on creation, self appointed now)
 │       ├── It canExecute should return false (when listed on creation, appointing someone else now)
@@ -194,7 +195,7 @@ EmergencyMultisigTest
 └── Given The proposal expired
     ├── When calling getProposal being expired
     │   └── It should return the right values
-    ├── When calling canApprove and approve being expired
+    ├── When calling canApprove or approve being expired
     │   ├── It canApprove should return false (when listed on creation, self appointed now)
     │   ├── It approve should revert (when listed on creation, self appointed now)
     │   ├── It canApprove should return false (when listed on creation, appointing someone else now)
@@ -205,7 +206,7 @@ EmergencyMultisigTest
     │   └── It approve should revert (when unlisted on creation, unappointed now)
     ├── When calling hasApproved being expired
     │   └── It hasApproved should return false until approved
-    └── When calling canExecute and execute being expired
+    └── When calling canExecute or execute being expired
         ├── It canExecute should return false (when listed on creation, self appointed now)
         ├── It execute should revert (when listed on creation, self appointed now)
         ├── It canExecute should return false (when listed on creation, appointing someone else now)
@@ -283,7 +284,8 @@ MultisigTest
 │   │   └── It allows anyone to create
 │   ├── Given onlyListed is true
 │   │   ├── Given creation caller is not listed or appointed
-│   │   │   └── It reverts
+│   │   │   ├── It reverts
+│   │   │   └── It reverts if listed before but not now
 │   │   ├── Given creation caller is appointed by a former signer
 │   │   │   └── It reverts
 │   │   ├── Given creation caller is listed and self appointed
@@ -299,30 +301,30 @@ MultisigTest
 ├── Given The proposal is not created
 │   ├── When calling getProposal being uncreated
 │   │   └── It should return empty values
-│   ├── When calling canApprove and approve being uncreated
-│   │   ├── It canApprove should return false (when currently listed and self appointed)
-│   │   ├── It approve should revert (when currently listed and self appointed)
-│   │   ├── It canApprove should return false (when currently listed, appointing someone else now)
-│   │   ├── It approve should revert (when currently listed, appointing someone else now)
+│   ├── When calling canApprove or approve being uncreated
+│   │   ├── It canApprove should return false (when listed and self appointed)
+│   │   ├── It approve should revert (when listed and self appointed)
+│   │   ├── It canApprove should return false (when listed, appointing someone else now)
+│   │   ├── It approve should revert (when listed, appointing someone else now)
 │   │   ├── It canApprove should return false (when appointed by a listed signer)
 │   │   ├── It approve should revert (when appointed by a listed signer)
-│   │   ├── It canApprove should return false (when currently unlisted and unappointed)
-│   │   └── It approve should revert (when currently unlisted and unappointed)
+│   │   ├── It canApprove should return false (when unlisted and unappointed)
+│   │   └── It approve should revert (when unlisted and unappointed)
 │   ├── When calling hasApproved being uncreated
 │   │   └── It hasApproved should always return false
-│   └── When calling canExecute and execute being uncreated
-│       ├── It canExecute should return false (when currently listed and self appointed)
-│       ├── It execute should revert (when currently listed and self appointed)
-│       ├── It canExecute should return false (when currently listed, appointing someone else now)
-│       ├── It execute should revert (when currently listed, appointing someone else now)
+│   └── When calling canExecute or execute being uncreated
+│       ├── It canExecute should return false (when listed and self appointed)
+│       ├── It execute should revert (when listed and self appointed)
+│       ├── It canExecute should return false (when listed, appointing someone else now)
+│       ├── It execute should revert (when listed, appointing someone else now)
 │       ├── It canExecute should return false (when appointed by a listed signer)
 │       ├── It execute should revert (when appointed by a listed signer)
-│       ├── It canExecute should return false (when currently unlisted and unappointed)
-│       └── It execute should revert (when currently unlisted and unappointed)
+│       ├── It canExecute should return false (when unlisted and unappointed)
+│       └── It execute should revert (when unlisted and unappointed)
 ├── Given The proposal is open
 │   ├── When calling getProposal being open
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being open
+│   ├── When calling canApprove or approve being open
 │   │   ├── It canApprove should return true (when listed on creation, self appointed now)
 │   │   ├── It approve should work (when listed on creation, self appointed now)
 │   │   ├── It approve should emit an event (when listed on creation, self appointed now)
@@ -341,7 +343,7 @@ MultisigTest
 │   │   └── It A ProposalCreated event is emitted on the destination plugin
 │   ├── When calling hasApproved being open
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute being open
+│   └── When calling canExecute or execute being open
 │       ├── It canExecute should return false (when listed on creation, self appointed now)
 │       ├── It execute should revert (when listed on creation, self appointed now)
 │       ├── It canExecute should return false (when listed on creation, appointing someone else now)
@@ -353,14 +355,14 @@ MultisigTest
 ├── Given The proposal was approved by the address
 │   ├── When calling getProposal being approved
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being approved
+│   ├── When calling canApprove or approve being approved
 │   │   ├── It canApprove should return false (when listed on creation, self appointed now)
 │   │   ├── It approve should revert (when listed on creation, self appointed now)
 │   │   ├── It canApprove should return false (when currently appointed by a signer listed on creation)
 │   │   └── It approve should revert (when currently appointed by a signer listed on creation)
 │   ├── When calling hasApproved being approved
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute being approved
+│   └── When calling canExecute or execute being approved
 │       ├── It canExecute should return false (when listed on creation, self appointed now)
 │       ├── It execute should revert (when listed on creation, self appointed now)
 │       ├── It canExecute should return false (when currently appointed by a signer listed on creation)
@@ -368,7 +370,7 @@ MultisigTest
 ├── Given The proposal passed
 │   ├── When calling getProposal being passed
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being passed
+│   ├── When calling canApprove or approve being passed
 │   │   ├── It canApprove should return false (when listed on creation, self appointed now)
 │   │   ├── It approve should revert (when listed on creation, self appointed now)
 │   │   ├── It canApprove should return false (when listed on creation, appointing someone else now)
@@ -379,7 +381,7 @@ MultisigTest
 │   │   └── It approve should revert (when unlisted on creation, unappointed now)
 │   ├── When calling hasApproved being passed
 │   │   └── It hasApproved should return false until approved
-│   ├── When calling canExecute and execute being passed
+│   ├── When calling canExecute or execute being passed
 │   │   ├── It canExecute should return true, always
 │   │   ├── It execute should work, when called by anyone
 │   │   ├── It execute should emit an event, when called by anyone
@@ -392,7 +394,7 @@ MultisigTest
 ├── Given The proposal is already executed
 │   ├── When calling getProposal being executed
 │   │   └── It should return the right values
-│   ├── When calling canApprove and approve being executed
+│   ├── When calling canApprove or approve being executed
 │   │   ├── It canApprove should return false (when listed on creation, self appointed now)
 │   │   ├── It approve should revert (when listed on creation, self appointed now)
 │   │   ├── It canApprove should return false (when listed on creation, appointing someone else now)
@@ -403,7 +405,7 @@ MultisigTest
 │   │   └── It approve should revert (when unlisted on creation, unappointed now)
 │   ├── When calling hasApproved being executed
 │   │   └── It hasApproved should return false until approved
-│   └── When calling canExecute and execute being executed
+│   └── When calling canExecute or execute being executed
 │       ├── It canExecute should return false (when listed on creation, self appointed now)
 │       ├── It execute should revert (when listed on creation, self appointed now)
 │       ├── It canExecute should return false (when listed on creation, appointing someone else now)
@@ -415,7 +417,7 @@ MultisigTest
 └── Given The proposal expired
     ├── When calling getProposal being expired
     │   └── It should return the right values
-    ├── When calling canApprove and approve being expired
+    ├── When calling canApprove or approve being expired
     │   ├── It canApprove should return false (when listed on creation, self appointed now)
     │   ├── It approve should revert (when listed on creation, self appointed now)
     │   ├── It canApprove should return false (when listed on creation, appointing someone else now)
@@ -426,7 +428,7 @@ MultisigTest
     │   └── It approve should revert (when unlisted on creation, unappointed now)
     ├── When calling hasApproved being expired
     │   └── It hasApproved should return false until approved
-    └── When calling canExecute and execute being expired
+    └── When calling canExecute or execute being expired
         ├── It canExecute should return false (when listed on creation, self appointed now)
         ├── It execute should revert (when listed on creation, self appointed now)
         ├── It canExecute should return false (when listed on creation, appointing someone else now)
@@ -506,33 +508,42 @@ SignerListTest
 │       │   └── It returns false
 │       └── Given the member is enlisted now
 │           └── It returns false
-├── When calling resolveEncryptionAccountStatus
+├── When calling isListedOrAppointedByListed
 │   ├── Given the caller is a listed signer
-│   │   ├── It ownerIsListed should be true
-│   │   └── It isAppointed should be false
+│   │   └── It listedOrAppointedByListed should be true
 │   ├── Given the caller is appointed by a signer
-│   │   ├── It ownerIsListed should be true
-│   │   └── It isAppointed should be true
+│   │   └── It listedOrAppointedByListed should be true
 │   └── Given the caller is not listed or appointed
-│       ├── It ownerIsListed should be false
-│       └── It isAppointed should be false
-├── When calling resolveEncryptionOwner
-│   ├── Given the resolved owner is listed on resolveEncryptionOwner
+│       └── It listedOrAppointedByListed should be false
+├── When calling getListedEncryptionOwnerAtBlock
+│   ├── Given the resolved owner is listed on getListedEncryptionOwnerAtBlock
 │   │   ├── When the given address is the owner
 │   │   │   └── It should return the given address
 │   │   └── When the given address is appointed by the owner
 │   │       └── It should return the resolved owner
-│   └── Given the resolved owner is not listed on resolveEncryptionOwner
+│   ├── Given the resolved owner was listed on getListedEncryptionOwnerAtBlock
+│   │   ├── When the given address is the owner 2
+│   │   │   └── It should return the given address
+│   │   └── When the given address is appointed by the owner 2
+│   │       └── It should return the resolved owner
+│   └── Given the resolved owner was not listed on getListedEncryptionOwnerAtBlock
 │       └── It should return a zero value
-├── When calling resolveEncryptionAccount
-│   ├── Given the resolved owner is listed on resolveEncryptionAccount
-│   │   ├── When the given address is appointed
-│   │   │   ├── It owner should be the resolved owner
-│   │   │   └── It appointedWallet should be the caller
-│   │   └── When the given address is not appointed
-│   │       ├── It owner should be the caller
-│   │       └── It appointedWallet should be resolved appointed wallet
-│   └── Given the resolved owner is not listed on resolveEncryptionAccount
+├── When calling resolveEncryptionAccountAtBlock
+│   ├── Given the resolved owner is listed on resolveEncryptionAccountAtBlock
+│   │   ├── When the given address is owner
+│   │   │   ├── It owner should be itself
+│   │   │   └── It votingWallet should be the appointed address
+│   │   └── When the given address is appointed
+│   │       ├── It owner should be the resolved owner
+│   │       └── It votingWallet should be the given address
+│   ├── Given the resolved owner was listed on resolveEncryptionAccountAtBlock
+│   │   ├── When the given address is owner 2
+│   │   │   ├── It owner should be itself
+│   │   │   └── It votingWallet should be the appointed address
+│   │   └── When the given address is appointed 2
+│   │       ├── It owner should be the resolved owner
+│   │       └── It votingWallet should be the given address
+│   └── Given the resolved owner was not listed on resolveEncryptionAccountAtBlock
 │       ├── It should return a zero owner
 │       └── It should return a zero appointedWallet
 └── When calling getEncryptionRecipients

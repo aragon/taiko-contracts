@@ -16,7 +16,9 @@ Another key difference is that the Emergency Multisig is designed such in a way 
 
 See [Deploying the DAO](#deploying-the-dao) below and check out the [contract deployments](./DEPLOYMENTS.md).
 
-## Optimistic Token Voting plugin
+## Contracts overview
+
+### Optimistic Token Voting plugin
 
 This plugin is an adapted version of Aragon's [Optimistic Token Voting plugin](https://github.com/aragon/optimistic-token-voting-plugin). 
 
@@ -26,14 +28,14 @@ Proposals can only be executed when the veto threshold hasn't been reached after
 
 The governance settings need to be defined when the plugin is installed but the DAO can update them at any time.
 
-### Permissions
+#### Permissions
 
 - Only proposers can create proposals on the plugin
 - The plugin can execute actions on the DAO
 - The DAO can update the plugin settings
 - The DAO can upgrade the plugin
 
-## Multisig (standard flow)
+### Multisig (standard flow)
 
 It allows the Security Council members to create and approve proposals. After a certain minimum of approvals is met, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) only.
 
@@ -43,14 +45,14 @@ The ability to relay proposals to the [Optimistic Token Voting plugin](#optimist
 
 ![Standard proposal flow](./img/std-proposal-flow.png)
 
-### Permissions
+#### Permissions
 
 - Only members can create proposals
 - Only members can approve
 - The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
 - The DAO can update the plugin settings
 
-## Emergency Multisig
+### Emergency Multisig
 
 Like before, this plugin allows Security Council members to create and approve proposals. If a super majority approves, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) with a delay period of potentially 0. This is, being executed immediately. 
 
@@ -62,7 +64,7 @@ There are two key differences with the standard Multisig:
 
 ![Emergency proposal flow](./img/emergency-proposal-flow.png)
 
-### Permissions
+#### Permissions
 
 The Emergency Multisig settings are the same as for the standard Multisig. 
 
@@ -71,7 +73,7 @@ The Emergency Multisig settings are the same as for the standard Multisig.
 - The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
 - The DAO can update the plugin settings
 
-## Signer List
+### Signer List
 
 Both multisigs relate to this contract to determine if an address was listed at a certain block. It allows to read the state and manage the address list given that the appropriate permissions are granted.
 
@@ -99,7 +101,7 @@ What it means:
   - Can approve
   - Can execute (they can decrypt the actions and the metadata)
 
-## Encryption Registry
+### Encryption Registry
 
 This is a helper contract that allows Security Council members ([SignerList](#signer-list) addresses) to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions.
 
@@ -107,17 +109,17 @@ Given that smart contracts cannot possibly sign or decrypt data, the encryption 
 
 Refer to the UI repository for the encryption details.
 
-## Delegation Wall
+### Delegation Wall
 
 This is a very simple contract that serves the purpose of storing the IPFS URI's pointing to the delegation profile posted by all candidates. Profiles can be updated by the owner and read by everyone.
 
-## Installing plugins to the DAO
+### Installing plugins to the DAO
 
-### Installing the initial set of plugins on the DAO
+#### Installing the initial set of plugins on the DAO
 
 This is taken care by the [TaikoDAOFactory](src/factory/TaikoDaoFactory.sol) contract. It is invoked by [scripts/Deploy.s.sol](script/Deploy.s.sol) and it creates a holistic, immutable DAO deployment, given some settings. To create a new DAO with new settings, a new factory needs to be deployed. 
 
-### Installing plugins on the existing DAO
+#### Installing plugins on the existing DAO
 
 Plugin changes need a proposal to be passed when the DAO already exists.
 
@@ -132,6 +134,171 @@ There are two steps, a permissionless **preparation** and a privileged **applica
 See [OptimisticTokenVotingPluginSetup](src/setup/OptimisticTokenVotingPluginSetup.sol).
 
 [Learn more about plugin setup's](https://devs.aragon.org/docs/osx/how-it-works/framework/plugin-management/plugin-setup/) and [preparing installations](https://devs.aragon.org/docs/sdk/examples/client/prepare-installation).
+
+
+## Setup
+
+To get started, ensure that [Foundry](https://getfoundry.sh/) and [Make](https://www.gnu.org/software/make/) are installed on your computer.
+
+### Using the Makefile
+
+The `Makefile` is the target launcher of the project. It's the recommended way to work with it. It manages the env variables of common tasks and executes only the steps that require being run.
+
+```
+$ make 
+Available targets:
+
+- make init       Check the dependencies and prompt to install if needed
+- make clean      Clean the build artifacts
+
+- make test            Run unit tests, locally
+- make test-coverage   Generate an HTML coverage report under ./report
+
+- make sync-tests       Scaffold or sync tree files into solidity tests
+- make check-tests      Checks if solidity files are out of sync
+- make markdown-tests   Generates a markdown file with the test definitions rendered as a tree
+
+- make pre-deploy-mint-testnet   Simulate a deployment to the testnet, minting test token(s)
+- make pre-deploy-testnet        Simulate a deployment to the testnet
+- make pre-deploy-prodnet        Simulate a deployment to the production network
+
+- make deploy-testnet        Deploy to the testnet and verify
+- make deploy-prodnet        Deploy to the production network and verify
+
+- make refund   Refund the remaining balance left on the deployment account
+```
+
+Run `make init`:
+- It ensures that Foundry is installed
+- It runs a first compilation of the project
+- It copies `.env.example` into `.env` and `.env.test.example` into `.env.test`
+
+Next, customize the values of `.env` and optionally `.env.test`.
+
+### Understanding `.env.example`
+
+The env.example file contains descriptions for all the initial settings. You don't need all of these right away but should review prior to fork tests and deployments
+
+## Deployment
+
+Deployments are done using the deployment factory. This is a singleton contract that will:
+
+- Deploy all contracts
+- Set permissions
+- Transfer ownership to a freshly deployed multisig
+- Store the addresses of the deployment in a single source of truth that can be queried at any time.
+
+Check the available make targets to simulate and deploy the smart contracts:
+
+```
+- make pre-deploy-testnet    Simulate a deployment to the defined testnet
+- make pre-deploy-prodnet    Simulate a deployment to the defined production network
+- make deploy-testnet        Deploy to the defined testnet network and verify
+- make deploy-prodnet        Deploy to the production network and verify
+```
+
+### Deployment Checklist
+
+- [ ] I have cloned the official repository on my computer and I have checked out the corresponding branch
+- [ ] I am using the latest official docker engine, running a Debian Linux (stable) image
+  - [ ] I have run `docker run --rm -it -v .:/deployment debian:bookworm-slim`
+  - [ ] I have run `apt update && apt install -y make curl git vim neovim bc`
+  - [ ] I have run `curl -L https://foundry.paradigm.xyz | bash`
+  - [ ] I have run `source /root/.bashrc && foundryup`
+  - [ ] I have run `cd /deployment`
+  - [ ] I have run `make init`
+  - [ ] I have printed the contents of `.env` and `.env.test` on the screen
+- [ ] I am opening an editor on the `/deployment` folder, within the Docker container
+- [ ] The `.env` file contains the correct parameters for the deployment
+  - [ ] I have created a brand new burner wallet with `cast wallet new` and copied the private key to `DEPLOYMENT_PRIVATE_KEY` within `.env`
+  - [ ] I have reviewed the target network and RPC URL
+  - [ ] I have checked that the JSON file under `MULTISIG_MEMBERS_JSON_FILE_NAME` contains the correct list of signers
+  - [ ] I have ensured all multisig members have undergone a proper security review and are aware of the security implications of being on said multisig
+  - [ ] I have checked that `MIN_STD_APPROVALS`, `MIN_EMERGENCY_APPROVALS` and `MULTISIG_PROPOSAL_EXPIRATION_PERIOD` are correct
+  - [ ] I have verified that `TOKEN_ADDRESS` corresponds to an ERC20 contract on the target chain
+  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` are correct 
+  - The plugin ENS subdomain
+    - [ ] Contains a meaningful and unique value
+  - The given OSx addresses:
+    - [ ] Exist on the target network
+    - [ ] Contain the latest stable official version of the OSx DAO implementation, the Plugin Setup Processor and the Plugin Repo Factory
+    - [ ] I have verified the values on https://www.npmjs.com/package/@aragon/osx-commons-configs?activeTab=code > `/@aragon/osx-commons-configs/dist/deployments/json/`
+- [ ] All my unit tests pass (`make test`)
+- **Target test network**
+  - [ ] I have run a preview deployment on the testnet
+    - `make pre-deploy-mint-testnet`
+  - [ ] I have deployed my contracts successfully to the target testnet
+    - `make deploy-testnet`
+  - [ ] I have tested that these contracts work successfully on a UI
+- **Target production network**
+    - [ ] I have updated `TOKEN_ADDRESS` to have the address of the testnet token deployed above
+    - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` are correct 
+- [ ] My deployment wallet is a newly created account, ready for safe production deploys.
+- My computer:
+  - [ ] Is running in a safe physical location and a trusted network
+  - [ ] It exposes no services or ports
+  - [ ] The wifi or wired network used does does not have open ports to a WAN
+- [ ] I have previewed my deploy without any errors
+  - `make pre-deploy-prodnet`
+- [ ] My wallet has sufficient native token for gas
+  - At least, 15% more than the estimated simulation
+- [ ] Unit tests still run clean
+- [ ] I have run `git status` and it reports no local changes
+- [ ] The current local git branch corresponds to its counterpart on `origin`
+  - [ ] I confirm that the rest of members of the ceremony pulled the last commit of my branch and reported the same commit hash as my output for `git log -n 1`
+- [ ] I have initiated the production deployment with `make deploy-prodnet`
+
+### Post deployment checklist
+
+- [ ] The deployment process completed with no errors
+- [ ] The deployed factory was deployed by the deployment address
+- [ ] The reported contracts have been created created by the newly deployed factory
+- [ ] The smart contracts are correctly verified on Etherscan or the corresponding block explorer
+- [ ] The output of the latest `deployment-*.log` file corresponds to the console output
+- [ ] I have transferred the remaining funds of the deployment wallet to the address that originally funded it
+  - `make refund`
+
+### Manual from the command line
+
+You can of course run all commands from the command line:
+
+```sh
+# Load the env vars
+source .env
+```
+
+```sh
+# run unit tests
+forge test --no-match-path "test/fork/**/*.sol"
+```
+
+```sh
+# Set the right RPC URL
+RPC_URL="https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+```
+
+```sh
+# Run the deployment script
+
+# If using Etherscan
+forge script --chain "$NETWORK" script/DeployGauges.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify
+
+# If using BlockScout
+forge script --chain "$NETWORK" script/DeployGauges.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --verifier blockscout --verifier-url "https://sepolia.explorer.mode.network/api\?"
+```
+
+If you get the error Failed to get EIP-1559 fees, add `--legacy` to the command:
+
+```sh
+forge script --chain "$NETWORK" script/DeployGauges.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --legacy
+```
+
+If some contracts fail to verify on Etherscan, retry with this command:
+
+```sh
+forge script --chain "$NETWORK" script/DeployGauges.s.sol:Deploy --rpc-url "$RPC_URL" --verify --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
+```
+
 
 ## OSx protocol overview
 
