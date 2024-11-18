@@ -4,6 +4,43 @@
 
 ## Holesly
 
+### November 18th 2024
+
+Deployment for internal testing:
+- Exit window of 7 days
+- L2 disabled
+- Using a pre-release voting token
+
+Deployment with the encryption registry available
+
+```
+  Deploying from: 0x424797Ed6d902E17b9180BFcEF452658e148e0Ab
+  Chain ID: 17000
+  Using test token settings
+  Minting test tokens for the multisig members and the bridge
+  
+  Factory: 0x7D3dA38E856f002f4623B0D32a494E358f72adC9
+  
+  DAO: 0x8caD8b62769710233f319611d064462b633Bbb8C
+  Voting token: 0x18EE0C13EC97a60fc190bABB348FD87421368920
+  Taiko Bridge: 0x0000000000000000000000000000001234567890
+  
+  Plugins
+  - Multisig plugin: 0xc880dB28A9105e6D69d30E93d99E38eFE84c54CB
+  - Emergency multisig plugin: 0x3bE6294EB67A3501bF091fD229282F2A51c532d2
+  - Optimistic token voting plugin: 0xBB249c027c5De908288104F665A605ceC88ad6CE
+  
+  Helpers
+  - Signer list 0x7716DcB9B83f5f9fB5266767841c3F29555cE2d5
+  - Encryption registry 0x94224B656D7D174B2Aa97FFCB188A847E6EA4511
+  - Delegation wall 0xb8D78b40014D36F83dDc8219c0621d35E8043167
+  
+  Plugin repositories
+  - Multisig plugin repository: 0x2d870FCedF2C1204839C3b8bca2Bf6e632b4E602
+  - Emergency multisig plugin repository: 0xe069Ae1DCB19A9DE9C516097FaC20ea070311D48
+  - Optimistic token voting plugin repository: 0xd774b0976C67832C84848dC6fdadE6189B297A71
+```
+
 ### October 16th 2024
 
 Deployment for internal testing:
