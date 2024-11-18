@@ -20,3 +20,5 @@ lcov.info
 .DS_Store
 
 *.tree
+
+logs/*

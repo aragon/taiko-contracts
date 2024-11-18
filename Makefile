@@ -185,6 +185,7 @@ pre-deploy-prodnet: pre-deploy ##      Simulate a deployment to the production n
 
 : ## 
 
+deploy-mint-testnet: export MINT_TEST_TOKENS = true
 deploy-testnet: export RPC_URL = $(TESTNET_RPC_URL)
 deploy-testnet: export NETWORK = $(TESTNET_NETWORK)
 deploy-prodnet: export RPC_URL = $(PRODNET_RPC_URL)
@@ -193,6 +194,7 @@ deploy-prodnet: export NETWORK = $(PRODNET_NETWORK)
 deploy-testnet: export DEPLOYMENT_LOG_FILE=./deployment-$(patsubst "%",%,$(TESTNET_NETWORK))-$(shell date +"%y-%m-%d-%H-%M").log
 deploy-prodnet: export DEPLOYMENT_LOG_FILE=./deployment-$(patsubst "%",%,$(PRODNET_NETWORK))-$(shell date +"%y-%m-%d-%H-%M").log
 
+deploy-mint-testnet: deploy-testnet ##      Deploy to the testnet, mint a token and verify
 deploy-testnet: deploy ##      Deploy to the testnet and verify
 deploy-prodnet: deploy ##      Deploy to the production network and verify
 
@@ -207,6 +209,7 @@ pre-deploy:
 .PHONY: deploy
 deploy: test
 	@echo "Starting the deployment"
+	@mkdir -p logs/
 	forge script $(DEPLOY_SCRIPT) \
 		--chain $(NETWORK) \
 		--rpc-url $(RPC_URL) \
@@ -215,7 +218,7 @@ deploy: test
 		$(VERIFIER_TYPE_PARAM) \
 		$(VERIFIER_URL_PARAM) \
 		$(ETHERSCAN_API_KEY_PARAM) \
-		$(VERBOSITY) | tee $(DEPLOYMENT_LOG_FILE)
+		$(VERBOSITY) | tee logs/$(DEPLOYMENT_LOG_FILE)
 
 : ## 
 
