@@ -146,14 +146,7 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function testFuzz_ShouldRegisterMemberPublicKeys(address appointedWallet) public {
-        if (
-            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
-                || appointedWallet == carol || appointedWallet == david
-        ) return;
-        else if (Address.isContract(appointedWallet)) return;
-        else if (Address.isContract(address(uint160(appointedWallet) + 100))) return;
-        else if (Address.isContract(address(uint160(appointedWallet) + 200))) return;
-        else if (Address.isContract(address(uint160(appointedWallet) + 300))) return;
+        if (skipAppointedWallet(appointedWallet)) return;
 
         address addrValue;
         bytes32 bytesValue;
@@ -222,14 +215,7 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function testFuzz_ShouldClearPublicKeyAfterAppointing(address appointedWallet) public {
-        if (
-            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
-                || appointedWallet == carol || appointedWallet == david
-        ) return;
-        else if (Address.isContract(appointedWallet)) return;
-        else if (Address.isContract(address(uint160(appointedWallet) + 100))) return;
-        else if (Address.isContract(address(uint160(appointedWallet) + 200))) return;
-        else if (Address.isContract(address(uint160(appointedWallet) + 300))) return;
+        if (skipAppointedWallet(appointedWallet)) return;
 
         address addrValue;
         bytes32 bytesValue;
@@ -577,7 +563,7 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function testFuzz_ShouldRevertOnSetPublicKeyIfNotAppointed(address appointedWallet) public {
-        if (Address.isContract(appointedWallet) || Address.isContract(address(uint160(appointedWallet) + 100))) return;
+        if (skipAppointedWallet(appointedWallet)) return;
 
         address addrValue;
         bytes32 bytesValue;
@@ -624,11 +610,7 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function testFuzz_ShouldRevertOnSetOwnPublicKeyIfOwnerIsAppointing(address appointedWallet) public {
-        if (
-            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
-                || appointedWallet == carol || appointedWallet == david
-        ) return;
-        else if (Address.isContract(appointedWallet)) return;
+        if (skipAppointedWallet(appointedWallet)) return;
 
         address addrValue;
         bytes32 bytesValue;
@@ -859,6 +841,38 @@ contract EncryptionRegistryTest is AragonTest {
 
     /// @dev mock function for test_TheConstructorShouldRevertIfInvalidAddressList()
     function supportsInterface(bytes4) public pure returns (bool) {
+        return false;
+    }
+
+    // Internal helpers
+
+    function skipAppointedWallet(address appointedWallet) internal view returns (bool) {
+        if (
+            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
+                || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
+        ) return true;
+
+        appointedWallet = address(uint160(appointedWallet) + 100);
+
+        if (
+            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
+                || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
+        ) return true;
+
+        appointedWallet = address(uint160(appointedWallet) + 100);
+
+        if (
+            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
+                || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
+        ) return true;
+
+        appointedWallet = address(uint160(appointedWallet) + 100);
+
+        if (
+            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
+                || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
+        ) return true;
+
         return false;
     }
 }
