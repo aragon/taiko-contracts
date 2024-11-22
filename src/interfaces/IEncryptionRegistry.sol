@@ -15,6 +15,9 @@ interface IEncryptionRegistry {
     /// @notice Raised when attempting to register a contract instead of a wallet
     error CannotAppointContracts();
 
+    /// @notice Raised when attempting to appoint an address which is already a listed signer
+    error AlreadyListed();
+
     /// @notice Raised when attempting to appoint an already appointed address
     error AlreadyAppointed();
 
@@ -42,7 +45,7 @@ interface IEncryptionRegistry {
 
     /// @notice Returns the address of the account that appointed the given wallet, if any.
     /// @return appointerAddress The address of the appointer account or zero.
-    function appointedBy(address wallet) external returns (address appointerAddress);
+    function appointerOf(address wallet) external returns (address appointerAddress);
 
     /// @notice Returns the address of the account registered at the given index
     function registeredAccounts(uint256) external view returns (address);

@@ -24,7 +24,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     mapping(address => AccountEntry) public accounts;
 
     /// @notice A reference to the account that appointed each wallet
-    mapping(address => address) public appointedBy;
+    mapping(address => address) public appointerOf;
 
     /// @dev The contract to check whether the caller is a multisig member
     Addresslist addresslist;
@@ -39,25 +39,44 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
 
     /// @inheritdoc IEncryptionRegistry
     function appointWallet(address _newWallet) public {
+        // Appointing ourselves is the same as unappointing
+        if (_newWallet == msg.sender) _newWallet = address(0);
+
         if (!addresslist.isListed(msg.sender)) {
             revert MustBeListed();
         } else if (Address.isContract(_newWallet)) {
             revert CannotAppointContracts();
-        } else if (appointedBy[_newWallet] != address(0)) {
+        } else if (addresslist.isListed(_newWallet)) {
+            // Appointing an already listed signer is not allowed, as votes would be locked
+            revert AlreadyListed();
+        } else if (_newWallet == accounts[msg.sender].appointedWallet) {
+            return; // done
+        } else if (appointerOf[_newWallet] != address(0)) {
             revert AlreadyAppointed();
         }
 
+        bool exists;
+        for (uint256 i = 0; i < registeredAccounts.length;) {
+            if (registeredAccounts[i] == msg.sender) {
+                exists = true;
+                break;
+            }
+            unchecked {
+                i++;
+            }
+        }
+
         // New account?
-        if (accounts[msg.sender].appointedWallet == address(0) && accounts[msg.sender].publicKey == bytes32(0)) {
+        if (!exists) {
             registeredAccounts.push(msg.sender);
         }
         // Existing account
         else {
-            // Clear the old appointedBy[], if needed
+            // Clear the current appointerOf[], if needed
             if (accounts[msg.sender].appointedWallet != address(0)) {
-                appointedBy[accounts[msg.sender].appointedWallet] = address(0);
+                appointerOf[accounts[msg.sender].appointedWallet] = address(0);
             }
-            // Clear the old public key, if needed
+            // Clear the current public key, if needed
             if (accounts[msg.sender].publicKey != bytes32(0)) {
                 // The old appointed wallet should no longer be able to see new content
                 accounts[msg.sender].publicKey = bytes32(0);
@@ -65,7 +84,9 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
         }
 
         accounts[msg.sender].appointedWallet = _newWallet;
-        appointedBy[_newWallet] = msg.sender;
+        if (_newWallet != address(0)) {
+            appointerOf[_newWallet] = msg.sender;
+        }
         emit WalletAppointed(msg.sender, _newWallet);
     }
 

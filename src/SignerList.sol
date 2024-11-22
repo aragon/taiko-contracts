@@ -106,7 +106,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     function isListedOrAppointedByListed(address _address) public view returns (bool listedOrAppointedByListed) {
         if (isListed(_address)) {
             return true;
-        } else if (isListed(settings.encryptionRegistry.appointedBy(_address))) {
+        } else if (isListed(settings.encryptionRegistry.appointerOf(_address))) {
             return true;
         }
 
@@ -122,7 +122,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
         if (isListedAtBlock(_address, _blockNumber)) {
             return _address;
         }
-        address _appointer = settings.encryptionRegistry.appointedBy(_address);
+        address _appointer = settings.encryptionRegistry.appointerOf(_address);
         if (isListedAtBlock(_appointer, _blockNumber)) {
             return _appointer;
         }
@@ -141,7 +141,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
             return (_address, settings.encryptionRegistry.getAppointedWallet(_address));
         }
 
-        address _appointer = settings.encryptionRegistry.appointedBy(_address);
+        address _appointer = settings.encryptionRegistry.appointerOf(_address);
         if (this.isListedAtBlock(_appointer, _blockNumber)) {
             // The appointed wallet votes
             return (_appointer, _address);
