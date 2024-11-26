@@ -167,50 +167,50 @@ contract EncryptionRegistryTest is AragonTest {
 
         // Bob
         vm.startPrank(bob);
-        registry.appointWallet(address(uint160(appointedWallet) + 100));
-        vm.startPrank(address(uint160(appointedWallet) + 100));
+        registry.appointWallet(address(uint160(appointedWallet) + 10));
+        vm.startPrank(address(uint160(appointedWallet) + 10));
         registry.setPublicKey(bob, 0x0000567800000000000000000000000000000000000000000000000000000000);
 
         (addrValue, bytesValue) = registry.accounts(alice);
         assertEq(addrValue, appointedWallet);
         assertEq(bytesValue, 0x1234000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
 
         // Carol
         vm.startPrank(carol);
-        registry.appointWallet(address(uint160(appointedWallet) + 200));
-        vm.startPrank(address(uint160(appointedWallet) + 200));
+        registry.appointWallet(address(uint160(appointedWallet) + 20));
+        vm.startPrank(address(uint160(appointedWallet) + 20));
         registry.setPublicKey(carol, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         (addrValue, bytesValue) = registry.accounts(alice);
         assertEq(addrValue, appointedWallet);
         assertEq(bytesValue, 0x1234000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(carol);
-        assertEq(addrValue, address(uint160(appointedWallet) + 200));
+        assertEq(addrValue, address(uint160(appointedWallet) + 20));
         assertEq(bytesValue, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
         // David
         vm.startPrank(david);
-        registry.appointWallet(address(uint160(appointedWallet) + 300));
-        vm.startPrank(address(uint160(appointedWallet) + 300));
+        registry.appointWallet(address(uint160(appointedWallet) + 30));
+        vm.startPrank(address(uint160(appointedWallet) + 30));
         registry.setPublicKey(david, 0x000000000000cdef000000000000000000000000000000000000000000000000);
 
         (addrValue, bytesValue) = registry.accounts(alice);
         assertEq(addrValue, appointedWallet);
         assertEq(bytesValue, 0x1234000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(carol);
-        assertEq(addrValue, address(uint160(appointedWallet) + 200));
+        assertEq(addrValue, address(uint160(appointedWallet) + 20));
         assertEq(bytesValue, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(david);
-        assertEq(addrValue, address(uint160(appointedWallet) + 300));
+        assertEq(addrValue, address(uint160(appointedWallet) + 30));
         assertEq(bytesValue, 0x000000000000cdef000000000000000000000000000000000000000000000000);
     }
 
@@ -242,13 +242,13 @@ contract EncryptionRegistryTest is AragonTest {
         (addrValue, bytesValue) = registry.accounts(bob);
         assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
 
-        registry.appointWallet(address(uint160(appointedWallet) + 100));
+        registry.appointWallet(address(uint160(appointedWallet) + 10));
 
         (addrValue, bytesValue) = registry.accounts(alice);
         assertEq(addrValue, appointedWallet);
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
 
         // Carol
@@ -257,16 +257,16 @@ contract EncryptionRegistryTest is AragonTest {
         (addrValue, bytesValue) = registry.accounts(carol);
         assertEq(bytesValue, 0x0000000090ab0000000000000000000000000000000000000000000000000000);
 
-        registry.appointWallet(address(uint160(appointedWallet) + 200));
+        registry.appointWallet(address(uint160(appointedWallet) + 20));
 
         (addrValue, bytesValue) = registry.accounts(alice);
         assertEq(addrValue, appointedWallet);
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(carol);
-        assertEq(addrValue, address(uint160(appointedWallet) + 200));
+        assertEq(addrValue, address(uint160(appointedWallet) + 20));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
 
         // David
@@ -275,19 +275,19 @@ contract EncryptionRegistryTest is AragonTest {
         (addrValue, bytesValue) = registry.accounts(david);
         assertEq(bytesValue, 0x000000000000cdef000000000000000000000000000000000000000000000000);
 
-        registry.appointWallet(address(uint160(appointedWallet) + 300));
+        registry.appointWallet(address(uint160(appointedWallet) + 30));
 
         (addrValue, bytesValue) = registry.accounts(alice);
         assertEq(addrValue, appointedWallet);
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(carol);
-        assertEq(addrValue, address(uint160(appointedWallet) + 200));
+        assertEq(addrValue, address(uint160(appointedWallet) + 20));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
         (addrValue, bytesValue) = registry.accounts(david);
-        assertEq(addrValue, address(uint160(appointedWallet) + 300));
+        assertEq(addrValue, address(uint160(appointedWallet) + 30));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
     }
 
@@ -395,32 +395,112 @@ contract EncryptionRegistryTest is AragonTest {
     }
 
     function test_getRegisteredAccountsOnlyReturnsAddressesOnce() public {
-        uint256 count = registry.getRegisteredAccounts().length;
-        assertEq(count, 0);
+        (address ad1,) = getWallet("wallet 1");
+        (address ad2,) = getWallet("wallet 2");
+        (address ad3,) = getWallet("wallet 3");
+
+        assertEq(registry.getRegisteredAccounts().length, 0);
 
         vm.startPrank(alice);
 
-        // Neutral
+        // No appointment
         registry.appointWallet(address(0x0));
+        assertEq(registry.getRegisteredAccounts().length, 0, "Incorrect count");
 
-        count = registry.getRegisteredAccounts().length;
-        assertEq(count, 0);
+        // Appoint + define pubKey's
+        registry.appointWallet(ad1);
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
 
-        // Appoint
-        registry.appointWallet(address(0x1111));
+        vm.startPrank(ad1);
+        registry.setPublicKey(alice, hex"cdeef70d62f3a538739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
 
-        count = registry.getRegisteredAccounts().length;
-        assertEq(count, 1);
+        vm.startPrank(alice);
+        registry.appointWallet(ad2);
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
 
-        registry.appointWallet(address(0x2222));
+        vm.startPrank(ad2);
+        registry.setPublicKey(alice, hex"00eef70d62f3a538739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
 
-        count = registry.getRegisteredAccounts().length;
-        assertEq(count, 1);
+        vm.startPrank(alice);
+        registry.appointWallet(ad3);
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
 
-        registry.appointWallet(address(0x3333));
+        vm.startPrank(ad3);
+        registry.setPublicKey(alice, hex"0000f70d62f3a538739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
 
-        count = registry.getRegisteredAccounts().length;
-        assertEq(count, 1);
+        // Appoint self back
+        vm.startPrank(alice);
+        registry.appointWallet(address(0));
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
+
+        // Set own public key
+        registry.setOwnPublicKey(hex"1deef70d62f3a538739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
+
+        // Appoint + define pubKey's (2)
+        registry.appointWallet(ad1);
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
+
+        vm.startPrank(ad1);
+        registry.setPublicKey(alice, hex"cdeef70d62f3a538739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
+
+        // Appoint self back
+        vm.startPrank(alice);
+        registry.appointWallet(address(0));
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
+
+        // BOB
+
+        vm.startPrank(bob);
+
+        // No appointment
+        registry.appointWallet(address(0x0));
+        assertEq(registry.getRegisteredAccounts().length, 1, "Incorrect count");
+
+        // Appoint + define pubKey's
+        registry.appointWallet(ad1);
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        vm.startPrank(ad1);
+        registry.setPublicKey(bob, hex"cdeef70d00000038739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        vm.startPrank(bob);
+        registry.appointWallet(ad2);
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        vm.startPrank(ad2);
+        registry.setPublicKey(bob, hex"00eef70d00000038739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        vm.startPrank(bob);
+        registry.appointWallet(ad3);
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        vm.startPrank(ad3);
+        registry.setPublicKey(bob, hex"0000f70d00000038739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        // Appoint self back
+        vm.startPrank(bob);
+        registry.appointWallet(address(0));
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        // Set own public key
+        registry.setOwnPublicKey(hex"1deef70d00000038739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        // Appoint + define pubKey's (2)
+        registry.appointWallet(ad1);
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
+
+        vm.startPrank(ad1);
+        registry.setPublicKey(bob, hex"cdeef70d00000038739fb51629eeca7d7cd4852b26a5b469f16af187fdbc7152");
+        assertEq(registry.getRegisteredAccounts().length, 2, "Incorrect count");
     }
 
     function test_shouldRevertIfAppointingAnotherSigner() public {
@@ -504,10 +584,10 @@ contract EncryptionRegistryTest is AragonTest {
         // Bob
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
-        registry.appointWallet(address(uint160(appointedWallet) + 100));
+        registry.appointWallet(address(uint160(appointedWallet) + 10));
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
         registry.setOwnPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
-        vm.startPrank(address(uint160(appointedWallet) + 100));
+        vm.startPrank(address(uint160(appointedWallet) + 10));
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
         registry.setPublicKey(bob, 0x1234000000000000000000000000000000000000000000000000000000000000);
 
@@ -521,10 +601,10 @@ contract EncryptionRegistryTest is AragonTest {
         // Carol
         vm.startPrank(carol);
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
-        registry.appointWallet(address(uint160(appointedWallet) + 200));
+        registry.appointWallet(address(uint160(appointedWallet) + 20));
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
         registry.setOwnPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
-        vm.startPrank(address(uint160(appointedWallet) + 200));
+        vm.startPrank(address(uint160(appointedWallet) + 20));
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
         registry.setPublicKey(carol, 0x1234000000000000000000000000000000000000000000000000000000000000);
 
@@ -541,10 +621,10 @@ contract EncryptionRegistryTest is AragonTest {
         // David
         vm.startPrank(david);
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
-        registry.appointWallet(address(uint160(appointedWallet) + 300));
+        registry.appointWallet(address(uint160(appointedWallet) + 30));
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
         registry.setOwnPublicKey(0x0000567800000000000000000000000000000000000000000000000000000000);
-        vm.startPrank(address(uint160(appointedWallet) + 300));
+        vm.startPrank(address(uint160(appointedWallet) + 30));
         vm.expectRevert(abi.encodeWithSelector(IEncryptionRegistry.MustBeListed.selector));
         registry.setPublicKey(david, 0x1234000000000000000000000000000000000000000000000000000000000000);
 
@@ -598,14 +678,14 @@ contract EncryptionRegistryTest is AragonTest {
         assertEq(addrValue, address(0));
         assertEq(bytesValue, 0x0000000000000000000000000000000000000000000000000000000000000000);
 
-        registry.appointWallet(address(uint160(appointedWallet) + 100));
+        registry.appointWallet(address(uint160(appointedWallet) + 10));
 
         // Appointed
-        vm.startPrank(address(uint160(appointedWallet) + 100));
+        vm.startPrank(address(uint160(appointedWallet) + 10));
         registry.setPublicKey(bob, 0x0000567800000000000000000000000000000000000000000000000000000000);
 
         (addrValue, bytesValue) = registry.accounts(bob);
-        assertEq(addrValue, address(uint160(appointedWallet) + 100));
+        assertEq(addrValue, address(uint160(appointedWallet) + 10));
         assertEq(bytesValue, 0x0000567800000000000000000000000000000000000000000000000000000000);
     }
 
@@ -847,26 +927,29 @@ contract EncryptionRegistryTest is AragonTest {
     // Internal helpers
 
     function skipAppointedWallet(address appointedWallet) internal view returns (bool) {
-        if (
-            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
-                || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
-        ) return true;
-
-        appointedWallet = address(uint160(appointedWallet) + 100);
+        // Avoid fuzz tests overflowing
+        if (appointedWallet >= address(uint160(0xFFFfFFfFfFFffFFfFFFffffFfFfFffFFfFFFFF00))) return true;
 
         if (
             appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
                 || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
         ) return true;
 
-        appointedWallet = address(uint160(appointedWallet) + 100);
+        appointedWallet = address(uint160(appointedWallet) + 10);
 
         if (
             appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
                 || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
         ) return true;
 
-        appointedWallet = address(uint160(appointedWallet) + 100);
+        appointedWallet = address(uint160(appointedWallet) + 10);
+
+        if (
+            appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob
+                || appointedWallet == carol || appointedWallet == david || Address.isContract(appointedWallet)
+        ) return true;
+
+        appointedWallet = address(uint160(appointedWallet) + 10);
 
         if (
             appointedWallet == address(0) || appointedWallet == alice || appointedWallet == bob

@@ -142,8 +142,18 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     // Internal helpers
 
     function _setPublicKey(address _account, bytes32 _publicKey) internal {
-        if (accounts[_account].appointedWallet == address(0) && accounts[_account].publicKey == bytes32(0)) {
-            // New member
+        bool exists;
+        for (uint256 i = 0; i < registeredAccounts.length;) {
+            if (registeredAccounts[i] == _account) {
+                exists = true;
+                break;
+            }
+            unchecked {
+                i++;
+            }
+        }
+        if (!exists) {
+            // New account
             registeredAccounts.push(_account);
         }
 
