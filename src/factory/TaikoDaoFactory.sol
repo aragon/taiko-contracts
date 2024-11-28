@@ -51,12 +51,13 @@ contract TaikoDaoFactory {
         IVotesUpgradeable tokenAddress;
         address taikoL1ContractAddress;
         address taikoBridgeAddress;
-        uint64 l2InactivityPeriod;
-        uint64 l2AggregationGracePeriod;
+        uint32 timelockPeriod;
+        uint32 l2InactivityPeriod;
+        uint32 l2AggregationGracePeriod;
         bool skipL2;
         // Voting settings
         uint32 minVetoRatio;
-        uint64 minStdProposalDuration;
+        uint32 minStdProposalDuration;
         uint16 minStdApprovals;
         uint16 minEmergencyApprovals;
         // OSx contracts
@@ -69,7 +70,7 @@ contract TaikoDaoFactory {
         OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup;
         // Multisig
         address[] multisigMembers;
-        uint64 multisigExpirationPeriod;
+        uint32 multisigExpirationPeriod;
         // ENS
         string stdMultisigEnsDomain;
         string emergencyMultisigEnsDomain;
@@ -291,6 +292,7 @@ contract TaikoDaoFactory {
                 .OptimisticGovernanceSettings(
                 settings.minVetoRatio,
                 0, // minDuration (the condition contract will enforce it)
+                settings.timelockPeriod,
                 settings.l2InactivityPeriod,
                 settings.l2AggregationGracePeriod,
                 settings.skipL2

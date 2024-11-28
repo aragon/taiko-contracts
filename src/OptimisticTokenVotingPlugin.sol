@@ -34,14 +34,16 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A container for the optimistic majority settings that will be applied as parameters on proposal creation.
     /// @param minVetoRatio The support threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
+    /// @param timelockPeriod The time in seconds between a proposal passing and execution being unlocked
     /// @param l2InactivityPeriod The age in seconds of the latest block, after which the L2 is considered unavailable.
     /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
     /// @param skipL2 Defines wether the plugin should ignore the voting power bridged to the L2, in terms of the token supply and L2 votes accepted. NOTE: Ongoing proposals will keep the value of the setting at the time of creation.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
-        uint64 minDuration;
-        uint64 l2InactivityPeriod;
-        uint64 l2AggregationGracePeriod;
+        uint32 minDuration;
+        uint32 timelockPeriod;
+        uint32 l2InactivityPeriod;
+        uint32 l2AggregationGracePeriod;
         bool skipL2;
     }
 
@@ -83,9 +85,6 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The ID of the permission required to call the `updateOptimisticGovernanceSettings` function.
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
-
-    /// @notice The time gap between a proposal passing and execution being unlocked
-    uint64 public constant EXIT_WINDOW = 7 days;
 
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
@@ -580,7 +579,7 @@ contract OptimisticTokenVotingPlugin is
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal cannot be executed because the exit window hasn't elapsed yet
     function _proposalInExitWindow(Proposal storage proposal_) internal view virtual returns (bool) {
-        uint64 exitWindowTimestamp = proposal_.parameters.vetoEndDate + EXIT_WINDOW;
+        uint64 exitWindowTimestamp = proposal_.parameters.vetoEndDate + governanceSettings.timelockPeriod;
 
         if (!proposal_.parameters.unavailableL2) {
             exitWindowTimestamp += governanceSettings.l2AggregationGracePeriod;

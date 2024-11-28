@@ -47,12 +47,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
-            l2InactivityPeriod: 10 minutes, // uint64
-            l2AggregationGracePeriod: 2 days, // uint64
+            timelockPeriod: 7 days,
+            l2InactivityPeriod: 10 minutes, // uint32
+            l2AggregationGracePeriod: 2 days, // uint32
             skipL2: false,
             // Voting settings
             minVetoRatio: 200_000, // uint32
-            minStdProposalDuration: 10 days, // uint64
+            minStdProposalDuration: 10 days, // uint32
             minStdApprovals: 7, // uint16
             minEmergencyApprovals: 11, // uint16
             // OSx contracts
@@ -83,6 +84,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Incorrect taikoL1ContractAddress"
         );
         assertEq(actualSettings.taikoBridgeAddress, creationSettings.taikoBridgeAddress, "Incorrect taikoBridgeAddress");
+        assertEq(actualSettings.timelockPeriod, creationSettings.timelockPeriod, "Incorrect timelockPeriod");
         assertEq(actualSettings.l2InactivityPeriod, creationSettings.l2InactivityPeriod, "Incorrect l2InactivityPeriod");
         assertEq(
             actualSettings.l2AggregationGracePeriod,
@@ -177,12 +179,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
-            l2InactivityPeriod: 27 minutes, // uint64
-            l2AggregationGracePeriod: 77 days, // uint64
+            timelockPeriod: 14 days,
+            l2InactivityPeriod: 27 minutes, // uint32
+            l2AggregationGracePeriod: 77 days, // uint32
             skipL2: false,
             // Voting settings
             minVetoRatio: 456_000, // uint32
-            minStdProposalDuration: 14 days, // uint64
+            minStdProposalDuration: 14 days, // uint32
             minStdApprovals: 4, // uint16
             minEmergencyApprovals: 27, // uint16
             // OSx contracts
@@ -213,6 +216,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Incorrect taikoL1ContractAddress"
         );
         assertEq(actualSettings.taikoBridgeAddress, creationSettings.taikoBridgeAddress, "Incorrect taikoBridgeAddress");
+        assertEq(actualSettings.timelockPeriod, creationSettings.timelockPeriod, "Incorrect timelockPeriod");
         assertEq(actualSettings.l2InactivityPeriod, creationSettings.l2InactivityPeriod, "Incorrect l2InactivityPeriod");
         assertEq(
             actualSettings.l2AggregationGracePeriod,
@@ -330,12 +334,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
-            l2InactivityPeriod: 10 minutes, // uint64
-            l2AggregationGracePeriod: 2 days, // uint64
+            timelockPeriod: 20 days,
+            l2InactivityPeriod: 10 minutes, // uint32
+            l2AggregationGracePeriod: 2 days, // uint32
             skipL2: false,
             // Voting settings
             minVetoRatio: 200_000, // uint32
-            minStdProposalDuration: 10 days, // uint64
+            minStdProposalDuration: 10 days, // uint32
             minStdApprovals: 7, // uint16
             minEmergencyApprovals: 11, // uint16
             // OSx contracts
@@ -395,7 +400,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
 
         // Signer list
-        
+
         assertEq(deployment.signerList.addresslistLength(), 13, "Invalid addresslistLength");
         for (uint256 i = 0; i < 13; i++) {
             assertEq(deployment.signerList.isListed(multisigMembers[i]), true, "Should be a member");
@@ -471,14 +476,16 @@ contract TaikoDaoFactoryTest is AragonTest {
         {
             (
                 uint32 minVetoRatio,
-                uint64 minDuration,
-                uint64 l2InactivityPeriod,
-                uint64 l2AggregationGracePeriod,
+                uint32 minDuration,
+                uint32 timelockPeriod,
+                uint32 l2InactivityPeriod,
+                uint32 l2AggregationGracePeriod,
                 bool skipL2
             ) = deployment.optimisticTokenVotingPlugin.governanceSettings();
 
             assertEq(minVetoRatio, 200_000, "Invalid minVetoRatio");
             assertEq(minDuration, 0, "Invalid minDuration"); // 10 days is enforced on the condition contract
+            assertEq(timelockPeriod, 20 days, "Invalid timelockPeriod");
             assertEq(l2InactivityPeriod, 10 minutes, "Invalid l2InactivityPeriod");
             assertEq(l2AggregationGracePeriod, 2 days, "Invalid l2AggregationGracePeriod");
             assertEq(skipL2, false, "Invalid skipL2");
@@ -573,12 +580,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
-            l2InactivityPeriod: 27 minutes, // uint64
-            l2AggregationGracePeriod: 3 days, // uint64
+            timelockPeriod: 9 days, // uint32
+            l2InactivityPeriod: 27 minutes, // uint32
+            l2AggregationGracePeriod: 3 days, // uint32
             skipL2: true,
             // Voting settings
             minVetoRatio: 456_000, // uint32
-            minStdProposalDuration: 21 days, // uint64
+            minStdProposalDuration: 21 days, // uint32
             minStdApprovals: 9, // uint16
             minEmergencyApprovals: 15, // uint16
             // OSx contracts
@@ -714,14 +722,16 @@ contract TaikoDaoFactoryTest is AragonTest {
         {
             (
                 uint32 minVetoRatio,
-                uint64 minDuration,
-                uint64 l2InactivityPeriod,
-                uint64 l2AggregationGracePeriod,
+                uint32 minDuration,
+                uint32 timelockPeriod,
+                uint32 l2InactivityPeriod,
+                uint32 l2AggregationGracePeriod,
                 bool skipL2
             ) = deployment.optimisticTokenVotingPlugin.governanceSettings();
 
             assertEq(minVetoRatio, 456_000, "Invalid minVetoRatio");
             assertEq(minDuration, 0, "Invalid minDuration"); // 10 days is enforced on the condition contract
+            assertEq(timelockPeriod, 9 days, "Invalid timelockPeriod");
             assertEq(l2InactivityPeriod, 27 minutes, "Invalid l2InactivityPeriod");
             assertEq(l2AggregationGracePeriod, 3 days, "Invalid l2AggregationGracePeriod");
             assertEq(skipL2, true, "Invalid skipL2");
@@ -816,12 +826,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
-            l2InactivityPeriod: 10 minutes, // uint64
-            l2AggregationGracePeriod: 2 days, // uint64
+            timelockPeriod: 11 days,
+            l2InactivityPeriod: 10 minutes, // uint32
+            l2AggregationGracePeriod: 2 days, // uint32
             skipL2: false,
             // Voting settings
             minVetoRatio: 200_000, // uint32
-            minStdProposalDuration: 10 days, // uint64
+            minStdProposalDuration: 10 days, // uint32
             minStdApprovals: 7, // uint16
             minEmergencyApprovals: 11, // uint16
             // OSx contracts

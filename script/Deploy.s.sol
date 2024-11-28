@@ -74,12 +74,13 @@ contract Deploy is Script {
             tokenAddress: IVotesUpgradeable(vm.envAddress("TOKEN_ADDRESS")),
             taikoL1ContractAddress: vm.envAddress("TAIKO_L1_ADDRESS"),
             taikoBridgeAddress: vm.envAddress("TAIKO_BRIDGE_ADDRESS"),
-            l2InactivityPeriod: uint64(vm.envUint("L2_INACTIVITY_PERIOD")),
-            l2AggregationGracePeriod: uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
+            timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
+            l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
+            l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
             skipL2: bool(vm.envBool("SKIP_L2")),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
-            minStdProposalDuration: uint64(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
+            minStdProposalDuration: uint32(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
@@ -92,7 +93,7 @@ contract Deploy is Script {
             optimisticTokenVotingPluginSetup: OptimisticTokenVotingPluginSetup(optimisticTokenVotingPluginSetup),
             // Multisig members
             multisigMembers: readMultisigMembers(),
-            multisigExpirationPeriod: uint64(vm.envUint("MULTISIG_PROPOSAL_EXPIRATION_PERIOD")),
+            multisigExpirationPeriod: uint32(vm.envUint("MULTISIG_PROPOSAL_EXPIRATION_PERIOD")),
             // ENS
             stdMultisigEnsDomain: vm.envString("STD_MULTISIG_ENS_DOMAIN"),
             emergencyMultisigEnsDomain: vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN"),
@@ -112,12 +113,13 @@ contract Deploy is Script {
             tokenAddress: IVotesUpgradeable(votingToken),
             taikoL1ContractAddress: address(new TaikoL1Mock()),
             taikoBridgeAddress: taikoBridgeAddress,
-            l2InactivityPeriod: uint64(vm.envUint("L2_INACTIVITY_PERIOD")),
-            l2AggregationGracePeriod: uint64(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
+            timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
+            l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
+            l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
             skipL2: bool(vm.envBool("SKIP_L2")),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
-            minStdProposalDuration: uint64(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
+            minStdProposalDuration: uint32(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
@@ -130,7 +132,7 @@ contract Deploy is Script {
             optimisticTokenVotingPluginSetup: OptimisticTokenVotingPluginSetup(optimisticTokenVotingPluginSetup),
             // Multisig members
             multisigMembers: multisigMembers,
-            multisigExpirationPeriod: uint64(vm.envUint("MULTISIG_PROPOSAL_EXPIRATION_PERIOD")),
+            multisigExpirationPeriod: uint32(vm.envUint("MULTISIG_PROPOSAL_EXPIRATION_PERIOD")),
             // ENS
             stdMultisigEnsDomain: vm.envString("STD_MULTISIG_ENS_DOMAIN"),
             emergencyMultisigEnsDomain: vm.envString("EMERGENCY_MULTISIG_ENS_DOMAIN"),
