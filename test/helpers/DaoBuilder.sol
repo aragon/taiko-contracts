@@ -51,8 +51,8 @@ contract DaoBuilder is Test {
 
     bool public onlyListed = true;
     uint16 public minApprovals = 1;
-    uint64 public stdProposalDuration = 10 days;
-    uint64 multisigProposalExpirationPeriod = 10 days;
+    uint32 public stdProposalDuration = 10 days;
+    uint32 public multisigProposalExpirationPeriod = 10 days;
 
     function withDaoOwner(address newOwner) public returns (DaoBuilder) {
         owner = newOwner;
@@ -105,7 +105,7 @@ contract DaoBuilder is Test {
         return this;
     }
 
-    function withExpiration(uint64 newExpirationPeriod) public returns (DaoBuilder) {
+    function withExpiration(uint32 newExpirationPeriod) public returns (DaoBuilder) {
         multisigProposalExpirationPeriod = newExpirationPeriod;
         return this;
     }

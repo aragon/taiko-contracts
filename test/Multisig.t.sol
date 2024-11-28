@@ -20,7 +20,7 @@ import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
 import {IMultisig} from "../src/interfaces/IMultisig.sol";
 
-uint64 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
+uint32 constant MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 uint32 constant DESTINATION_PROPOSAL_DURATION = 9 days;
 
 contract MultisigTest is AragonTest {
@@ -41,9 +41,9 @@ contract MultisigTest is AragonTest {
     event MultisigSettingsUpdated(
         bool onlyListed,
         uint16 indexed minApprovals,
-        uint64 destinationProposalDuration,
+        uint32 destinationProposalDuration,
         SignerList signerList,
-        uint64 proposalExpirationPeriod
+        uint32 proposalExpirationPeriod
     );
     // Multisig and OptimisticTokenVotingPlugin's event
     event ProposalCreated(

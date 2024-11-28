@@ -59,9 +59,9 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     struct MultisigSettings {
         bool onlyListed;
         uint16 minApprovals;
-        uint64 destinationProposalDuration;
+        uint32 destinationProposalDuration; // uint32 is enough, not a timestamp
         SignerList signerList;
-        uint64 proposalExpirationPeriod;
+        uint32 proposalExpirationPeriod; // uint32 is enough, not a timestamp
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -124,9 +124,9 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     event MultisigSettingsUpdated(
         bool onlyListed,
         uint16 indexed minApprovals,
-        uint64 destinationProposalDuration,
+        uint32 destinationProposalDuration,
         SignerList signerList,
-        uint64 proposalExpirationPeriod
+        uint32 proposalExpirationPeriod
     );
 
     /// @notice Initializes Release 1, Build 1.
