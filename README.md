@@ -37,6 +37,8 @@ The governance settings need to be defined when the plugin is installed but the 
 
 It allows the Security Council members to create and approve proposals. After a certain minimum of approvals is met, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) only.
 
+The list of signers for this plugin is taken from SignerList contract. Any changes on it will effect both plugin instances. 
+
 The ability to relay proposals to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) is restricted by a [permission condition](src/conditions/StandardProposalCondition.sol), which ensures that a minimum veto period is defined as part of the parameters. 
 
 ![Standard proposal flow](./img/std-proposal-flow.png)
@@ -52,7 +54,7 @@ The ability to relay proposals to the [Optimistic Token Voting plugin](#optimist
 
 Like before, this plugin allows Security Council members to create and approve proposals. If a super majority approves, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) with a delay period of potentially 0. This is, being executed immediately. 
 
-The address list of this plugin is taken from the standard Multisig plugin. Any changes on the former will effect both plugin instances. 
+The list of signers for this plugin is taken from SignerList contract. Any changes on it will effect both plugin instances. 
 
 There are two key differences with the standard Multisig:
 1. The proposal's metadata and the actions to execute are encrypted, only the Security Council members have the means to decrypt them
@@ -69,15 +71,41 @@ The Emergency Multisig settings are the same as for the standard Multisig.
 - The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
 - The DAO can update the plugin settings
 
-## Public Key Registry
+## Signer List
 
-This is a helper contract that allows Security Council members to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions. Refer to the UI repository for the encryption details.
+Both multisigs relate to this contract to determine if an address was listed at a certain block. It allows to read the state and manage the address list given that the appropriate permissions are granted.
 
-NOTE: A published public key cannot be changed once published. 
+It also plays an important role regarding encryption, this is why it is coupled with the Encryption Registry (see below). 
 
-- A wallet can only generate one derived key pair. 
-- Public key registration is an automated process. No human error should be possible.
-- Altering an encryption key is a strange edge case of which the rest of signers should be aware of. 
+It offers convenience methods to determine 3 potential states for a given address:
+- An address was a listed signer at a given past block (owner)
+- An address is appointed by another address, listed at a past block (appointed)
+- An address not listed or appointed
+
+### The encryption challenge
+
+Smart wallets cannot possibly generate a private key, which means that encryption and decryption is unviable. To this end, the [EncryptionRegistry](#encryption-registry) (see below) allows listed signers to **appoint** an EOA to act on behalf of them. 
+
+This means that the Security Council could include a member who was an organization, and such organiation could have a smart wallet. This smart wallet would then appoint one of its members' EOA, so that emergency proposals could be reviewed, approved and eventually executed.
+
+If at any point, the member's EOA became compromised or the member left the team, the smart wallet could then appoint a new EOA and continue without impacting the rest of the Security Council.
+
+What it means:
+- Owners (listed signers)
+  - Can always create emergency multisig proposals
+  - Can only approve if they are not appointing another address
+- Addresses appointed by a listed signer
+  - Can create emergency proposals
+  - Can approve
+  - Can execute (they can decrypt the actions and the metadata)
+
+## Encryption Registry
+
+This is a helper contract that allows Security Council members ([SignerList](#signer-list) addresses) to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions.
+
+Given that smart contracts cannot possibly sign or decrypt data, the encryption registry allows to appoint an EOA as the end target for encryption purposes. This is useful for organizations not wanting to rely on just a single wallet.
+
+Refer to the UI repository for the encryption details.
 
 ## Delegation Wall
 
@@ -307,7 +335,6 @@ Then use `make` to automatically sync the described branches into solidity test 
 
 ```sh
 $ make
-Available targets:
 Available targets:
 - make all        Builds all tree files and updates the test tree markdown
 - make sync       Scaffold or sync tree files into solidity tests

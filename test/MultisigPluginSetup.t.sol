@@ -1,40 +1,37 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {Test} from "forge-std/Test.sol";
+import {AragonTest} from "./base/AragonTest.sol";
+import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {MultisigPluginSetup} from "../src/setup/MultisigPluginSetup.sol";
-import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
-import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {
+    SignerList,
+    UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID,
+    UPDATE_SIGNER_LIST_PERMISSION_ID
+} from "../src/SignerList.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ERC20Mock} from "./mocks/ERC20Mock.sol";
-import {ITaikoL1} from "../src/adapted-dependencies/ITaikoL1.sol";
 
-contract MultisigPluginSetupTest is Test {
+contract MultisigPluginSetupTest is AragonTest {
     MultisigPluginSetup public pluginSetup;
-    GovernanceERC20 governanceERC20Base;
-    GovernanceWrappedERC20 governanceWrappedERC20Base;
     address immutable daoBase = address(new DAO());
+    address immutable signerListBase = address(new SignerList());
     DAO dao;
 
     // Recycled installation parameters
     Multisig.MultisigSettings multisigSettings;
-    address[] members;
-
-    address alice = address(0xa11ce);
-    address bob = address(0xb0b);
-    address carol = address(0xc4601);
-    address dave = address(0xd473);
-
-    error Unimplemented();
+    address[] signers;
+    SignerList signerList;
 
     function setUp() public {
+        DaoBuilder builder = new DaoBuilder();
+        (dao,,,,, signerList,,) = builder.withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(carol)
+            .withMultisigMember(david).build();
+
         pluginSetup = new MultisigPluginSetup();
 
         // Default params
@@ -42,57 +39,48 @@ contract MultisigPluginSetupTest is Test {
             onlyListed: true,
             minApprovals: 3,
             destinationProposalDuration: 10 days,
+            signerList: signerList,
             proposalExpirationPeriod: 15 days
         });
-
-        members = new address[](4);
-        members[0] = alice;
-        members[1] = bob;
-        members[2] = carol;
-        members[3] = dave;
     }
 
     function test_ShouldEncodeInstallationParameters_1() public view {
         // 1
-        bytes memory output = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+        bytes memory output = pluginSetup.encodeInstallationParameters(multisigSettings);
 
         bytes memory expected =
-            hex"00000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000000000000000000000000000000000000013c680000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000a11ce0000000000000000000000000000000000000000000000000000000000000b0b00000000000000000000000000000000000000000000000000000000000c4601000000000000000000000000000000000000000000000000000000000000d473";
+            hex"0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000d2f00000000000000000000000000a0279152cf631d6c493901f9b576d88e2847bfa1000000000000000000000000000000000000000000000000000000000013c680";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
     function test_ShouldEncodeInstallationParameters_2() public {
         // 2
+        signers = new address[](2);
+        signers[0] = alice;
+        signers[1] = bob;
+        signerList =
+            SignerList(createProxyAndCall(signerListBase, abi.encodeCall(SignerList.initialize, (IDAO(dao), signers))));
+
         multisigSettings = Multisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 1,
             destinationProposalDuration: 5 days,
+            signerList: signerList,
             proposalExpirationPeriod: 33 days
         });
 
-        members = new address[](2);
-        members[0] = alice;
-        members[1] = bob;
-
-        bytes memory output = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+        bytes memory output = pluginSetup.encodeInstallationParameters(multisigSettings);
         bytes memory expected =
-            hex"00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000006978000000000000000000000000000000000000000000000000000000000002b8180000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000a11ce0000000000000000000000000000000000000000000000000000000000000b0b";
+            hex"00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000006978000000000000000000000000003a6a84cd762d9707a21605b548aaab891562aab00000000000000000000000000000000000000000000000000000000002b8180";
         assertEq(output, expected, "Incorrect encoded bytes");
     }
 
     function test_ShouldDecodeInstallationParameters_1() public view {
         // 1
-        bytes memory installationParams = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+        bytes memory installationParams = pluginSetup.encodeInstallationParameters(multisigSettings);
 
         // Decode
-        (address[] memory outMembers, Multisig.MultisigSettings memory outSettings) =
-            pluginSetup.decodeInstallationParameters(installationParams);
-
-        assertEq(outMembers.length, 4, "Incorrect length");
-        assertEq(outMembers[0], alice, "Incorrect member");
-        assertEq(outMembers[1], bob, "Incorrect member");
-        assertEq(outMembers[2], carol, "Incorrect member");
-        assertEq(outMembers[3], dave, "Incorrect member");
+        (Multisig.MultisigSettings memory outSettings) = pluginSetup.decodeInstallationParameters(installationParams);
 
         assertEq(outSettings.onlyListed, true, "Should be true");
         assertEq(outSettings.minApprovals, 3, "Should be 3");
@@ -101,26 +89,24 @@ contract MultisigPluginSetupTest is Test {
 
     function test_ShouldDecodeInstallationParameters_2() public {
         // 2
+        signers = new address[](2);
+        signers[0] = alice;
+        signers[1] = bob;
+        signerList =
+            SignerList(createProxyAndCall(signerListBase, abi.encodeCall(SignerList.initialize, (IDAO(dao), signers))));
+
         multisigSettings = Multisig.MultisigSettings({
             onlyListed: false,
             minApprovals: 1,
             destinationProposalDuration: 5 days,
+            signerList: signerList,
             proposalExpirationPeriod: 55 days
         });
 
-        members = new address[](2);
-        members[0] = alice;
-        members[1] = bob;
-
-        bytes memory installationParams = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+        bytes memory installationParams = pluginSetup.encodeInstallationParameters(multisigSettings);
 
         // Decode
-        (address[] memory outMembers, Multisig.MultisigSettings memory outSettings) =
-            pluginSetup.decodeInstallationParameters(installationParams);
-
-        assertEq(outMembers.length, 2, "Incorrect length");
-        assertEq(outMembers[0], alice, "Incorrect member");
-        assertEq(outMembers[1], bob, "Incorrect member");
+        (Multisig.MultisigSettings memory outSettings) = pluginSetup.decodeInstallationParameters(installationParams);
 
         assertEq(outSettings.onlyListed, false, "Should be false");
         assertEq(outSettings.minApprovals, 1, "Should be 1");
@@ -128,7 +114,7 @@ contract MultisigPluginSetupTest is Test {
     }
 
     function test_PrepareInstallationReturnsTheProperPermissions() public {
-        bytes memory installationParams = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+        bytes memory installationParams = pluginSetup.encodeInstallationParameters(multisigSettings);
 
         (address _plugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);
@@ -167,7 +153,7 @@ contract MultisigPluginSetupTest is Test {
 
     function test_PrepareUninstallationReturnsTheProperPermissions_1() public {
         // Prepare a dummy install
-        bytes memory installationParams = pluginSetup.encodeInstallationParameters(members, multisigSettings);
+        bytes memory installationParams = pluginSetup.encodeInstallationParameters(multisigSettings);
 
         (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
             pluginSetup.prepareInstallation(address(dao), installationParams);

@@ -22,6 +22,7 @@ import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {MultisigPluginSetup} from "../../src/setup/MultisigPluginSetup.sol";
 import {EmergencyMultisigPluginSetup} from "../../src/setup/EmergencyMultisigPluginSetup.sol";
 import {OptimisticTokenVotingPluginSetup} from "../../src/setup/OptimisticTokenVotingPluginSetup.sol";
+import {SignerList} from "../../src/SignerList.sol";
 
 contract TaikoDaoFactoryTest is AragonTest {
     function test_ShouldStoreTheSettings_1() public {
@@ -393,6 +394,16 @@ contract TaikoDaoFactoryTest is AragonTest {
             "The DAO should have REGISTER_STANDARD_CALLBACK_PERMISSION_ID on itself"
         );
 
+        // Signer list
+        
+        assertEq(deployment.signerList.addresslistLength(), 13, "Invalid addresslistLength");
+        for (uint256 i = 0; i < 13; i++) {
+            assertEq(deployment.signerList.isListed(multisigMembers[i]), true, "Should be a member");
+        }
+        for (uint256 i = 14; i < 50; i++) {
+            assertEq(deployment.signerList.isListed(address(uint160(i))), false, "Should not be a member");
+        }
+
         // Multisig plugin
 
         assertNotEq(address(deployment.multisigPlugin), address(0), "Empty multisig field");
@@ -402,20 +413,20 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid lastMultisigSettingsChange"
         );
         assertEq(deployment.multisigPlugin.proposalCount(), 0, "Invalid proposal count");
-        assertEq(deployment.multisigPlugin.addresslistLength(), 13, "Invalid addresslistLength");
-        for (uint256 i = 0; i < 13; i++) {
-            assertEq(deployment.multisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
-        }
-        for (uint256 i = 14; i < 50; i++) {
-            assertEq(deployment.multisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
-        }
+
         {
-            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expirationPeriod) =
-                deployment.multisigPlugin.multisigSettings();
+            (
+                bool onlyListed,
+                uint16 minApprovals,
+                uint64 destinationProposalDuration,
+                SignerList signerList,
+                uint64 expirationPeriod
+            ) = deployment.multisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 7, "Invalid minApprovals");
             assertEq(destinationProposalDuration, 10 days, "Invalid destinationProposalDuration");
+            assertEq(address(signerList), address(deployment.signerList), "Incorrect signerList");
             assertEq(expirationPeriod, 15 days, "Invalid expirationPeriod");
         }
 
@@ -428,19 +439,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid lastMultisigSettingsChange"
         );
         assertEq(deployment.emergencyMultisigPlugin.proposalCount(), 0, "Invalid proposal count");
-        for (uint256 i = 0; i < 13; i++) {
-            assertEq(deployment.emergencyMultisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
-        }
-        for (uint256 i = 14; i < 50; i++) {
-            assertEq(deployment.emergencyMultisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
-        }
         {
-            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource, uint64 expirationPeriod) =
+            (bool onlyListed, uint16 minApprovals, Addresslist signerList, uint64 expirationPeriod) =
                 deployment.emergencyMultisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 11, "Invalid minApprovals");
-            assertEq(address(addresslistSource), address(deployment.multisigPlugin), "Invalid addresslistSource");
+            assertEq(address(signerList), address(deployment.signerList), "Invalid signerList");
             assertEq(expirationPeriod, 15 days, "Invalid expirationPeriod");
         }
 
@@ -516,9 +521,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid optimisticTokenVotingPluginSetup"
         );
 
-        // PUBLIC KEY REGISTRY
-        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
-        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+        // ENCRYPTION REGISTRY
+        assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
+        assertEq(
+            deployment.encryptionRegistry.getRegisteredAccounts().length, 0, "Invalid getRegisteredAccounts().length"
+        );
     }
 
     function test_StandardDeployment_2() public {
@@ -630,6 +637,16 @@ contract TaikoDaoFactoryTest is AragonTest {
             "The DAO should have REGISTER_STANDARD_CALLBACK_PERMISSION_ID on itself"
         );
 
+        // Signer List
+
+        assertEq(deployment.signerList.addresslistLength(), 16, "Invalid addresslistLength");
+        for (uint256 i = 0; i < 16; i++) {
+            assertEq(deployment.signerList.isListed(multisigMembers[i]), true, "Should be a member");
+        }
+        for (uint256 i = 17; i < 50; i++) {
+            assertEq(deployment.signerList.isListed(address(uint160(i))), false, "Should not be a member");
+        }
+
         // Multisig plugin
 
         assertNotEq(address(deployment.multisigPlugin), address(0), "Empty multisig field");
@@ -639,20 +656,20 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid lastMultisigSettingsChange"
         );
         assertEq(deployment.multisigPlugin.proposalCount(), 0, "Invalid proposal count");
-        assertEq(deployment.multisigPlugin.addresslistLength(), 16, "Invalid addresslistLength");
-        for (uint256 i = 0; i < 16; i++) {
-            assertEq(deployment.multisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
-        }
-        for (uint256 i = 17; i < 50; i++) {
-            assertEq(deployment.multisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
-        }
+
         {
-            (bool onlyListed, uint16 minApprovals, uint64 destinationProposalDuration, uint64 expirationPeriod) =
-                deployment.multisigPlugin.multisigSettings();
+            (
+                bool onlyListed,
+                uint16 minApprovals,
+                uint64 destinationProposalDuration,
+                SignerList signerList,
+                uint64 expirationPeriod
+            ) = deployment.multisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 9, "Invalid minApprovals");
             assertEq(destinationProposalDuration, 21 days, "Invalid destinationProposalDuration");
+            assertEq(address(signerList), address(deployment.signerList), "Incorrect signerList");
             assertEq(expirationPeriod, 22 days, "Invalid expirationPeriod");
         }
 
@@ -665,19 +682,13 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid lastMultisigSettingsChange"
         );
         assertEq(deployment.emergencyMultisigPlugin.proposalCount(), 0, "Invalid proposal count");
-        for (uint256 i = 0; i < 16; i++) {
-            assertEq(deployment.emergencyMultisigPlugin.isMember(multisigMembers[i]), true, "Should be a member");
-        }
-        for (uint256 i = 17; i < 50; i++) {
-            assertEq(deployment.emergencyMultisigPlugin.isMember(address(uint160(i))), false, "Should not be a member");
-        }
         {
-            (bool onlyListed, uint16 minApprovals, Addresslist addresslistSource, uint64 expirationPeriod) =
+            (bool onlyListed, uint16 minApprovals, Addresslist signerList, uint64 expirationPeriod) =
                 deployment.emergencyMultisigPlugin.multisigSettings();
 
             assertEq(onlyListed, true, "Invalid onlyListed");
             assertEq(minApprovals, 15, "Invalid minApprovals");
-            assertEq(address(addresslistSource), address(deployment.multisigPlugin), "Invalid addresslistSource");
+            assertEq(address(signerList), address(deployment.signerList), "Invalid signerList");
             assertEq(expirationPeriod, 22 days, "Invalid expirationPeriod");
         }
 
@@ -753,9 +764,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Invalid optimisticTokenVotingPluginSetup"
         );
 
-        // PUBLIC KEY REGISTRY
-        assertNotEq(address(deployment.publicKeyRegistry), address(0), "Empty publicKeyRegistry field");
-        assertEq(deployment.publicKeyRegistry.registeredWalletCount(), 0, "Invalid registeredWalletCount");
+        // ENCRYPTION REGISTRY
+        assertNotEq(address(deployment.encryptionRegistry), address(0), "Empty encryptionRegistry field");
+        assertEq(
+            deployment.encryptionRegistry.getRegisteredAccounts().length, 0, "Invalid getRegisteredAccounts().length"
+        );
     }
 
     function test_MultipleDeploysDoNothing() public {

@@ -1,0 +1,196 @@
+SignerListTest:
+  # contract lifecycle
+  - when: deploying the contract
+    then:
+      - it: should initialize normally
+  - given: a deployed contract
+    then:
+      - it: should refuse to initialize again
+  - given: a new instance
+    and:
+      - given: calling initialize
+        and:
+          - it: should set the DAO address
+          # Same checks as addSigners below
+          - given: passing more addresses than supported [on initialize]
+            then:
+              - it: should revert
+          - given: duplicate addresses [on initialize]
+            then:
+              - it: should revert
+          - it: should append the new addresses to the list
+          - it: should return true on isListed
+          - it: should emit the SignersAdded event
+          - it: the encryption registry should be empty
+          - it: minSignerListLength should be zero
+
+  - when: calling updateSettings
+    and:
+      - when: updateSettings without the permission
+        then:
+          - it: should revert
+      - when: encryptionRegistry is not compatible
+        then:
+          - it: should revert
+      - when: minSignerListLength is bigger than the list size
+        then:
+          - it: should revert
+      - it: sets the new encryption registry
+      - it: sets the new minSignerListLength
+      - it: should emit a SignerListSettingsUpdated event
+
+  - when: calling supportsInterface
+    then:
+      - it: does not support the empty interface
+      - it: supports IERC165Upgradeable
+      - it: supports Addresslist
+      - it: supports ISignerList
+
+  # List lifecycle
+  - when: calling addSigners
+    and:
+      - when: adding without the permission
+        then:
+          - it: should revert
+      - given: passing more addresses than supported [on addSigners]
+        then:
+          - it: should revert
+      - given: duplicate addresses [on addSigners]
+        then:
+          - it: should revert
+      - it: should append the new addresses to the list
+      - it: should return true on isListed
+      - it: should emit the SignersAdded event
+
+  - when: calling removeSigners
+    and:
+      - when: removing without the permission
+        then:
+          - it: should revert
+      - when: removing an unlisted address
+        then:
+          - it: should revert
+      - given: removing too many addresses
+        comment: The new list will be smaller than minSignerListLength
+        then:
+          - it: should revert
+      - it: should remove the given addresses
+      - it: should return false on isListed
+      - it: should emit the SignersRemoved event
+
+  # Getters
+  - when: calling isListed
+    and:
+      - given: the member is listed
+        then:
+          - it: returns true
+      - given: the member is not listed
+        then:
+          - it: returns false
+
+  - when: calling isListedAtBlock
+    and:
+      - given: the member was listed
+        and:
+          - given: the member is not listed now
+            then:
+              - it: returns true
+          - given: the member is listed now
+            then:
+              - it: returns true
+      - given: the member was not listed
+        and:
+          - given: the member is delisted now
+            then:
+              - it: returns false
+          - given: the member is enlisted now
+            then:
+              - it: returns false
+
+  # Encryption getters
+  - when: calling isListedOrAppointedByListed
+    and:
+      - given: the caller is a listed signer
+        then:
+          - it: listedOrAppointedByListed should be true
+      - given: the caller is appointed by a signer
+        then:
+          - it: listedOrAppointedByListed should be true
+      - given: the caller is not listed or appointed
+        then:
+          - it: listedOrAppointedByListed should be false
+
+  - when: calling getListedEncryptionOwnerAtBlock
+    and:
+      - given: the resolved owner is listed [on getListedEncryptionOwnerAtBlock]
+        and:
+          - when: the given address is the owner
+            then:
+              - it: should return the given address
+          - when: the given address is appointed by the owner
+            then:
+              - it: should return the resolved owner
+
+      - given: the resolved owner was listed [on getListedEncryptionOwnerAtBlock]
+        and:
+          - when: the given address is the owner 2
+            then:
+              - it: should return the given address
+          - when: the given address is appointed by the owner 2
+            then:
+              - it: should return the resolved owner
+
+      - given: the resolved owner was not listed [on getListedEncryptionOwnerAtBlock]
+        then:
+          - it: should return a zero value
+
+  - when: calling resolveEncryptionAccountAtBlock
+    and:
+      - given: the resolved owner is listed [on resolveEncryptionAccountAtBlock]
+        and:
+          - when: the given address is owner
+            then:
+              - it: owner should be itself
+              - it: votingWallet should be the appointed address
+          - when: the given address is appointed
+            then:
+              - it: owner should be the resolved owner
+              - it: votingWallet should be the given address
+
+      - given: the resolved owner was listed [on resolveEncryptionAccountAtBlock]
+        and:
+          - when: the given address is owner 2
+            then:
+              - it: owner should be itself
+              - it: votingWallet should be the appointed address
+          - when: the given address is appointed 2
+            then:
+              - it: owner should be the resolved owner
+              - it: votingWallet should be the given address
+
+      - given: the resolved owner was not listed [on resolveEncryptionAccountAtBlock]
+        then:
+          - it: should return a zero owner
+          - it: should return a zero appointedWallet
+
+  - when: calling getEncryptionRecipients
+    and:
+      - given: the encryption registry has no accounts
+        then:
+          - it: returns an empty list, even with signers
+          - it: returns an empty list, without signers
+
+      - given: the encryption registry has accounts
+        then:
+          - given: no overlap between registry and signerList
+            comment: Some are on the encryption registry only and some are on the signerList only
+            then:
+              - it: returns an empty list
+          - given: some addresses are registered everywhere
+            then:
+              - it: returns a list containing the overlapping addresses
+              - it: the result has the correct resolved addresses
+                comment: appointed wallets are present, not the owner
+              - it: result does not contain unregistered addresses
+              - it: result does not contain unlisted addresses
+              - it: result does not contain non appointed addresses
