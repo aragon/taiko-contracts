@@ -58,7 +58,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
         bool onlyListed;
         uint16 minApprovals;
         SignerList signerList;
-        uint64 proposalExpirationPeriod;
+        uint32 proposalExpirationPeriod; // uint32 is enough, not a timestamp
     }
 
     /// @notice The ID of the permission required to call the `addAddresses` and `removeAddresses` functions.
@@ -128,7 +128,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     /// @param signerList The contract defining who is a member and/or who is appointed as a decryption wallet
     /// @param proposalExpirationPeriod The amount of seconds after which a non executed proposal expires.
     event MultisigSettingsUpdated(
-        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint64 proposalExpirationPeriod
+        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint32 proposalExpirationPeriod
     );
 
     /// @notice Initializes Release 1, Build 1.

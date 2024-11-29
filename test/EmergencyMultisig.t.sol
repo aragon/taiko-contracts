@@ -20,7 +20,7 @@ import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 import {IPlugin} from "@aragon/osx/core/plugin/IPlugin.sol";
 import {IEmergencyMultisig} from "../src/interfaces/IEmergencyMultisig.sol";
 
-uint64 constant EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
+uint32 constant EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD = 10 days;
 
 contract EmergencyMultisigTest is AragonTest {
     DaoBuilder builder;
@@ -38,7 +38,7 @@ contract EmergencyMultisigTest is AragonTest {
     error InvalidActions(uint256 proposalId);
 
     event MultisigSettingsUpdated(
-        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint64 proposalExpirationPeriod
+        bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint32 proposalExpirationPeriod
     );
 
     event EmergencyProposalCreated(uint256 indexed proposalId, address indexed creator, bytes encryptedPayloadURI);

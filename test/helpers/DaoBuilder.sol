@@ -43,15 +43,16 @@ contract DaoBuilder is Test {
     MintEntry[] public tokenHolders;
 
     uint32 public minVetoRatio = uint32(RATIO_BASE / 10); // 10%
-    uint64 public minDuration = 4 days;
-    uint64 public l2InactivityPeriod = 10 minutes;
-    uint64 public l2AggregationGracePeriod = 2 days;
+    uint32 public minDuration = 4 days;
+    uint32 public timelockPeriod = 7 days;
+    uint32 public l2InactivityPeriod = 10 minutes;
+    uint32 public l2AggregationGracePeriod = 2 days;
     bool public skipL2 = false;
 
     bool public onlyListed = true;
     uint16 public minApprovals = 1;
-    uint64 public stdProposalDuration = 10 days;
-    uint64 multisigProposalExpirationPeriod = 10 days;
+    uint32 public stdProposalDuration = 10 days;
+    uint32 public multisigProposalExpirationPeriod = 10 days;
 
     function withDaoOwner(address newOwner) public returns (DaoBuilder) {
         owner = newOwner;
@@ -99,17 +100,22 @@ contract DaoBuilder is Test {
         return this;
     }
 
-    function withExpiration(uint64 newExpirationPeriod) public returns (DaoBuilder) {
+    function withTimelock(uint32 newTimeLock) public returns (DaoBuilder) {
+        timelockPeriod = newTimeLock;
+        return this;
+    }
+
+    function withExpiration(uint32 newExpirationPeriod) public returns (DaoBuilder) {
         multisigProposalExpirationPeriod = newExpirationPeriod;
         return this;
     }
 
-    function withL2InactivityPeriod(uint64 newL2InactivityPeriod) public returns (DaoBuilder) {
+    function withL2InactivityPeriod(uint32 newL2InactivityPeriod) public returns (DaoBuilder) {
         l2InactivityPeriod = newL2InactivityPeriod;
         return this;
     }
 
-    function withL2AggregationGracePeriod(uint64 newL2AggregationGracePeriod) public returns (DaoBuilder) {
+    function withL2AggregationGracePeriod(uint32 newL2AggregationGracePeriod) public returns (DaoBuilder) {
         l2AggregationGracePeriod = newL2AggregationGracePeriod;
         return this;
     }
@@ -208,6 +214,7 @@ contract DaoBuilder is Test {
             OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
                 minVetoRatio: minVetoRatio,
                 minDuration: minDuration,
+                timelockPeriod: timelockPeriod,
                 l2InactivityPeriod: l2InactivityPeriod,
                 l2AggregationGracePeriod: l2AggregationGracePeriod,
                 skipL2: skipL2
