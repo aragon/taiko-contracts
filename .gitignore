@@ -14,8 +14,11 @@ docs/
 
 # Dotenv file
 .env
+.env.test
 
 lcov.info
 .DS_Store
 
 *.tree
+
+logs/*
