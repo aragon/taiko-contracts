@@ -2,21 +2,29 @@
 
 This reposity contains the codebase of the Taiko DAO, along with its 3 plugins and helper contracts. 
 
-The DAO contract is an [Aragon DAO](https://github.com/aragon/osx), on which an **Optimistic Token Voting plugin** has the permission to execute proposals. Proposals on this plugin can only be created by two distinct multisig plugins, belonging to Taiko's Security Council.
+## Overview
+
+The main goal of the present design is for the DAO to be flexible and future-proof by the use of modular plugins governing the DAO contract.
+
+The DAO contract is an [Aragon DAO](https://github.com/aragon/osx), on which an **Optimistic Token Voting plugin** has the permission to execute the actions of a proposal.
+
+Proposals on this plugin can only be created (forwarded) by two distinct multisig plugins, governed by Taiko's Security Council.
 
 ![Taiko DAO Overview](./img/overview.png)
 
-The Security Council operates a standard multisig plugin and an emergency variant. The standard Multisig is designed to be the place where DAO proposals start their journey. Any signer can submit a new proposal to the Security Council. After a certain approval ratio is reached, the proposal will be forwarded to the Optimistic voting plugin, where the community will need to ratify it.
+The Security Council operates a standard multisig plugin and an emergency variant.
+- The **Standard Multisig** is designed to be the place where DAO proposals start their journey. Any signer can submit a new proposal to the Security Council. After a certain approval ratio is reached, the proposal will be forwarded to the Optimistic voting plugin, where the community will need to ratify it.
+- The **Emergency Multisig**, is meant to only be used under exceptional circumstances, i.e. when a critical vulnerability needs to be addressed immediately. Any signer can submit proposals as well, but these proposals will need to be approved by a super majority before they can be executed directly on the DAO. 
 
-The Emergency Multisig, is meant to only be used under exceptional circumstances, i.e. when a critical vulnerability needs to be addressed immediately. Any signer can submit proposals as well, but these proposals will need to be approved by a super majority before they can be executed directly on the DAO. 
+Both plugins source their list of signers from the same contract, named **SignerList**. 
 
-Another key difference is that the Emergency Multisig is designed such in a way that the human readable description and the actions are private to the signers until the proposal is finally executed. 
+An important difference is that the Emergency Multisig is designed so that human readable descriptions and actions remain private to the signers, until the proposal is eventually executed.
 
 [Learn more about Aragon OSx](#protocol-overview).
 
 See [Deploying the DAO](#deploying-the-dao) below and check out the [contract deployments](./DEPLOYMENTS.md).
 
-## Contracts overview
+## The DAO's plugins
 
 ### Optimistic Token Voting plugin
 
@@ -35,11 +43,11 @@ The governance settings need to be defined when the plugin is installed but the 
 - The DAO can update the plugin settings
 - The DAO can upgrade the plugin
 
-### Multisig (standard flow)
+### Standard Multisig
 
-It allows the Security Council members to create and approve proposals. After a certain minimum of approvals is met, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) only.
+It allows Security Council members to create and approve proposals. After 3 approvals are registered, they are relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin).
 
-The list of signers for this plugin is taken from SignerList contract. Any changes on it will effect both plugin instances. 
+The list of signers for this plugin is sourced from the **SignerList** contract. Any changes on it will effect both multisig's. 
 
 The ability to relay proposals to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) is restricted by a [permission condition](src/conditions/StandardProposalCondition.sol), which ensures that a minimum veto period is defined as part of the parameters. 
 
@@ -47,102 +55,106 @@ The ability to relay proposals to the [Optimistic Token Voting plugin](#optimist
 
 #### Permissions
 
-- Only members can create proposals
-- Only members can approve
+- Only listed signers can create proposals
+- Only listed signers can approve
 - The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
 - The DAO can update the plugin settings
 
 ### Emergency Multisig
 
-Like before, this plugin allows Security Council members to create and approve proposals. If a super majority approves, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) with a delay period of potentially 0. This is, being executed immediately. 
+Similarly, this plugin allows Security Council members to create and approve proposals. If 6 out of 8 signers approve them, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) with a delay period of 0 seconds, which allows for immediate execution. 
 
-The list of signers for this plugin is taken from SignerList contract. Any changes on it will effect both plugin instances. 
+Like before, the list of signers for this plugin is taken from SignerList contract. 
 
 There are two key differences with the standard Multisig:
-1. The proposal's metadata and the actions to execute are encrypted, only the Security Council members have the means to decrypt them
-2. When the proposal is executed, the metadata and the actions become publicly visible on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin). There is an integrity check to prevent any changes to the originally approved content.
+1. The proposal's metadata and the actions to execute are encrypted, only Security Council members have the means to decrypt them. See [The encryption challenge](#the-encryption-challenge) below.
+2. When the proposal is executed, its metadata and actions become publicly readable on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin). There is an integrity check to prevent any changes to the originally approved content.
 
 ![Emergency proposal flow](./img/emergency-proposal-flow.png)
 
 #### Permissions
 
-The Emergency Multisig settings are the same as for the standard Multisig. 
+The Emergency Multisig settings are similar as the Standard Multisig's. 
 
-- Only members can create proposals
-- Only members can approve
-- The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) provided that the `duration` is equal or greater than the minimum defined
+- Only listed signers can create proposals
+- Only listed signers can approve
+- The plugin can only create proposals on the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin)
 - The DAO can update the plugin settings
 
 ### Signer List
 
-Both multisigs relate to this contract to determine if an address was listed at a certain block. It allows to read the state and manage the address list given that the appropriate permissions are granted.
+Both multisigs relate to this helper contract to determine if an address was listed at a certain block. It allows to read the state and manage the address list given that the appropriate permissions are granted (typically to the DAO).
 
-It also plays an important role regarding encryption, this is why it is coupled with the Encryption Registry (see below). 
+It also plays an important role regarding encryption, this is why it is coupled with the [Encryption Registry](#encryption-registry) (see below). 
 
 It offers convenience methods to determine 3 potential states for a given address:
-- An address was a listed signer at a given past block (owner)
-- An address is appointed by another address, listed at a past block (appointed)
-- An address not listed or appointed
+1. An address was a listed signer at a given past block (owner)
+2. An address is appointed by another address, listed at a past block (appointed)
+3. An address not listed or appointed
 
 ### The encryption challenge
 
-Smart wallets cannot possibly generate a private key, which means that encryption and decryption is unviable. To this end, the [EncryptionRegistry](#encryption-registry) (see below) allows listed signers to **appoint** an EOA to act on behalf of them. 
+It is common that Security Council agreements are reached with an organization, rather than with an individual. They typically act behind a smart wallet so that new members or leaving members do not impact the DAO.
 
-This means that the Security Council could include a member who was an organization, and such organiation could have a smart wallet. This smart wallet would then appoint one of its members' EOA, so that emergency proposals could be reviewed, approved and eventually executed.
+However, smart wallets cannot possibly generate a private key, which means that encryption and decryption becomes unviable. 
 
-If at any point, the member's EOA became compromised or the member left the team, the smart wallet could then appoint a new EOA and continue without impacting the rest of the Security Council.
+To this end, the [Encryption Registry](#encryption-registry) allows listed signers to **appoint** an EOA agent which acts on behalf of them. Such agent would typically be one of the organization's members and he or she could be replaced at any point.
 
-What it means:
+With the Encryption Registry, the Security Council may onboard organizations behind a smart wallet while encryption remains operational for all members.
+
+Summary:
 - Owners (listed signers)
   - Can always create emergency multisig proposals
-  - Can only approve if they are not appointing another address
-- Addresses appointed by a listed signer
+  - Can also approve, only if they are not appointing another address
+- Appointed EOA's (by a listed signer)
   - Can create emergency proposals
   - Can approve
   - Can execute (they can decrypt the actions and the metadata)
 
 ### Encryption Registry
 
-This is a helper contract that allows Security Council members ([SignerList](#signer-list) addresses) to register the public key of their deterministic ephemeral wallet. The available public keys will be used to encrypt the proposal metadata and actions.
+This is a helper contract that allows Security Council members ([Signer List](#signer-list) addresses) to **register** their public key, which will be used to encrypt the proposal metadata and actions.
 
-Given that smart contracts cannot possibly sign or decrypt data, the encryption registry allows to appoint an EOA as the end target for encryption purposes. This is useful for organizations not wanting to rely on just a single wallet.
+Given that smart contracts cannot possibly sign or decrypt data, the encryption registry allows to **appoint** an EOA as the agent for encryption purposes. 
 
-Refer to the UI repository for the encryption details.
+Refer to the [UI repository](https://github.com/aragon/taiko-ui?tab=readme-ov-file#encryption-steps) to read more about the encryption architecture.
 
 ### Delegation Wall
 
-This is a very simple contract that serves the purpose of storing the IPFS URI's pointing to the delegation profile posted by all candidates. Profiles can be updated by the owner and read by everyone.
+A simple helper contract that serves the purpose of storing the IPFS URI's pointing to the delegation profile posted by all candidates. Profiles can be updated by the owner and read by everyone.
 
-### Installing plugins to the DAO
+## Installing plugins to the DAO
 
-#### Installing the initial set of plugins on the DAO
+### Installing the initial set of plugins on the DAO
 
-This is taken care by the [TaikoDAOFactory](src/factory/TaikoDaoFactory.sol) contract. It is invoked by [scripts/Deploy.s.sol](script/Deploy.s.sol) and it creates a holistic, immutable DAO deployment, given some settings. To create a new DAO with new settings, a new factory needs to be deployed. 
+This is taken care by the [TaikoDAOFactory](src/factory/TaikoDaoFactory.sol) contract. It is invoked by [scripts/Deploy.s.sol](script/Deploy.s.sol). It creates a full, immutable and verifiable DAO deployment, given certain settings. The addresses of the deployed contracts can be read from it.
 
-#### Installing plugins on the existing DAO
+To create a DAO with different settings, a new factory needs to be deployed and invoked. 
+
+### Installing plugins on an existing DAO
 
 Plugin changes need a proposal to be passed when the DAO already exists.
 
-There are two steps, a permissionless **preparation** and a privileged **application**. 
+This involves two steps, a permissionless **preparation** and a privileged **application**. 
 
 1. Calling `pluginSetupProcessor.prepareInstallation()`
    - A new plugin instance is deployed with the desired settings
    - The call stores the request of a set of permissions
 2. A proposal is passed to make the DAO call `applyInstallation()` on the [PluginSetupProcessor](https://devs.aragon.org/docs/osx/how-it-works/framework/plugin-management/plugin-setup/)
-   - This applies the requested permissions and the plugin becomes installed
+   - This applies the requested permissions and the new plugin can now interact with the DAO
 
-See [OptimisticTokenVotingPluginSetup](src/setup/OptimisticTokenVotingPluginSetup.sol).
+These steps are made via a plugin setup. See [OptimisticTokenVotingPluginSetup](src/setup/OptimisticTokenVotingPluginSetup.sol) for an example.
 
 [Learn more about plugin setup's](https://devs.aragon.org/docs/osx/how-it-works/framework/plugin-management/plugin-setup/) and [preparing installations](https://devs.aragon.org/docs/sdk/examples/client/prepare-installation).
 
 
-## Setup
+## Get Started
 
 To get started, ensure that [Foundry](https://getfoundry.sh/) and [Make](https://www.gnu.org/software/make/) are installed on your computer.
 
 ### Using the Makefile
 
-The `Makefile` is the target launcher of the project. It's the recommended way to work with it. It manages the env variables of common tasks and executes only the steps that require being run.
+The `Makefile` is the target launcher of the project. It's the recommended way to work with it. It manages the env variables of common tasks and executes only the steps that need to be run.
 
 ```
 $ make 
@@ -181,7 +193,7 @@ The env.example file contains descriptions for all the initial settings. You don
 
 ## Deployment
 
-Deployments are done using the deployment factory. This is a singleton contract that will:
+Deployments are done using the [TaikoDaoFactory](./src/factory/TaikoDaoFactory.sol). This is a singleton contract that will:
 
 - Deploy all contracts
 - Set permissions
@@ -215,24 +227,24 @@ Check the available make targets to simulate and deploy the smart contracts:
   - [ ] I have checked that the JSON file under `MULTISIG_MEMBERS_JSON_FILE_NAME` contains the correct list of signers
   - [ ] I have ensured all multisig members have undergone a proper security review and are aware of the security implications of being on said multisig
   - [ ] I have checked that `MIN_STD_APPROVALS`, `MIN_EMERGENCY_APPROVALS` and `MULTISIG_PROPOSAL_EXPIRATION_PERIOD` are correct
-  - [ ] I have verified that `TOKEN_ADDRESS` corresponds to an ERC20 contract on the target chain
-  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` are correct 
+  - [ ] I have verified that `TOKEN_ADDRESS` corresponds to the intended ERC20 contract on the test chain
+  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` belong to the test chain
   - The plugin ENS subdomain
     - [ ] Contains a meaningful and unique value
   - The given OSx addresses:
     - [ ] Exist on the target network
     - [ ] Contain the latest stable official version of the OSx DAO implementation, the Plugin Setup Processor and the Plugin Repo Factory
     - [ ] I have verified the values on https://www.npmjs.com/package/@aragon/osx-commons-configs?activeTab=code > `/@aragon/osx-commons-configs/dist/deployments/json/`
-- [ ] All my unit tests pass (`make test`)
+- [ ] All the unit tests pass (`make test`)
 - **Target test network**
   - [ ] I have run a preview deployment on the testnet
-    - `make pre-deploy-mint-testnet`
+    - `make pre-deploy-testnet`
   - [ ] I have deployed my contracts successfully to the target testnet
     - `make deploy-testnet`
-  - [ ] I have tested that these contracts work successfully on a UI
+  - [ ] I have tested that these contracts work successfully
 - **Target production network**
-    - [ ] I have updated `TOKEN_ADDRESS` to have the address of the testnet token deployed above
-    - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` are correct 
+    - [ ] I have updated `TOKEN_ADDRESS` to have the address of the prodnet
+    - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` target the correct network
 - [ ] My deployment wallet is a newly created account, ready for safe production deploys.
 - My computer:
   - [ ] Is running in a safe physical location and a trusted network
@@ -240,11 +252,11 @@ Check the available make targets to simulate and deploy the smart contracts:
   - [ ] The wifi or wired network used does does not have open ports to a WAN
 - [ ] I have previewed my deploy without any errors
   - `make pre-deploy-prodnet`
-- [ ] My wallet has sufficient native token for gas
+- [ ] The deployment wallet has sufficient native token for gas
   - At least, 15% more than the estimated simulation
 - [ ] Unit tests still run clean
 - [ ] I have run `git status` and it reports no local changes
-- [ ] The current local git branch corresponds to its counterpart on `origin`
+- [ ] The current local git branch (`main`) corresponds to its counterpart on `origin`
   - [ ] I confirm that the rest of members of the ceremony pulled the last commit of my branch and reported the same commit hash as my output for `git log -n 1`
 - [ ] I have initiated the production deployment with `make deploy-prodnet`
 
@@ -258,7 +270,7 @@ Check the available make targets to simulate and deploy the smart contracts:
 - [ ] I have transferred the remaining funds of the deployment wallet to the address that originally funded it
   - `make refund`
 
-### Manual from the command line
+## Manual deployment (CLI)
 
 You can of course run all commands from the command line:
 
@@ -391,73 +403,6 @@ To this end, the DAO has a struct called `Action { to, value, data }`, which wil
 By default, only the DAO can upgrade plugins to newer versions. This requires passing a proposal.
 
 [Learn more about plugin upgrades](https://devs.aragon.org/docs/osx/how-to-guides/plugin-development/upgradeable-plugin/updating-versions)
-
-## Development
-
-To work with the repository you need to install [Foundry](https://book.getfoundry.sh/getting-started/installation) on your operating system.
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Formatting the code
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Run a local test EVM
-
-```shell
-$ anvil
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-## Deployment
-
-### Deploying the DAO
-
-1. Edit `script/multisig-members.json` with the list of addresses to set as signers
-2. Run `forge build && forge test`
-3. Copy `.env.example` into `.env` and define the settings
-4. Run `source .env` to load them
-5. Set the RPC URL and run the deployment script
-
-```shell
-RPC_URL="https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify
-```
-
-If you get the error `Failed to get EIP-1559 fees`, add `--legacy` to the last command:
-
-```shell
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --legacy
-```
-
-If a some contracts fail to verify on Etherscan, retry with this command:
-
-```shell
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --verify --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
-```
 
 ## Testing
 
