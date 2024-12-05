@@ -1,6 +1,6 @@
 # Taiko DAO contracts
 
-This reposity contains the codebase of the Taiko DAO, along with its 3 plugins and helper contracts. 
+This reposity contains the codebase of the Taiko DAO, along with its 3 plugins and helper contracts.
 
 ## Overview
 
@@ -14,13 +14,13 @@ Proposals on this plugin can only be created (forwarded) by two distinct multisi
 
 The Security Council operates a standard multisig plugin and an emergency variant.
 - The **Standard Multisig** is designed to be the place where DAO proposals start their journey. Any signer can submit a new proposal to the Security Council. After a certain approval ratio is reached, the proposal will be forwarded to the Optimistic voting plugin, where the community will need to ratify it.
-- The **Emergency Multisig**, is meant to only be used under exceptional circumstances, i.e. when a critical vulnerability needs to be addressed immediately. Any signer can submit proposals as well, but these proposals will need to be approved by a super majority before they can be executed directly on the DAO. 
+- The **Emergency Multisig**, is meant to only be used under exceptional circumstances, i.e. when a critical vulnerability needs to be addressed immediately. Any signer can submit proposals as well, but these proposals will need to be approved by a super majority before they can be executed directly on the DAO.
 
-Both plugins source their list of signers from the same contract, named **SignerList**. 
+Both plugins source their list of signers from the same contract, named **SignerList**.
 
 An important difference is that the Emergency Multisig is designed so that human readable descriptions and actions remain private to the signers, until the proposal is eventually executed.
 
-[Learn more about Aragon OSx](#protocol-overview).
+[Learn more about Aragon OSx](#osx-protocol-overview).
 
 See [Deploying the DAO](#deploying-the-dao) below and check out the [contract deployments](./DEPLOYMENTS.md).
 
@@ -28,9 +28,9 @@ See [Deploying the DAO](#deploying-the-dao) below and check out the [contract de
 
 ### Optimistic Token Voting plugin
 
-This plugin is an adapted version of Aragon's [Optimistic Token Voting plugin](https://github.com/aragon/optimistic-token-voting-plugin). 
+This plugin is an adapted version of Aragon's [Optimistic Token Voting plugin](https://github.com/aragon/optimistic-token-voting-plugin).
 
-Only addresses that have been granted `PROPOSER_PERMISSION_ID` on the plugin can create proposals. These adresses belong to the two multisig's governed by the Security Council. 
+Only addresses that have been granted `PROPOSER_PERMISSION_ID` on the plugin can create proposals. These adresses belong to the two multisig's governed by the Security Council.
 
 Proposals can only be executed when the veto threshold hasn't been reached after a given period of time.
 
@@ -47,9 +47,9 @@ The governance settings need to be defined when the plugin is installed but the 
 
 It allows Security Council members to create and approve proposals. After 3 approvals are registered, they are relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin).
 
-The list of signers for this plugin is sourced from the **SignerList** contract. Any changes on it will effect both multisig's. 
+The list of signers for this plugin is sourced from the **SignerList** contract. Any changes on it will effect both multisig's.
 
-The ability to relay proposals to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) is restricted by a [permission condition](src/conditions/StandardProposalCondition.sol), which ensures that a minimum veto period is defined as part of the parameters. 
+The ability to relay proposals to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) is restricted by a [permission condition](src/conditions/StandardProposalCondition.sol), which ensures that a minimum veto period is defined as part of the parameters.
 
 ![Standard proposal flow](./img/std-proposal-flow.png)
 
@@ -62,9 +62,9 @@ The ability to relay proposals to the [Optimistic Token Voting plugin](#optimist
 
 ### Emergency Multisig
 
-Similarly, this plugin allows Security Council members to create and approve proposals. If 6 out of 8 signers approve them, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) with a delay period of 0 seconds, which allows for immediate execution. 
+Similarly, this plugin allows Security Council members to create and approve proposals. If 6 out of 8 signers approve them, proposals can be relayed to the [Optimistic Token Voting plugin](#optimistic-token-voting-plugin) with a delay period of 0 seconds, which allows for immediate execution.
 
-Like before, the list of signers for this plugin is taken from SignerList contract. 
+Like before, the list of signers for this plugin is taken from SignerList contract.
 
 There are two key differences with the standard Multisig:
 1. The proposal's metadata and the actions to execute are encrypted, only Security Council members have the means to decrypt them. See [The encryption challenge](#the-encryption-challenge) below.
@@ -74,7 +74,7 @@ There are two key differences with the standard Multisig:
 
 #### Permissions
 
-The Emergency Multisig settings are similar as the Standard Multisig's. 
+The Emergency Multisig settings are similar as the Standard Multisig's.
 
 - Only listed signers can create proposals
 - Only listed signers can approve
@@ -85,7 +85,7 @@ The Emergency Multisig settings are similar as the Standard Multisig's.
 
 Both multisigs relate to this helper contract to determine if an address was listed at a certain block. It allows to read the state and manage the address list given that the appropriate permissions are granted (typically to the DAO).
 
-It also plays an important role regarding encryption, this is why it is coupled with the [Encryption Registry](#encryption-registry) (see below). 
+It also plays an important role regarding encryption, this is why it is coupled with the [Encryption Registry](#encryption-registry) (see below).
 
 It offers convenience methods to determine 3 potential states for a given address:
 1. An address was a listed signer at a given past block (owner)
@@ -96,11 +96,11 @@ It offers convenience methods to determine 3 potential states for a given addres
 
 It is common that Security Council agreements are reached with an organization, rather than with an individual. They typically act behind a smart wallet so that new members or leaving members do not impact the DAO.
 
-However, smart wallets cannot possibly generate a private key, which means that encryption and decryption becomes unviable. 
+However, smart wallets cannot possibly generate a private key, which means that encryption and decryption becomes unviable.
 
-To this end, the [Encryption Registry](#encryption-registry) allows listed signers to **appoint** an EOA agent which acts on behalf of them. Such agent would typically be one of the organization's members and he or she could be replaced at any point.
+To this end, the [Encryption Registry](#encryption-registry) allows listed signers to **appoint** an EOA agent which acts on behalf of them. Such agent would typically be one of the organization's members and he or she can be replaced at any point.
 
-With the Encryption Registry, the Security Council may onboard organizations behind a smart wallet while encryption remains operational for all members.
+With the Encryption Registry, the Security Council may onboard organizations behind a smart wallet while encryption remains operational for all of them.
 
 Summary:
 - Owners (listed signers)
@@ -115,7 +115,7 @@ Summary:
 
 This is a helper contract that allows Security Council members ([Signer List](#signer-list) addresses) to **register** their public key, which will be used to encrypt the proposal metadata and actions.
 
-Given that smart contracts cannot possibly sign or decrypt data, the encryption registry allows to **appoint** an EOA as the agent for encryption purposes. 
+Given that smart contracts cannot possibly sign or decrypt data, the encryption registry allows to **appoint** an EOA as the agent for encryption purposes.
 
 Refer to the [UI repository](https://github.com/aragon/taiko-ui?tab=readme-ov-file#encryption-steps) to read more about the encryption architecture.
 
@@ -129,13 +129,13 @@ A simple helper contract that serves the purpose of storing the IPFS URI's point
 
 This is taken care by the [TaikoDAOFactory](src/factory/TaikoDaoFactory.sol) contract. It is invoked by [scripts/Deploy.s.sol](script/Deploy.s.sol). It creates a full, immutable and verifiable DAO deployment, given certain settings. The addresses of the deployed contracts can be read from it.
 
-To create a DAO with different settings, a new factory needs to be deployed and invoked. 
+To create a DAO with different settings, a new factory needs to be deployed and invoked.
 
 ### Installing plugins on an existing DAO
 
 Plugin changes need a proposal to be passed when the DAO already exists.
 
-This involves two steps, a permissionless **preparation** and a privileged **application**. 
+This involves two steps, a permissionless **preparation** and a privileged **application**.
 
 1. Calling `pluginSetupProcessor.prepareInstallation()`
    - A new plugin instance is deployed with the desired settings
@@ -157,7 +157,7 @@ To get started, ensure that [Foundry](https://getfoundry.sh/) and [Make](https:/
 The `Makefile` is the target launcher of the project. It's the recommended way to work with it. It manages the env variables of common tasks and executes only the steps that need to be run.
 
 ```
-$ make 
+$ make
 Available targets:
 
 - make init       Check the dependencies and prompt to install if needed
@@ -387,7 +387,7 @@ Other DAO specific permissions:
 
 Making calls to the DAO is straightforward, however making execute arbitrary actions requires them to be encoded, stored on chain and be approved before they can be executed.
 
-To this end, the DAO has a struct called `Action { to, value, data }`, which will make the DAO call the `to` address, with `value` ether and call the given calldata (if any). Such calldata is an ABI encoded array of bytes with the function to call and the parameters it needs. 
+To this end, the DAO has a struct called `Action { to, value, data }`, which will make the DAO call the `to` address, with `value` ether and call the given calldata (if any). Such calldata is an ABI encoded array of bytes with the function to call and the parameters it needs.
 
 ### DO's and DONT's
 
@@ -418,7 +418,7 @@ Create a file with `.t.yaml` extension within the `test` folder and describe a h
 MultisigTest:
 - given: proposal exists
   comment: Comment here
-  and: 
+  and:
   - given: proposal is in the last stage
     and:
 
