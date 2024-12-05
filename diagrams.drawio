@@ -1,4 +1,4 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.5 Chrome/126.0.6478.183 Electron/31.3.0 Safari/537.36" version="24.7.5" pages="7">
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/25.0.2 Chrome/128.0.6613.186 Electron/32.2.5 Safari/537.36" version="25.0.2" pages="7">
   <diagram id="FvCMQ2TYCZgG51o0GS3k" name="General">
     <mxGraphModel dx="707" dy="899" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
@@ -539,7 +539,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="8vpa3lxcvuwuZr83Kq4M" name="Emergency proposal flow">
-    <mxGraphModel dx="1354" dy="1074" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1763" dy="1434" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -557,7 +557,7 @@
         <mxCell id="sKOwf1EYNC61HAYdxlM9-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="sKOwf1EYNC61HAYdxlM9-5" target="sKOwf1EYNC61HAYdxlM9-13" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="sKOwf1EYNC61HAYdxlM9-5" value="&lt;font size=&quot;1&quot; color=&quot;#404040&quot; style=&quot;&quot;&gt;&lt;b style=&quot;font-size: 16px;&quot;&gt;Multisig&lt;/b&gt;&lt;/font&gt;&lt;div&gt;&lt;font color=&quot;#5c5c5c&quot; style=&quot;font-size: 12px;&quot;&gt;Emergency&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+        <mxCell id="sKOwf1EYNC61HAYdxlM9-5" value="&lt;font size=&quot;1&quot; color=&quot;#404040&quot; style=&quot;&quot;&gt;&lt;b style=&quot;font-size: 16px;&quot;&gt;Multisig&lt;/b&gt;&lt;/font&gt;&lt;div&gt;&lt;font color=&quot;#5c5c5c&quot; style=&quot;font-size: 12px;&quot;&gt;6 out of 8&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="-120" y="20" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="sKOwf1EYNC61HAYdxlM9-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="sKOwf1EYNC61HAYdxlM9-8" target="sKOwf1EYNC61HAYdxlM9-5" edge="1">
@@ -605,10 +605,10 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="sKOwf1EYNC61HAYdxlM9-24" value="Vetoed&lt;div&gt;after&amp;nbsp;&lt;/div&gt;&lt;div&gt;delay?&lt;/div&gt;" style="rhombus;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="265" y="130" width="100" height="100" as="geometry" />
+          <mxGeometry x="265" y="121" width="100" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="sKOwf1EYNC61HAYdxlM9-26" value="Executable" style="rounded=1;whiteSpace=wrap;html=1;fontColor=#009900;fontStyle=1" parent="1" vertex="1">
-          <mxGeometry x="420" y="165" width="90" height="30" as="geometry" />
+        <mxCell id="sKOwf1EYNC61HAYdxlM9-26" value="Executed" style="rounded=1;whiteSpace=wrap;html=1;fontColor=#009900;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="420" y="156" width="90" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
