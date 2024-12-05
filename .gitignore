@@ -20,5 +20,7 @@ lcov.info
 .DS_Store
 
 *.tree
-
 logs/*
+
+# Draw.io backup files
+*.drawio.bkp
