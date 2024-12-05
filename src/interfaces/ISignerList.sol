@@ -24,19 +24,21 @@ interface ISignerList {
     /// @return listedOrAppointedByListed If resolved, whether the given address is currently listed as a member. False otherwise.
     function isListedOrAppointedByListed(address _address) external returns (bool listedOrAppointedByListed);
 
-    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
-    /// @param sender The address to check within the list of signers or the appointed accounts.
+    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed agent, if any.
+    /// @param addr The address to check within the list of signers or appointed agents.
     /// @param blockNumber The block at which the list should be checked
     /// @return owner If resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    function getListedEncryptionOwnerAtBlock(address sender, uint256 blockNumber) external returns (address owner);
+    function getListedEncryptionOwnerAtBlock(address addr, uint256 blockNumber) external returns (address owner);
 
-    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed wallet, if any.
-    /// @return owner If listed and resolved to an account, it contains the encryption owner's address. Returns address(0) otherwise.
-    /// @return voter If listed and resolved, it contains the wallet address appointed for decryption, if any. Returns address(0) otherwise.
-    function resolveEncryptionAccountAtBlock(address sender, uint256 _blockNumber)
+    /// @notice Given an address, determines the corresponding (listed) owner account and the appointed agent, if any.
+    /// @param addr The address to check within the list of signers or appointed agents.
+    /// @param blockNumber The block at which the list should be checked
+    /// @return owner If addr is listed or appointed, it contains the encryption owner's address. Returns address(0) otherwise.
+    /// @return agent If addr is listed or appointed, it contains the appointed agent's address, if any. Returns address(0) otherwise.
+    function resolveEncryptionAccountAtBlock(address addr, uint256 blockNumber)
         external
-        returns (address owner, address voter);
+        returns (address owner, address agent);
 
     /// @notice Among the SignerList's members registered on the EncryptionRegistry, return the effective address they use for encryption
-    function getEncryptionRecipients() external view returns (address[] memory);
+    function getEncryptionAgents() external view returns (address[] memory);
 }

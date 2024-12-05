@@ -699,7 +699,7 @@ contract SignerListTest is AragonTest {
         signerList.removeSigners(rmSigners);
 
         // Alice (owner) appoints david
-        encryptionRegistry.appointWallet(david);
+        encryptionRegistry.appointAgent(david);
 
         // Bob is the owner
 
@@ -743,11 +743,11 @@ contract SignerListTest is AragonTest {
 
     modifier whenCallingGetListedEncryptionOwnerAtBlock() {
         // Alice (owner) appoints address(0x1234)
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
 
         // Bob (owner) appoints address(0x2345)
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
 
         vm.startPrank(alice);
 
@@ -873,11 +873,11 @@ contract SignerListTest is AragonTest {
 
     modifier whenCallingResolveEncryptionAccountAtBlock() {
         // Alice (owner) appoints address(0x1234)
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
 
         // Bob (owner) appoints address(0x2345)
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
 
         vm.startPrank(alice);
 
@@ -1053,7 +1053,7 @@ contract SignerListTest is AragonTest {
         // No accounts registered a public key
 
         // It returns an empty list, even with signers
-        address[] memory recipients = signerList.getEncryptionRecipients();
+        address[] memory recipients = signerList.getEncryptionAgents();
         assertEq(recipients.length, 0, "Should be empty");
 
         // Empty the list
@@ -1067,7 +1067,7 @@ contract SignerListTest is AragonTest {
         signerList.removeSigners(rmSigners);
 
         // It returns an empty list, without signers
-        recipients = signerList.getEncryptionRecipients();
+        recipients = signerList.getEncryptionAgents();
         assertEq(recipients.length, 0, "Should be empty");
     }
 
@@ -1086,18 +1086,18 @@ contract SignerListTest is AragonTest {
         vm.startPrank(alice);
         encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x5555)));
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
         vm.startPrank(address(0x1234));
         encryptionRegistry.setPublicKey(bob, bytes32(uint256(0x1234)));
         vm.startPrank(carol);
         encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x5555)));
         vm.startPrank(david);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
         vm.startPrank(address(0x2345));
         encryptionRegistry.setPublicKey(david, bytes32(uint256(0x2345)));
 
         // It returns an empty list
-        address[] memory recipients = signerList.getEncryptionRecipients();
+        address[] memory recipients = signerList.getEncryptionAgents();
         assertEq(recipients.length, 4, "Should have 4 members");
         assertEq(recipients[0], alice, "Should be alice");
         assertEq(recipients[1], address(0x1234), "Should be 1234");
@@ -1122,7 +1122,7 @@ contract SignerListTest is AragonTest {
         signerList.removeSigners(rmSigners);
 
         // It returns an empty list
-        recipients = signerList.getEncryptionRecipients();
+        recipients = signerList.getEncryptionAgents();
         assertEq(recipients.length, 0, "Should be empty");
     }
 
@@ -1151,7 +1151,7 @@ contract SignerListTest is AragonTest {
         encryptionRegistry.setOwnPublicKey(bytes32(uint256(0x5555)));
         // Appointing 1234
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
         // Appointed
         vm.startPrank(address(0x1234));
         encryptionRegistry.setPublicKey(bob, bytes32(uint256(0x1234)));
@@ -1160,12 +1160,12 @@ contract SignerListTest is AragonTest {
         // encryptionRegistry.setOwnPublicKey(bytes32(uint256(0)));
         // Appointing 2345
         vm.startPrank(david);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
         // Appointed with no pubKey
         // vm.startPrank(address(0x2345));
         // encryptionRegistry.setPublicKey(david, bytes32(uint256(0)));
 
-        address[] memory recipients = signerList.getEncryptionRecipients();
+        address[] memory recipients = signerList.getEncryptionAgents();
         assertEq(recipients.length, 3, "Should have 3 members");
         assertEq(recipients[0], alice, "Should be alice");
         assertEq(recipients[1], address(0x1234), "Should be 1234");
@@ -1180,7 +1180,7 @@ contract SignerListTest is AragonTest {
         encryptionRegistry.setPublicKey(david, bytes32(uint256(0x2345)));
 
         // Updated list
-        recipients = signerList.getEncryptionRecipients();
+        recipients = signerList.getEncryptionAgents();
         assertEq(recipients.length, 4, "Should have 4 members");
         assertEq(recipients[0], alice, "Should be alice");
         assertEq(recipients[1], address(0x1234), "Should be 1234");

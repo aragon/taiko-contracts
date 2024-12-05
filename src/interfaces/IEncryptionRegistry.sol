@@ -6,8 +6,8 @@ interface IEncryptionRegistry {
     /// @notice Emitted when a public key is defined
     event PublicKeySet(address account, bytes32 publicKey);
 
-    /// @notice Emitted when an externally owned wallet is appointed
-    event WalletAppointed(address account, address appointedWallet);
+    /// @notice Emitted when an externally owned wallet is appointed as the encryption agent
+    event AgentAppointed(address account, address agent);
 
     /// @notice Raised when the caller is not an addresslist member
     error MustBeListed();
@@ -21,39 +21,41 @@ interface IEncryptionRegistry {
     /// @notice Raised when attempting to appoint an already appointed address
     error AlreadyAppointed();
 
-    /// @notice Raised when a non appointed wallet tries to define the public key
+    /// @notice Raised when a wallet not appointed as an agent tries to define a public key
     error MustBeAppointed();
 
-    /// @notice Raised when someone else is appointed and the account owner tries to override the public key of the appointed wallet. The appointed value should be set to address(0) or msg.sender first.
-    error MustResetAppointment();
+    /// @notice Raised when an agent is appointed and the account owner tries to override the account's public key. The appointed value should be set to address(0) or msg.sender first.
+    error MustResetAppointedAgent();
 
-    /// @notice Raised when the caller is not an addresslist compatible contract
+    /// @notice Raised when the caller is not an AddressList compatible contract
     error InvalidAddressList();
 
-    /// @notice Registers the externally owned wallet's address to use for encryption. This allows smart contracts to appoint an EOA that can decrypt data.
-    /// @dev NOTE: calling this function will wipe any existing public key previously registered.
-    function appointWallet(address newWallet) external;
+    /// @notice Registers the given address as the account's encryption agent. This allows smart contract accounts to appoint an EOA that can decrypt data on their behalf.
+    /// @dev NOTE: calling this function will wipe any previously registered public key.
+    /// @param newAgent The address of an EOA to define as the new agent.
+    function appointAgent(address newAgent) external;
 
     /// @notice Registers the given public key as the account's target for decrypting messages.
     /// @dev NOTE: Calling this function from a smart contracts will revert.
+    /// @param publicKey The libsodium public key to register
     function setOwnPublicKey(bytes32 publicKey) external;
 
-    /// @notice Registers the given public key as the member's target for decrypting messages. Only if the sender is appointed.
-    /// @param account The address of the account to set the public key for. The sender must be appointed or the transaction will revert.
+    /// @notice Registers the given public key as the agent's target for decrypting messages. Only if the sender is an appointed agent.
+    /// @param accountOwner The address of the account to set the public key for. The sender must be appointed or the transaction will revert.
     /// @param publicKey The libsodium public key to register
-    function setPublicKey(address account, bytes32 publicKey) external;
+    function setPublicKey(address accountOwner, bytes32 publicKey) external;
 
-    /// @notice Returns the address of the account that appointed the given wallet, if any.
-    /// @return appointerAddress The address of the appointer account or zero.
-    function appointerOf(address wallet) external returns (address appointerAddress);
+    /// @notice Returns the address of the account that appointed the given agent, if any.
+    /// @return owner The address of the owner who appointed the given agent, or zero.
+    function appointerOf(address agent) external returns (address owner);
 
     /// @notice Returns the address of the account registered at the given index
-    function registeredAccounts(uint256) external view returns (address);
+    function accountList(uint256) external view returns (address);
 
     /// @notice Returns the list of addresses on the registry
-    /// @dev Use this function to get all addresses in a single call. You can still call registeredAccounts[idx] to resolve them one by one.
+    /// @dev Use this function to get all addresses in a single call. You can still call accountList[idx] to resolve them one by one.
     function getRegisteredAccounts() external view returns (address[] memory);
 
-    /// @notice Returns the address of the wallet appointed for encryption purposes
-    function getAppointedWallet(address member) external view returns (address);
+    /// @notice Returns the address of the account's encryption agent, or the account itself if no agent is appointed.
+    function getAppointedAgent(address account) external view returns (address agent);
 }

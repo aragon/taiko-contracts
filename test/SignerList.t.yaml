@@ -171,9 +171,9 @@ SignerListTest:
       - given: the resolved owner was not listed [on resolveEncryptionAccountAtBlock]
         then:
           - it: should return a zero owner
-          - it: should return a zero appointedWallet
+          - it: should return a zero appointedAgent
 
-  - when: calling getEncryptionRecipients
+  - when: calling getEncryptionAgents
     and:
       - given: the encryption registry has no accounts
         then:

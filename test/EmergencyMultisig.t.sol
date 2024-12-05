@@ -962,7 +962,7 @@ contract EmergencyMultisigTest is AragonTest {
     {
         // It reverts
 
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         signerList.updateSettings(SignerList.Settings(encryptionRegistry, 3));
@@ -1011,19 +1011,19 @@ contract EmergencyMultisigTest is AragonTest {
         // It creates the proposal
 
         vm.startPrank(alice);
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
         eMultisig.createProposal("a", 0, 0, optimisticPlugin, false);
 
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
         eMultisig.createProposal("b", 0, 0, optimisticPlugin, false);
 
         vm.startPrank(carol);
-        encryptionRegistry.appointWallet(address(0x3456));
+        encryptionRegistry.appointAgent(address(0x3456));
         eMultisig.createProposal("c", 0, 0, optimisticPlugin, false);
 
         vm.startPrank(david);
-        encryptionRegistry.appointWallet(address(0x4567));
+        encryptionRegistry.appointAgent(address(0x4567));
         eMultisig.createProposal("d", 0, 0, optimisticPlugin, false);
     }
 
@@ -1035,22 +1035,22 @@ contract EmergencyMultisigTest is AragonTest {
         // It creates the proposal
 
         vm.startPrank(alice);
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
         vm.startPrank(address(0x1234));
         eMultisig.createProposal("a", 0, 0, optimisticPlugin, false);
 
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
         vm.startPrank(address(0x2345));
         eMultisig.createProposal("b", 0, 0, optimisticPlugin, false);
 
         vm.startPrank(carol);
-        encryptionRegistry.appointWallet(address(0x3456));
+        encryptionRegistry.appointAgent(address(0x3456));
         vm.startPrank(address(0x3456));
         eMultisig.createProposal("c", 0, 0, optimisticPlugin, false);
 
         vm.startPrank(david);
-        encryptionRegistry.appointWallet(address(0x4567));
+        encryptionRegistry.appointAgent(address(0x4567));
         vm.startPrank(address(0x4567));
         eMultisig.createProposal("d", 0, 0, optimisticPlugin, false);
     }
@@ -1132,7 +1132,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob: listed, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer
 
@@ -1292,7 +1292,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
 
@@ -1600,7 +1600,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
 
@@ -1726,7 +1726,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
 
@@ -1983,7 +1983,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
 
@@ -2143,7 +2143,7 @@ contract EmergencyMultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
 
