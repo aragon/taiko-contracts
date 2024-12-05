@@ -342,17 +342,17 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
 
         // This internally calls `isListedAtBlock`.
         // If not listed or resolved, it returns address(0)
-        (address _resolvedOwner, address _resolvedVoter) =
+        (address _owner, address _agent) =
             multisigSettings.signerList.resolveEncryptionAccountAtBlock(_approver, proposal_.parameters.snapshotBlock);
-        if (_resolvedOwner == address(0) || _resolvedVoter == address(0)) {
+        if (_owner == address(0) || _agent == address(0)) {
             // Not listedAtBlock() nor appointed by a listed owner
             return false;
-        } else if (_approver != _resolvedVoter) {
-            // Only the voter account can vote (owners who appointed, can't)
+        } else if (_approver != _agent) {
+            // Only the agent can vote (owners who appointed, can't)
             return false;
         }
 
-        if (proposal_.approvers[_resolvedOwner]) {
+        if (proposal_.approvers[_owner]) {
             // The account already approved
             return false;
         }

@@ -134,16 +134,16 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     function resolveEncryptionAccountAtBlock(address _address, uint256 _blockNumber)
         public
         view
-        returns (address _owner, address _voter)
+        returns (address _owner, address _agent)
     {
         if (isListedAtBlock(_address, _blockNumber)) {
-            // The owner + the voter
+            // The owner + the agent
             return (_address, settings.encryptionRegistry.getAppointedAgent(_address));
         }
 
         address _appointer = settings.encryptionRegistry.appointerOf(_address);
         if (this.isListedAtBlock(_appointer, _blockNumber)) {
-            // The appointed wallet votes
+            // The appointed agent votes
             return (_appointer, _address);
         }
 
