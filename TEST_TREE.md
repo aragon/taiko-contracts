@@ -545,8 +545,8 @@ SignerListTest
 │   │       └── It votingWallet should be the given address
 │   └── Given the resolved owner was not listed on resolveEncryptionAccountAtBlock
 │       ├── It should return a zero owner
-│       └── It should return a zero appointedWallet
-└── When calling getEncryptionRecipients
+│       └── It should return a zero appointedAgent
+└── When calling getEncryptionAgents
     ├── Given the encryption registry has no accounts
     │   ├── It returns an empty list, even with signers
     │   └── It returns an empty list, without signers
@@ -560,4 +560,3 @@ SignerListTest
             ├── It result does not contain unlisted addresses
             └── It result does not contain non appointed addresses
 ```
-

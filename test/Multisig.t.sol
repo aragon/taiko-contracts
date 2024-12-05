@@ -958,7 +958,7 @@ contract MultisigTest is AragonTest {
 
         // It reverts
 
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         signerList.updateSettings(SignerList.Settings(encryptionRegistry, 3));
@@ -1011,19 +1011,19 @@ contract MultisigTest is AragonTest {
         // It creates the proposal
 
         vm.startPrank(alice);
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
         multisig.createProposal("a", actions, optimisticPlugin, false);
 
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
         multisig.createProposal("b", actions, optimisticPlugin, false);
 
         vm.startPrank(carol);
-        encryptionRegistry.appointWallet(address(0x3456));
+        encryptionRegistry.appointAgent(address(0x3456));
         multisig.createProposal("c", actions, optimisticPlugin, false);
 
         vm.startPrank(david);
-        encryptionRegistry.appointWallet(address(0x4567));
+        encryptionRegistry.appointAgent(address(0x4567));
         multisig.createProposal("d", actions, optimisticPlugin, false);
     }
 
@@ -1037,22 +1037,22 @@ contract MultisigTest is AragonTest {
         // It creates the proposal
 
         vm.startPrank(alice);
-        encryptionRegistry.appointWallet(address(0x1234));
+        encryptionRegistry.appointAgent(address(0x1234));
         vm.startPrank(address(0x1234));
         multisig.createProposal("a", actions, optimisticPlugin, false);
 
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(address(0x2345));
+        encryptionRegistry.appointAgent(address(0x2345));
         vm.startPrank(address(0x2345));
         multisig.createProposal("b", actions, optimisticPlugin, false);
 
         vm.startPrank(carol);
-        encryptionRegistry.appointWallet(address(0x3456));
+        encryptionRegistry.appointAgent(address(0x3456));
         vm.startPrank(address(0x3456));
         multisig.createProposal("c", actions, optimisticPlugin, false);
 
         vm.startPrank(david);
-        encryptionRegistry.appointWallet(address(0x4567));
+        encryptionRegistry.appointAgent(address(0x4567));
         vm.startPrank(address(0x4567));
         multisig.createProposal("d", actions, optimisticPlugin, false);
     }
@@ -1098,7 +1098,7 @@ contract MultisigTest is AragonTest {
 
         // Bob: listed, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer
 
@@ -1249,7 +1249,7 @@ contract MultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
@@ -1641,7 +1641,7 @@ contract MultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
@@ -1821,7 +1821,7 @@ contract MultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
@@ -2011,7 +2011,7 @@ contract MultisigTest is AragonTest {
         // Alice: listed on creation and self appointed
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
 
@@ -2064,7 +2064,7 @@ contract MultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation
@@ -2225,7 +2225,7 @@ contract MultisigTest is AragonTest {
 
         // Bob: listed on creation, appointing someone else now
         vm.startPrank(bob);
-        encryptionRegistry.appointWallet(randomWallet);
+        encryptionRegistry.appointAgent(randomWallet);
 
         // Random Wallet: appointed by a listed signer on creation
         // 0x1234: unlisted and unappointed on creation

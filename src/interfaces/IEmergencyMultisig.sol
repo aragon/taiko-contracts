@@ -14,7 +14,7 @@ interface IEmergencyMultisig {
 
     /// @notice Checks if an account can participate on a proposal vote. This can be because the vote
     /// - was executed, or
-    /// - the voter is not listed.
+    /// - the approver is not listed or appointed.
     /// @param _proposalId The proposal Id.
     /// @param _account The address of the user to check.
     /// @return Returns true if the account is allowed to vote.

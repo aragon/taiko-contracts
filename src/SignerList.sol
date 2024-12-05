@@ -134,16 +134,16 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     function resolveEncryptionAccountAtBlock(address _address, uint256 _blockNumber)
         public
         view
-        returns (address _owner, address _voter)
+        returns (address _owner, address _agent)
     {
         if (isListedAtBlock(_address, _blockNumber)) {
-            // The owner + the voter
-            return (_address, settings.encryptionRegistry.getAppointedWallet(_address));
+            // The owner + the agent
+            return (_address, settings.encryptionRegistry.getAppointedAgent(_address));
         }
 
         address _appointer = settings.encryptionRegistry.appointerOf(_address);
         if (this.isListedAtBlock(_appointer, _blockNumber)) {
-            // The appointed wallet votes
+            // The appointed agent votes
             return (_appointer, _address);
         }
 
@@ -151,41 +151,42 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function getEncryptionRecipients() external view returns (address[] memory result) {
+    function getEncryptionAgents() external view returns (address[] memory result) {
         address[] memory _encryptionAccounts = settings.encryptionRegistry.getRegisteredAccounts();
 
         // Allocating the full length.
         // If any member is no longer listed, the size will be decreased.
         result = new address[](_encryptionAccounts.length);
 
-        uint256 rIdx; // Result iterator. Will never be greater than erIdx.
-        uint256 erIdx; // EncryptionRegistry iterator
+        uint256 resIdx; // Result iterator. Will never be greater than accIdx.
+        uint256 accIdx; // Encryption accounts iterator
         address appointed;
-        for (erIdx = 0; erIdx < _encryptionAccounts.length;) {
-            if (isListed(_encryptionAccounts[erIdx])) {
+        for (accIdx = 0; accIdx < _encryptionAccounts.length;) {
+            if (isListed(_encryptionAccounts[accIdx])) {
                 // Add it to the result array if listed
-                appointed = settings.encryptionRegistry.getAppointedWallet(_encryptionAccounts[erIdx]);
+                appointed = settings.encryptionRegistry.getAppointedAgent(_encryptionAccounts[accIdx]);
                 // Use the appointed address if non-zero
                 if (appointed != address(0)) {
-                    result[rIdx] = appointed;
+                    result[resIdx] = appointed;
                 } else {
-                    result[rIdx] = _encryptionAccounts[erIdx];
+                    result[resIdx] = _encryptionAccounts[accIdx];
                 }
 
                 unchecked {
-                    rIdx++;
+                    resIdx++;
                 }
             }
             // Skip non-listed accounts othersise
 
             unchecked {
-                erIdx++;
+                accIdx++;
             }
         }
 
-        if (rIdx < erIdx) {
+        // Is the resulting list smaller than the list of registered accounts?
+        if (resIdx < accIdx) {
             // Decrease the array size to return listed accounts without blank entries
-            uint256 diff = erIdx - rIdx;
+            uint256 diff = accIdx - resIdx;
             assembly {
                 mstore(result, sub(mload(result), diff))
             }

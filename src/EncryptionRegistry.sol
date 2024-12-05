@@ -12,18 +12,18 @@ import {IEncryptionRegistry} from "./interfaces/IEncryptionRegistry.sol";
 /// @author Aragon Association - 2024
 /// @notice A smart contract where accounts can register their libsodium public key for encryption purposes, as well as appointing an EOA
 contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
-    struct AccountEntry {
-        address appointedWallet;
+    struct RegisteredAccount {
+        address appointedAgent;
         bytes32 publicKey;
     }
 
     /// @notice Allows to enumerate the addresses on the registry
-    address[] public registeredAccounts;
+    address[] public accountList;
 
-    /// @notice The database of appointed wallets and their public key
-    mapping(address => AccountEntry) public accounts;
+    /// @notice The public key and (optional) appointed agent or each registered account
+    mapping(address => RegisteredAccount) public accounts;
 
-    /// @notice A reference to the account that appointed each wallet
+    /// @notice A reference to the account that appointed each agent
     mapping(address => address) public appointerOf;
 
     /// @dev The contract to check whether the caller is a multisig member
@@ -38,26 +38,26 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function appointWallet(address _newWallet) public {
+    function appointAgent(address _newAgent) public {
         // Appointing ourselves is the same as unappointing
-        if (_newWallet == msg.sender) _newWallet = address(0);
+        if (_newAgent == msg.sender) _newAgent = address(0);
 
         if (!addresslist.isListed(msg.sender)) {
             revert MustBeListed();
-        } else if (Address.isContract(_newWallet)) {
+        } else if (Address.isContract(_newAgent)) {
             revert CannotAppointContracts();
-        } else if (addresslist.isListed(_newWallet)) {
+        } else if (addresslist.isListed(_newAgent)) {
             // Appointing an already listed signer is not allowed, as votes would be locked
             revert AlreadyListed();
-        } else if (_newWallet == accounts[msg.sender].appointedWallet) {
+        } else if (_newAgent == accounts[msg.sender].appointedAgent) {
             return; // done
-        } else if (appointerOf[_newWallet] != address(0)) {
+        } else if (appointerOf[_newAgent] != address(0)) {
             revert AlreadyAppointed();
         }
 
         bool exists;
-        for (uint256 i = 0; i < registeredAccounts.length;) {
-            if (registeredAccounts[i] == msg.sender) {
+        for (uint256 i = 0; i < accountList.length;) {
+            if (accountList[i] == msg.sender) {
                 exists = true;
                 break;
             }
@@ -68,26 +68,26 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
 
         // New account?
         if (!exists) {
-            registeredAccounts.push(msg.sender);
+            accountList.push(msg.sender);
         }
         // Existing account
         else {
             // Clear the current appointerOf[], if needed
-            if (accounts[msg.sender].appointedWallet != address(0)) {
-                appointerOf[accounts[msg.sender].appointedWallet] = address(0);
+            if (accounts[msg.sender].appointedAgent != address(0)) {
+                appointerOf[accounts[msg.sender].appointedAgent] = address(0);
             }
             // Clear the current public key, if needed
             if (accounts[msg.sender].publicKey != bytes32(0)) {
-                // The old appointed wallet should no longer be able to see new content
+                // The old appointed agent should no longer be able to see new content
                 accounts[msg.sender].publicKey = bytes32(0);
             }
         }
 
-        accounts[msg.sender].appointedWallet = _newWallet;
-        if (_newWallet != address(0)) {
-            appointerOf[_newWallet] = msg.sender;
+        accounts[msg.sender].appointedAgent = _newAgent;
+        if (_newAgent != address(0)) {
+            appointerOf[_newAgent] = msg.sender;
         }
-        emit WalletAppointed(msg.sender, _newWallet);
+        emit AgentAppointed(msg.sender, _newAgent);
     }
 
     /// @inheritdoc IEncryptionRegistry
@@ -97,10 +97,9 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
         }
         // If someone else if appointed, the public key cannot be overriden.
         // The appointed value should be set to address(0) or msg.sender first.
-        else if (
-            accounts[msg.sender].appointedWallet != address(0) && accounts[msg.sender].appointedWallet != msg.sender
-        ) {
-            revert MustResetAppointment();
+        else if (accounts[msg.sender].appointedAgent != address(0) && accounts[msg.sender].appointedAgent != msg.sender)
+        {
+            revert MustResetAppointedAgent();
         }
 
         _setPublicKey(msg.sender, _publicKey);
@@ -111,7 +110,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     function setPublicKey(address _accountOwner, bytes32 _publicKey) public {
         if (!addresslist.isListed(_accountOwner)) {
             revert MustBeListed();
-        } else if (accounts[_accountOwner].appointedWallet != msg.sender) {
+        } else if (accounts[_accountOwner].appointedAgent != msg.sender) {
             revert MustBeAppointed();
         }
 
@@ -121,15 +120,15 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
 
     /// @inheritdoc IEncryptionRegistry
     function getRegisteredAccounts() public view returns (address[] memory) {
-        return registeredAccounts;
+        return accountList;
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function getAppointedWallet(address _member) public view returns (address) {
-        if (accounts[_member].appointedWallet != address(0)) {
-            return accounts[_member].appointedWallet;
+    function getAppointedAgent(address _account) public view returns (address) {
+        if (accounts[_account].appointedAgent != address(0)) {
+            return accounts[_account].appointedAgent;
         }
-        return _member;
+        return _account;
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -143,8 +142,8 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
 
     function _setPublicKey(address _account, bytes32 _publicKey) internal {
         bool exists;
-        for (uint256 i = 0; i < registeredAccounts.length;) {
-            if (registeredAccounts[i] == _account) {
+        for (uint256 i = 0; i < accountList.length;) {
+            if (accountList[i] == _account) {
                 exists = true;
                 break;
             }
@@ -154,7 +153,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
         }
         if (!exists) {
             // New account
-            registeredAccounts.push(_account);
+            accountList.push(_account);
         }
 
         accounts[_account].publicKey = _publicKey;
