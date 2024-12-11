@@ -2,6 +2,9 @@ SignerListTest:
   # contract lifecycle
   - when: deploying the contract
     then:
+      - it: should disable the initializers
+  - when: cloning the contract
+    then:
       - it: should initialize normally
   - given: a deployed contract
     then:

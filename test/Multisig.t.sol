@@ -69,7 +69,25 @@ contract MultisigTest is AragonTest {
         ).build();
     }
 
-    modifier givenANewlyDeployedContract() {
+    function test_WhenDeployingTheContract() external {
+        // It should disable the initializers
+        Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            destinationProposalDuration: 4 days,
+            signerList: signerList,
+            proposalExpirationPeriod: MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
+
+        // It should initialize the first time
+        multisig = new Multisig();
+
+        // It should refuse to initialize again
+        vm.expectRevert("Initializable: contract is already initialized");
+        multisig.initialize(dao, settings);
+    }
+
+    modifier givenANewProxyContract() {
         _;
     }
 
@@ -77,7 +95,7 @@ contract MultisigTest is AragonTest {
         _;
     }
 
-    function test_GivenCallingInitialize() external givenANewlyDeployedContract givenCallingInitialize {
+    function test_GivenCallingInitialize() external givenANewProxyContract givenCallingInitialize {
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
@@ -169,7 +187,7 @@ contract MultisigTest is AragonTest {
 
     function test_RevertWhen_MinApprovalsIsGreaterThanSignerListLengthOnInitialize()
         external
-        givenANewlyDeployedContract
+        givenANewProxyContract
         givenCallingInitialize
     {
         // It should revert
@@ -223,7 +241,7 @@ contract MultisigTest is AragonTest {
 
     function test_RevertWhen_MinApprovalsIsZeroOnInitialize()
         external
-        givenANewlyDeployedContract
+        givenANewProxyContract
         givenCallingInitialize
     {
         // It should revert
@@ -277,7 +295,7 @@ contract MultisigTest is AragonTest {
 
     function test_RevertWhen_SignerListIsInvalidOnInitialize()
         external
-        givenANewlyDeployedContract
+        givenANewProxyContract
         givenCallingInitialize
     {
         // It should revert

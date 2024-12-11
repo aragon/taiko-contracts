@@ -151,6 +151,11 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Thrown if the voting power is zero
     error NoVotingPower();
 
+    /// @notice Disables the initializers on the implementation contract to prevent it from being left uninitialized.
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initializes the component to be used by inheriting contracts.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.

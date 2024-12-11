@@ -131,6 +131,11 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
         bool onlyListed, uint16 indexed minApprovals, SignerList signerList, uint32 proposalExpirationPeriod
     );
 
+    /// @notice Disables the initializers on the implementation contract to prevent it from being left uninitialized.
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initializes Release 1, Build 1.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.

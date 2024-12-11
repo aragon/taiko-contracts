@@ -69,7 +69,23 @@ contract EmergencyMultisigTest is AragonTest {
         ).build();
     }
 
-    modifier givenANewlyDeployedContract() {
+    function test_WhenDeployingTheContract() external {
+        // It should disable the initializers
+        EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
+            onlyListed: true,
+            minApprovals: 3,
+            signerList: signerList,
+            proposalExpirationPeriod: EMERGENCY_MULTISIG_PROPOSAL_EXPIRATION_PERIOD
+        });
+
+        eMultisig = new EmergencyMultisig();
+
+        // It should refuse to initialize
+        vm.expectRevert("Initializable: contract is already initialized");
+        eMultisig.initialize(dao, settings);
+    }
+
+    modifier givenANewProxyContract() {
         _;
     }
 
@@ -77,7 +93,7 @@ contract EmergencyMultisigTest is AragonTest {
         _;
     }
 
-    function test_GivenCallingInitialize() external givenANewlyDeployedContract givenCallingInitialize {
+    function test_GivenCallingInitialize() external givenANewProxyContract givenCallingInitialize {
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
             minApprovals: 3,
@@ -175,7 +191,7 @@ contract EmergencyMultisigTest is AragonTest {
 
     function test_RevertWhen_MinApprovalsIsGreaterThanSignerListLengthOnInitialize()
         external
-        givenANewlyDeployedContract
+        givenANewProxyContract
         givenCallingInitialize
     {
         // It should revert
@@ -235,11 +251,7 @@ contract EmergencyMultisigTest is AragonTest {
         );
     }
 
-    function test_RevertWhen_MinApprovalsIsZeroOnInitialize()
-        external
-        givenANewlyDeployedContract
-        givenCallingInitialize
-    {
+    function test_RevertWhen_MinApprovalsIsZeroOnInitialize() external givenANewProxyContract givenCallingInitialize {
         // It should revert
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: true,
@@ -297,11 +309,7 @@ contract EmergencyMultisigTest is AragonTest {
         );
     }
 
-    function test_RevertWhen_SignerListIsInvalidOnInitialize()
-        external
-        givenANewlyDeployedContract
-        givenCallingInitialize
-    {
+    function test_RevertWhen_SignerListIsInvalidOnInitialize() external givenANewProxyContract givenCallingInitialize {
         // It should revert
         EmergencyMultisig.MultisigSettings memory settings = EmergencyMultisig.MultisigSettings({
             onlyListed: false,

@@ -1,6 +1,9 @@
 MultisigTest:
   # Plugin lifecycle
-  - given: a newly deployed contract
+  - when: deploying the contract
+    then:
+      - it: should disable the initializers
+  - given: a new proxy contract
     then:
       - given: calling initialize
         then:

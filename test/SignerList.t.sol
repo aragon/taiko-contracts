@@ -54,6 +54,14 @@ contract SignerListTest is AragonTest {
     }
 
     function test_WhenDeployingTheContract() external {
+        // It should disable the initializers
+        signerList = new SignerList();
+
+        vm.expectRevert(bytes("Initializable: contract is already initialized"));
+        signerList.initialize(dao, signers);
+    }
+
+    function test_WhenCloningTheContract() external {
         // It should initialize normally
         signerList = SignerList(
             createProxyAndCall(address(SIGNER_LIST_BASE), abi.encodeCall(SignerList.initialize, (dao, signers)))
@@ -1040,6 +1048,10 @@ contract SignerListTest is AragonTest {
         (resolvedOwner, votingWallet) = signerList.resolveEncryptionAccountAtBlock(address(0xaaaa), block.number - 1);
         assertEq(resolvedOwner, address(0), "Should be 0");
         assertEq(votingWallet, address(0), "Should be 0");
+    }
+
+    modifier whenCallingGetEncryptionAgents() {
+        _;
     }
 
     modifier whenCallingGetEncryptionRecipients() {

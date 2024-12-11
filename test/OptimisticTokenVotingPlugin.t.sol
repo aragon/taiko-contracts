@@ -56,6 +56,24 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.build();
     }
 
+    // Constructor
+    function test_ConstructorDisablesInitializers() public {
+        optimisticPlugin = new OptimisticTokenVotingPlugin();
+
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 10 days,
+            timelockPeriod: 7 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
+        });
+
+        vm.expectRevert(bytes("Initializable: contract is already initialized"));
+        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge);
+    }
+
     // Initialize
     function test_InitializeRevertsIfInitialized() public {
         OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
