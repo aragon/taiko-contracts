@@ -16,7 +16,8 @@ docs/
 .env
 .env.test
 
-lcov.info
+lcov.info*
+report/
 .DS_Store
 
 *.tree

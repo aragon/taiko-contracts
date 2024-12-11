@@ -14,7 +14,7 @@ deploy-prodnet: export ETHERSCAN_API_KEY_PARAM = --etherscan-api-key $(ETHERSCAN
 
 # CONSTANTS
 
-TEST_COVERAGE_SRC_FILES:=$(wildcard test/*.sol test/**/*.sol script/*.sol script/**/*.sol src/escrow/increasing/delegation/*.sol src/libs/ProxyLib.sol)
+TEST_COVERAGE_SRC_FILES:=$(wildcard test/*.sol test/**/*.sol src/*.sol src/**/*.sol src/libs/ProxyLib.sol)
 DEPLOY_SCRIPT:=script/Deploy.s.sol:Deploy
 VERBOSITY:=-vvv
 SHELL:=/bin/bash
@@ -68,10 +68,11 @@ report/index.html: lcov.info.pruned
 	genhtml $^ -o report --branch-coverage
 
 lcov.info.pruned: lcov.info
-	lcov --remove ./$< -o ./$@ $^
+	lcov --remove $< -o ./$@ $^
 
 lcov.info: $(TEST_COVERAGE_SRC_FILES)
-	forge coverage --no-match-path $(FORK_TEST_WILDCARD) --report lcov
+	forge coverage --report lcov
+#	forge coverage --no-match-path $(FORK_TEST_WILDCARD) --report lcov
 
 : ## 
 
