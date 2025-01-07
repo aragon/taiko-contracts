@@ -209,6 +209,9 @@ contract TaikoDaoFactory {
             // Revoke the remporary permission
             dao.revoke(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         }
+
+        // Make the DAO own the signers list
+        dao.grant(address(signerList), address(dao), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
     }
 
     function prepareMultisig(DAO dao, SignerList signerList)
@@ -219,6 +222,8 @@ contract TaikoDaoFactory {
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
             settings.stdMultisigEnsDomain, address(settings.multisigPluginSetup), address(dao), " ", " "
         );
+        dao.grant(address(pluginRepo), address(dao), pluginRepo.MAINTAINER_PERMISSION_ID());
+        // UPGRADE_REPO_PERMISSION_ID can be granted eventually
 
         bytes memory settingsData = settings.multisigPluginSetup.encodeInstallationParameters(
             Multisig.MultisigSettings(
@@ -250,6 +255,8 @@ contract TaikoDaoFactory {
         PluginRepo pluginRepo = PluginRepoFactory(settings.pluginRepoFactory).createPluginRepoWithFirstVersion(
             settings.emergencyMultisigEnsDomain, address(settings.emergencyMultisigPluginSetup), address(dao), " ", " "
         );
+        dao.grant(address(pluginRepo), address(dao), pluginRepo.MAINTAINER_PERMISSION_ID());
+        // UPGRADE_REPO_PERMISSION_ID can be granted eventually
 
         bytes memory settingsData = settings.emergencyMultisigPluginSetup.encodeInstallationParameters(
             EmergencyMultisig.MultisigSettings(
@@ -284,6 +291,8 @@ contract TaikoDaoFactory {
             " ",
             " "
         );
+        dao.grant(address(pluginRepo), address(dao), pluginRepo.MAINTAINER_PERMISSION_ID());
+        // UPGRADE_REPO_PERMISSION_ID can be granted eventually
 
         // Plugin settings
         bytes memory settingsData;

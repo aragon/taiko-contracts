@@ -22,7 +22,7 @@ import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {MultisigPluginSetup} from "../../src/setup/MultisigPluginSetup.sol";
 import {EmergencyMultisigPluginSetup} from "../../src/setup/EmergencyMultisigPluginSetup.sol";
 import {OptimisticTokenVotingPluginSetup} from "../../src/setup/OptimisticTokenVotingPluginSetup.sol";
-import {SignerList} from "../../src/SignerList.sol";
+import {SignerList, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID} from "../../src/SignerList.sol";
 
 contract TaikoDaoFactoryTest is AragonTest {
     function test_ShouldStoreTheSettings_1() public {
@@ -779,6 +779,203 @@ contract TaikoDaoFactoryTest is AragonTest {
         assertEq(
             deployment.encryptionRegistry.getRegisteredAccounts().length, 0, "Invalid getRegisteredAccounts().length"
         );
+    }
+
+    function test_TheDaoShouldOwnTheSignerList() public {
+        DAO tempMgmtDao = DAO(
+            payable(
+                createProxyAndCall(
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", address(this), address(0x0), ""))
+                )
+            )
+        );
+
+        GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
+        TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
+        address taikoBridgeAddress = address(0x5678);
+        address[] memory multisigMembers = new address[](16);
+        for (uint256 i = 0; i < 16; i++) {
+            multisigMembers[i] = address(uint160(i + 1));
+        }
+
+        MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
+        EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
+        GovernanceERC20.MintSettings memory mintSettings =
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
+        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
+            new GovernanceERC20(tempMgmtDao, "", "", mintSettings), new GovernanceWrappedERC20(tokenAddress, "", "")
+        );
+
+        PluginRepoFactory pRefoFactory;
+        MockPluginSetupProcessor psp;
+        {
+            MockPluginRepoRegistry pRepoRegistry = new MockPluginRepoRegistry();
+            pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));
+
+            address[] memory setups = new address[](3);
+            // adding in reverse order (stack)
+            setups[2] = address(multisigPluginSetup);
+            setups[1] = address(emergencyMultisigPluginSetup);
+            setups[0] = address(optimisticTokenVotingPluginSetup);
+            psp = new MockPluginSetupProcessor(setups);
+        }
+        MockDaoFactory daoFactory = new MockDaoFactory(psp);
+
+        TaikoDaoFactory.DeploymentSettings memory creationSettings = TaikoDaoFactory.DeploymentSettings({
+            // Taiko contract settings
+            tokenAddress: tokenAddress,
+            taikoL1ContractAddress: address(taikoL1ContractAddress), // address
+            taikoBridgeAddress: taikoBridgeAddress, // address
+            timelockPeriod: 9 days, // uint32
+            l2InactivityPeriod: 27 minutes, // uint32
+            l2AggregationGracePeriod: 3 days, // uint32
+            skipL2: true,
+            // Voting settings
+            minVetoRatio: 456_000, // uint32
+            minStdProposalDuration: 21 days, // uint32
+            minStdApprovals: 9, // uint16
+            minEmergencyApprovals: 15, // uint16
+            // OSx contracts
+            osxDaoFactory: address(daoFactory),
+            pluginSetupProcessor: PluginSetupProcessor(address(psp)), // PluginSetupProcessor
+            pluginRepoFactory: PluginRepoFactory(address(pRefoFactory)), // PluginRepoFactory
+            // Plugin setup's
+            multisigPluginSetup: multisigPluginSetup,
+            emergencyMultisigPluginSetup: emergencyMultisigPluginSetup,
+            optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
+            // Multisig
+            multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 22 days,
+            // ENS
+            stdMultisigEnsDomain: "multisig", // string
+            emergencyMultisigEnsDomain: "eMultisig", // string
+            optimisticTokenVotingEnsDomain: "optimistic" // string
+        });
+
+        // Deploy
+        TaikoDaoFactory factory = new TaikoDaoFactory(creationSettings);
+
+        factory.deployOnce();
+        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+
+        bool hasPerm = deployment.dao.hasPermission(
+            address(deployment.signerList),
+            address(deployment.dao),
+            UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID,
+            bytes("")
+        );
+        assertEq(hasPerm, true, "DAO should have UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID");
+    }
+
+    function test_AllContractsPointToTheDao() public {
+        DAO tempMgmtDao = DAO(
+            payable(
+                createProxyAndCall(
+                    address(DAO_BASE), abi.encodeCall(DAO.initialize, ("", address(this), address(0x0), ""))
+                )
+            )
+        );
+
+        GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
+        TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
+        address taikoBridgeAddress = address(0x5678);
+        address[] memory multisigMembers = new address[](16);
+        for (uint256 i = 0; i < 16; i++) {
+            multisigMembers[i] = address(uint160(i + 1));
+        }
+
+        MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
+        EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
+        GovernanceERC20.MintSettings memory mintSettings =
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
+        OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
+            new GovernanceERC20(tempMgmtDao, "", "", mintSettings), new GovernanceWrappedERC20(tokenAddress, "", "")
+        );
+
+        PluginRepoFactory pRefoFactory;
+        MockPluginSetupProcessor psp;
+        {
+            MockPluginRepoRegistry pRepoRegistry = new MockPluginRepoRegistry();
+            pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));
+
+            address[] memory setups = new address[](3);
+            // adding in reverse order (stack)
+            setups[2] = address(multisigPluginSetup);
+            setups[1] = address(emergencyMultisigPluginSetup);
+            setups[0] = address(optimisticTokenVotingPluginSetup);
+            psp = new MockPluginSetupProcessor(setups);
+        }
+        MockDaoFactory daoFactory = new MockDaoFactory(psp);
+
+        TaikoDaoFactory.DeploymentSettings memory creationSettings = TaikoDaoFactory.DeploymentSettings({
+            // Taiko contract settings
+            tokenAddress: tokenAddress,
+            taikoL1ContractAddress: address(taikoL1ContractAddress), // address
+            taikoBridgeAddress: taikoBridgeAddress, // address
+            timelockPeriod: 9 days, // uint32
+            l2InactivityPeriod: 27 minutes, // uint32
+            l2AggregationGracePeriod: 3 days, // uint32
+            skipL2: true,
+            // Voting settings
+            minVetoRatio: 456_000, // uint32
+            minStdProposalDuration: 21 days, // uint32
+            minStdApprovals: 9, // uint16
+            minEmergencyApprovals: 15, // uint16
+            // OSx contracts
+            osxDaoFactory: address(daoFactory),
+            pluginSetupProcessor: PluginSetupProcessor(address(psp)), // PluginSetupProcessor
+            pluginRepoFactory: PluginRepoFactory(address(pRefoFactory)), // PluginRepoFactory
+            // Plugin setup's
+            multisigPluginSetup: multisigPluginSetup,
+            emergencyMultisigPluginSetup: emergencyMultisigPluginSetup,
+            optimisticTokenVotingPluginSetup: optimisticTokenVotingPluginSetup,
+            // Multisig
+            multisigMembers: multisigMembers, // address[]
+            multisigExpirationPeriod: 22 days,
+            // ENS
+            stdMultisigEnsDomain: "multisig", // string
+            emergencyMultisigEnsDomain: "eMultisig", // string
+            optimisticTokenVotingEnsDomain: "optimistic" // string
+        });
+
+        // Deploy
+        TaikoDaoFactory factory = new TaikoDaoFactory(creationSettings);
+
+        factory.deployOnce();
+        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+
+        // DAO linked
+        assertEq(address(deployment.multisigPlugin.dao()), address(deployment.dao), "Incorrect DAO address");
+        assertEq(address(deployment.emergencyMultisigPlugin.dao()), address(deployment.dao), "Incorrect DAO address");
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.dao()), address(deployment.dao), "Incorrect DAO address"
+        );
+        assertEq(address(deployment.signerList.dao()), address(deployment.dao), "Incorrect DAO address");
+
+        // DAO with permission
+        bool hasPerm = deployment.dao.hasPermission(
+            address(deployment.multisigPluginRepo),
+            address(deployment.dao),
+            deployment.multisigPluginRepo.MAINTAINER_PERMISSION_ID(),
+            bytes("")
+        );
+        assertEq(hasPerm, true, "Incorrect hasPermission");
+
+         hasPerm = deployment.dao.hasPermission(
+            address(deployment.emergencyMultisigPluginRepo),
+            address(deployment.dao),
+            deployment.emergencyMultisigPluginRepo.MAINTAINER_PERMISSION_ID(),
+            bytes("")
+        );
+        assertEq(hasPerm, true, "Incorrect hasPermission");
+
+         hasPerm = deployment.dao.hasPermission(
+            address(deployment.optimisticTokenVotingPluginRepo),
+            address(deployment.dao),
+            deployment.optimisticTokenVotingPluginRepo.MAINTAINER_PERMISSION_ID(),
+            bytes("")
+        );
+        assertEq(hasPerm, true, "Incorrect hasPermission");
     }
 
     function test_MultipleDeploysDoNothing() public {
