@@ -3,7 +3,6 @@
 pragma solidity ^0.8.17;
 
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import {ISignerList} from "./interfaces/ISignerList.sol";
 import {EncryptionRegistry} from "./EncryptionRegistry.sol";

@@ -102,10 +102,6 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     /// @param actual The actual value.
     error MinApprovalsOutOfBounds(uint16 limit, uint16 actual);
 
-    /// @notice Thrown if the address list source is empty.
-    /// @param givenContract The received address that doesn't conform to Addresslist.
-    error InvalidAddressListSource(address givenContract);
-
     /// @notice Emitted when a proposal is approve by an approver.
     /// @param proposalId The ID of the proposal.
     /// @param approver The approver casting the approve.

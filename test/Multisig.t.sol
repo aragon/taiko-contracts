@@ -239,11 +239,7 @@ contract MultisigTest is AragonTest {
             Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
-    function test_RevertWhen_MinApprovalsIsZeroOnInitialize()
-        external
-        givenANewProxyContract
-        givenCallingInitialize
-    {
+    function test_RevertWhen_MinApprovalsIsZeroOnInitialize() external givenANewProxyContract givenCallingInitialize {
         // It should revert
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: true,
@@ -293,11 +289,7 @@ contract MultisigTest is AragonTest {
             Multisig(createProxyAndCall(address(MULTISIG_BASE), abi.encodeCall(Multisig.initialize, (dao, settings))));
     }
 
-    function test_RevertWhen_SignerListIsInvalidOnInitialize()
-        external
-        givenANewProxyContract
-        givenCallingInitialize
-    {
+    function test_RevertWhen_SignerListIsInvalidOnInitialize() external givenANewProxyContract givenCallingInitialize {
         // It should revert
         Multisig.MultisigSettings memory settings = Multisig.MultisigSettings({
             onlyListed: false,

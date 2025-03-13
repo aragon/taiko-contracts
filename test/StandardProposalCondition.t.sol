@@ -21,14 +21,7 @@ contract StandardProposalConditionTest is Test {
 
     function setUp() public {
         dao = DAO(payable(address(0x12345678)));
-        condition = new StandardProposalCondition(address(dao), MIN_DELAY_1);
-    }
-
-    function test_ShouldRevertWithoutDao() public {
-        HelperStandardProposalConditionDeploy helper = new HelperStandardProposalConditionDeploy();
-
-        vm.expectRevert(abi.encodeWithSelector(StandardProposalCondition.EmptyDao.selector));
-        helper.deployConditionWithNoDao();
+        condition = new StandardProposalCondition(MIN_DELAY_1);
     }
 
     function test_ShouldRevertWithoutDelay() public {
@@ -134,7 +127,7 @@ contract StandardProposalConditionTest is Test {
 
     function test_ShouldAllowWhenEnoughDelay2() public {
         dao = DAO(payable(address(0x12345678)));
-        condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
+        condition = new StandardProposalCondition(MIN_DELAY_2);
 
         // Bare minimum
         uint32 voteDuration = MIN_DELAY_2;
@@ -169,7 +162,7 @@ contract StandardProposalConditionTest is Test {
 
     function test_ShouldReturnFalseWhenNotEnoughDelay2() public {
         dao = DAO(payable(address(0x12345678)));
-        condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
+        condition = new StandardProposalCondition(MIN_DELAY_2);
 
         // Almost the minimum
         uint32 voteDuration = MIN_DELAY_2 - 1;
@@ -232,7 +225,7 @@ contract StandardProposalConditionTest is Test {
 
     function testFuzz_ShouldReturnFalseWhenInvalidSelector(bytes4 selector) public {
         dao = DAO(payable(address(0x12345678)));
-        condition = new StandardProposalCondition(address(dao), MIN_DELAY_2);
+        condition = new StandardProposalCondition(MIN_DELAY_2);
 
         IDAO.Action[] memory actions = new IDAO.Action[](1);
 
@@ -261,11 +254,7 @@ contract StandardProposalConditionTest is Test {
 }
 
 contract HelperStandardProposalConditionDeploy {
-    function deployConditionWithNoDao() public {
-        new StandardProposalCondition(address(0), MIN_DELAY_1);
-    }
-
     function deployConditionWithNoDelay() public {
-        new StandardProposalCondition(address(1234), 0);
+        new StandardProposalCondition(0);
     }
 }

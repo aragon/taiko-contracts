@@ -18,7 +18,6 @@ import {IGovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/IGover
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {StandardProposalCondition} from "../conditions/StandardProposalCondition.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {ITaikoL1} from "../adapted-dependencies/ITaikoL1.sol";
 
 /// @title OptimisticTokenVotingPluginSetup
 /// @author Aragon Association - 2022-2023
@@ -178,7 +177,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         {
             // Deploy the Std proposal condition
             StandardProposalCondition stdProposalCondition =
-                new StandardProposalCondition(address(_dao), installationParams.stdProposalMinDuration);
+                new StandardProposalCondition(installationParams.stdProposalMinDuration);
 
             // Proposer plugins can create proposals
             permissions[3] = PermissionLib.MultiTargetPermission({

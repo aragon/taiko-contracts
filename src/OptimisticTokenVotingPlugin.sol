@@ -131,10 +131,6 @@ contract OptimisticTokenVotingPlugin is
     /// @param actual The actual value.
     error MinDurationOutOfBounds(uint64 limit, uint64 actual);
 
-    /// @notice Thrown when a sender is not allowed to create a proposal.
-    /// @param sender The sender address.
-    error ProposalCreationForbidden(address sender);
-
     /// @notice Thrown if an account is not allowed to cast a veto. This can be because the challenge period
     /// - has not started,
     /// - has ended,
