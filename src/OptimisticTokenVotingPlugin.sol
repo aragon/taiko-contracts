@@ -121,6 +121,9 @@ contract OptimisticTokenVotingPlugin is
     /// @param votingPower The voting power behind this veto.
     event VetoCast(uint256 indexed proposalId, address indexed voter, uint256 votingPower);
 
+    /// @notice Thrown if the given address is empty
+    error EmptyAddress();
+
     /// @notice Thrown if a date is out of bounds.
     /// @param limit The limit value.
     /// @param actual The actual value.
@@ -168,7 +171,7 @@ contract OptimisticTokenVotingPlugin is
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
-        if (_taikoL1 == address(0)) revert();
+        if (_taikoL1 == address(0)) revert EmptyAddress();
 
         votingToken = _token;
         taikoL1 = ITaikoL1(_taikoL1);

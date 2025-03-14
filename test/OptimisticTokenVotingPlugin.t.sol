@@ -392,6 +392,29 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         );
     }
 
+    function test_ShouldRevertWhenInitializingWithEmptyTaikoL1() public {
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory settings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 7 days,
+            timelockPeriod: 12 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
+        });
+        taikoL1 = ITaikoL1(address(0));
+        
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.EmptyAddress.selector));
+        optimisticPlugin = OptimisticTokenVotingPlugin(
+            createProxyAndCall(
+                address(OPTIMISTIC_BASE),
+                abi.encodeCall(
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                )
+            )
+        );
+    }
+
     // Getters
     function test_SupportsIProposalInterface() public view {
         bool supported = optimisticPlugin.supportsInterface(type(IProposal).interfaceId);

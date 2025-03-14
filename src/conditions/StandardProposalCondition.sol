@@ -11,7 +11,7 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 /// @author Aragon Association - 2023-2024
 /// @notice An abstract contract for non-upgradeable contracts instantiated via the `new` keyword  to inherit from to support customary permissions depending on arbitrary on-chain state.
 contract StandardProposalCondition is ERC165, IPermissionCondition {
-    uint64 minDuration;
+    uint64 private minDuration;
 
     error EmptyDelay();
 
