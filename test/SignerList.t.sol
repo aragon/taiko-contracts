@@ -29,7 +29,7 @@ contract SignerListTest is AragonTest {
 
     // Events/errors to be tested here (duplicate)
     error SignerListLengthOutOfBounds(uint16 limit, uint256 actual);
-    error InvalidEncryptionRegitry(address givenAddress);
+    error InvalidEncryptionRegistry(address givenAddress);
     error DaoUnauthorized(address dao, address where, address who, bytes32 permissionId);
     error InvalidAddresslistUpdate(address member);
 
@@ -272,7 +272,7 @@ contract SignerListTest is AragonTest {
     function test_RevertWhen_EncryptionRegistryIsNotCompatible() external whenCallingUpdateSettings {
         // It should revert
 
-        vm.expectRevert(abi.encodeWithSelector(InvalidEncryptionRegitry.selector, address(dao)));
+        vm.expectRevert(abi.encodeWithSelector(InvalidEncryptionRegistry.selector, address(dao)));
         signerList.updateSettings(SignerList.Settings(EncryptionRegistry(address(dao)), 0));
 
         vm.expectRevert();

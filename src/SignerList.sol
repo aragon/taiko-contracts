@@ -26,7 +26,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     error SignerListLengthOutOfBounds(uint16 limit, uint256 actual);
 
     /// @notice Thrown when attempting to define an invalid EncryptionRegistry
-    error InvalidEncryptionRegitry(address givenAddress);
+    error InvalidEncryptionRegistry(address givenAddress);
 
     /// @notice Emitted when the SignerList settings are updated
     event SignerListSettingsUpdated(EncryptionRegistry encryptionRegistry, uint16 minSignerListLength);
@@ -141,7 +141,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
         }
 
         address _appointer = settings.encryptionRegistry.appointerOf(_address);
-        if (this.isListedAtBlock(_appointer, _blockNumber)) {
+        if (isListedAtBlock(_appointer, _blockNumber)) {
             // The appointed agent votes
             return (_appointer, _address);
         }
@@ -212,7 +212,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
         ) {
             return;
         } else if (!_newSettings.encryptionRegistry.supportsInterface(type(IEncryptionRegistry).interfaceId)) {
-            revert InvalidEncryptionRegitry(address(_newSettings.encryptionRegistry));
+            revert InvalidEncryptionRegistry(address(_newSettings.encryptionRegistry));
         }
 
         uint16 _currentLength = uint16(addresslistLength());
