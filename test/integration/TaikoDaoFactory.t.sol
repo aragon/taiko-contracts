@@ -35,7 +35,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
         EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
         OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup =
-            new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(0)), GovernanceWrappedERC20(address(0)));
+            new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(1)), GovernanceWrappedERC20(address(1)));
 
         MockPluginRepoRegistry pRepoRegistry = new MockPluginRepoRegistry();
         PluginRepoFactory pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));
@@ -167,7 +167,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
         EmergencyMultisigPluginSetup emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
         OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup =
-            new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(0)), GovernanceWrappedERC20(address(0)));
+            new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(1)), GovernanceWrappedERC20(address(1)));
 
         MockPluginRepoRegistry pRepoRegistry = new MockPluginRepoRegistry();
         PluginRepoFactory pRefoFactory = new PluginRepoFactory(PluginRepoRegistry(address(pRepoRegistry)));

@@ -59,6 +59,9 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         address emergencyProposer;
     }
 
+    /// @notice Thrown if the given address is empty
+    error EmptyAddress();
+
     /// @notice Thrown if token address is passed which is not a token.
     /// @param token The token address
     error TokenNotContract(address token);
@@ -75,6 +78,10 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
     /// @param _governanceERC20Base The base `GovernanceERC20` contract to create clones from.
     /// @param _governanceWrappedERC20Base The base `GovernanceWrappedERC20` contract to create clones from.
     constructor(GovernanceERC20 _governanceERC20Base, GovernanceWrappedERC20 _governanceWrappedERC20Base) {
+        if (address(_governanceERC20Base) == address(0) || address(_governanceWrappedERC20Base) == address(0)) {
+            revert EmptyAddress();
+        }
+        
         optimisticTokenVotingPluginBase = new OptimisticTokenVotingPlugin();
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);

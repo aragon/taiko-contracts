@@ -86,6 +86,18 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         );
     }
 
+    function test_ShouldRevertIfConstructorGetsEmptyAddresses() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.EmptyAddress.selector)
+        );
+        new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(0)), governanceWrappedERC20Base);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.EmptyAddress.selector)
+        );
+        new OptimisticTokenVotingPluginSetup(governanceERC20Base, GovernanceWrappedERC20(address(0)));
+    }
+
     function test_ShouldEncodeInstallationParams_Default() public view {
         // Default
         bytes memory output = pluginSetup.encodeInstallationParams(
