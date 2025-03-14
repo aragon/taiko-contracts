@@ -187,7 +187,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             minVetoRatio: 456_000, // uint32
             minStdProposalDuration: 14 days, // uint32
             minStdApprovals: 4, // uint16
-            minEmergencyApprovals: 27, // uint16
+            minEmergencyApprovals: 8, // uint16
             // OSx contracts
             osxDaoFactory: address(daoFactory), // DaoFactory
             pluginSetupProcessor: PluginSetupProcessor(address(psp)), // PluginSetupProcessor
@@ -961,7 +961,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
         assertEq(hasPerm, true, "Incorrect hasPermission");
 
-         hasPerm = deployment.dao.hasPermission(
+        hasPerm = deployment.dao.hasPermission(
             address(deployment.emergencyMultisigPluginRepo),
             address(deployment.dao),
             deployment.emergencyMultisigPluginRepo.MAINTAINER_PERMISSION_ID(),
@@ -969,7 +969,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
         assertEq(hasPerm, true, "Incorrect hasPermission");
 
-         hasPerm = deployment.dao.hasPermission(
+        hasPerm = deployment.dao.hasPermission(
             address(deployment.optimisticTokenVotingPluginRepo),
             address(deployment.dao),
             deployment.optimisticTokenVotingPluginRepo.MAINTAINER_PERMISSION_ID(),

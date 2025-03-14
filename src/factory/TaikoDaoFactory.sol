@@ -12,6 +12,7 @@ import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPl
 import {MultisigPluginSetup} from "../setup/MultisigPluginSetup.sol";
 import {EmergencyMultisigPluginSetup} from "../setup/EmergencyMultisigPluginSetup.sol";
 import {Addresslist} from "@aragon/osx/plugins/utils/Addresslist.sol";
+import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
@@ -95,12 +96,49 @@ contract TaikoDaoFactory {
     /// @notice Thrown when attempting to call deployOnce() when the DAO is already deployed.
     error AlreadyDeployed();
 
+    // Custom errors for validation
+    error InvalidMinStdApprovals();
+    error InvalidMinEmergencyApprovals();
+    error InvalidL2Address();
+    error InvalidMinVetoRatio();
+    error InvalidMinStdProposalDuration();
+
     DeploymentSettings settings;
     Deployment deployment;
+
+    uint256 constant MAX_PROPOSAL_DURATION = 180 days;
 
     /// @notice Initializes the factory and performs the full deployment. Values become read-only after that.
     /// @param _settings The settings of the one-time deployment.
     constructor(DeploymentSettings memory _settings) {
+        uint256 memberCount = _settings.multisigMembers.length;
+
+        // Quorum validation (redundant safeguard for improved UX; already validated in plugins)
+        if (_settings.minStdApprovals == 0 || _settings.minStdApprovals > memberCount) {
+            revert InvalidMinStdApprovals();
+        }
+
+        if (_settings.minEmergencyApprovals == 0 || _settings.minEmergencyApprovals > memberCount) {
+            revert InvalidMinEmergencyApprovals();
+        }
+
+        // L2 address checks for optimistic governance
+        if (!_settings.skipL2) {
+            if (_settings.taikoL1ContractAddress == address(0) || _settings.taikoBridgeAddress == address(0)) {
+                revert InvalidL2Address();
+            }
+        }
+
+        // Sanity check for minVetoRatio: Must be between 0% (inclusive) and RATIO_BASE (100%)
+        if (_settings.minVetoRatio > RATIO_BASE) {
+            revert InvalidMinVetoRatio();
+        }
+
+        // Proposal duration must be non-zero and reasonably bounded (e.g., max 180 days)
+        if (_settings.minStdProposalDuration == 0 || _settings.minStdProposalDuration > MAX_PROPOSAL_DURATION) {
+            revert InvalidMinStdProposalDuration();
+        }
+
         settings = _settings;
     }
 
