@@ -61,6 +61,12 @@ SignerListTest:
       - given: duplicate addresses [on addSigners]
         then:
           - it: should revert
+      - given: unused addresses
+        then:
+          - it: should remove the non signer addresses
+      - given: no unused addresses
+        then:
+          - it: should keep the list as it is
       - it: should append the new addresses to the list
       - it: should return true on isListed
       - it: should emit the SignersAdded event

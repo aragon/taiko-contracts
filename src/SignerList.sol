@@ -74,6 +74,8 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
 
         _addAddresses(_signers);
         emit SignersAdded({signers: _signers});
+        
+        settings.encryptionRegistry.removeUnused();
     }
 
     /// @inheritdoc ISignerList

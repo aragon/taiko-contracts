@@ -213,6 +213,9 @@ contract SignerListTest is AragonTest {
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
 
+        encryptionRegistry = new EncryptionRegistry(signerList);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 4));
+
         _;
     }
 
@@ -292,6 +295,7 @@ contract SignerListTest is AragonTest {
 
         // 3
         signers = new address[](1);
+        signers[0] = address(0x1234);
         signerList.addSigners(signers);
         vm.expectRevert(abi.encodeWithSelector(SignerListLengthOutOfBounds.selector, 5, 50));
         signerList.updateSettings(SignerList.Settings(encryptionRegistry, 50));
@@ -426,6 +430,90 @@ contract SignerListTest is AragonTest {
         // OK
         newSigners[0] = address(1234);
         signerList.addSigners(newSigners);
+    }
+
+    function test_GivenUnusedAddresses() external whenCallingAddSigners {
+        // It should remove the non signer addresses from the EncryptionRegistry
+
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        encryptionRegistry = new EncryptionRegistry(signerList);
+        signerList.updateSettings(SignerList.Settings(encryptionRegistry, 2));
+
+        vm.assertEq(signerList.addresslistLength(), 4);
+        vm.startPrank(alice);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(1)));
+        vm.startPrank(bob);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(2)));
+        vm.startPrank(carol);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(3)));
+        vm.startPrank(david);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(4)));
+
+        vm.assertEq(encryptionRegistry.accountList(0), alice);
+        vm.assertEq(encryptionRegistry.accountList(1), bob);
+        vm.assertEq(encryptionRegistry.accountList(2), carol);
+        vm.assertEq(encryptionRegistry.accountList(3), david);
+
+        // Remove Bob
+        vm.startPrank(alice);
+        address[] memory _signers = new address[](1);
+        _signers[0] = bob;
+        signerList.removeSigners(_signers);
+
+        vm.assertEq(signerList.addresslistLength(), 3);
+        vm.assertEq(encryptionRegistry.accountList(0), alice);
+        vm.assertEq(encryptionRegistry.accountList(1), bob);
+        vm.assertEq(encryptionRegistry.accountList(2), carol);
+        vm.assertEq(encryptionRegistry.accountList(3), david);
+
+        // Add someone else
+        _signers[0] = address(0x1234);
+        signerList.addSigners(_signers);
+
+        // 0x1234 is not registered there yet
+
+        vm.assertEq(signerList.addresslistLength(), 4);
+        vm.assertEq(encryptionRegistry.accountList(0), alice);
+        vm.assertEq(encryptionRegistry.accountList(1), david);  // Swapped here
+        vm.assertEq(encryptionRegistry.accountList(2), carol);
+    }
+
+    function test_GivenNoUnusedAddresses() external whenCallingAddSigners {
+        // It should keep the encryption list as it is
+        
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        vm.assertEq(signerList.addresslistLength(), 4);
+        vm.startPrank(alice);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(1)));
+        vm.startPrank(bob);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(2)));
+        vm.startPrank(carol);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(3)));
+        vm.startPrank(david);
+        encryptionRegistry.setOwnPublicKey(bytes32(uint256(4)));
+
+        vm.assertEq(encryptionRegistry.accountList(0), alice);
+        vm.assertEq(encryptionRegistry.accountList(1), bob);
+        vm.assertEq(encryptionRegistry.accountList(2), carol);
+        vm.assertEq(encryptionRegistry.accountList(3), david);
+
+        // Add someone else
+        vm.startPrank(alice);
+        address[] memory _signers = new address[](2);
+        _signers[0] = address(0x1234);
+        _signers[1] = address(0x2345);
+        signerList.addSigners(_signers);
+
+        vm.assertEq(encryptionRegistry.accountList(0), alice);
+        vm.assertEq(encryptionRegistry.accountList(1), bob);
+        vm.assertEq(encryptionRegistry.accountList(2), carol);
+        vm.assertEq(encryptionRegistry.accountList(3), david);
+        vm.expectRevert();
+        vm.assertEq(encryptionRegistry.accountList(4), address(0));
+        vm.expectRevert();
+        vm.assertEq(encryptionRegistry.accountList(5), address(0));
     }
 
     modifier whenCallingRemoveSigners() {

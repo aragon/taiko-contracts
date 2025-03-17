@@ -18,7 +18,7 @@ import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
-import {createERC1967Proxy} from "@aragon/osx/utils/Proxy.sol";
+import {createProxyAndCall} from "../helpers/proxy.sol";
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 
 contract TaikoDaoFactory {
@@ -161,7 +161,7 @@ contract TaikoDaoFactory {
 
         dao = DAO(
             payable(
-                createERC1967Proxy(
+                createProxyAndCall(
                     address(daoBase),
                     abi.encodeCall(
                         DAO.initialize,
@@ -338,7 +338,7 @@ contract TaikoDaoFactory {
 
     function deploySignerListWithoutSettings(DAO dao) internal returns (SignerList helper) {
         helper = SignerList(
-            createERC1967Proxy(
+            createProxyAndCall(
                 address(new SignerList()), abi.encodeCall(SignerList.initialize, (dao, settings.multisigMembers))
             )
         );

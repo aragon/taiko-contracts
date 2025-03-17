@@ -130,6 +130,21 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
         }
         return _account;
     }
+    
+    /// @notice Removes the addresses on accountList which are not a signer on the SignerList
+    function removeUnused() public {
+        for (uint256 i = 0; i < accountList.length; ) {
+            if (!addresslist.isListed(accountList[i])) {
+                // Swap it with the last element and remove it
+                accountList[i] = accountList[accountList.length - 1];
+                accountList.pop();
+                continue;
+            }
+            unchecked {
+                i++;
+            }
+        }
+    }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
     /// @param _interfaceId The ID of the interface.

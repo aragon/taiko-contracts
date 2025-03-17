@@ -9,6 +9,11 @@ import {DaoBuilder} from "./helpers/DaoBuilder.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {Multisig} from "../src/Multisig.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {
+    SignerList,
+    UPDATE_SIGNER_LIST_PERMISSION_ID,
+    UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID
+} from "../src/SignerList.sol";
 
 contract EncryptionRegistryTest is AragonTest {
     EncryptionRegistry registry;
@@ -917,6 +922,61 @@ contract EncryptionRegistryTest is AragonTest {
 
         // OK
         (,, multisig,,,,,) = new DaoBuilder().withMultisigMember(alice).build();
+    }
+
+    function test_ShouldRemoveUnusedAddresses() public {
+        SignerList signerList;
+        (dao,,,,, signerList, registry,) = new DaoBuilder().withMultisigMember(alice).withMultisigMember(bob).withMultisigMember(
+            carol
+        ).withMultisigMember(david).build();
+
+        vm.startPrank(alice);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
+        dao.grant(address(signerList), alice, UPDATE_SIGNER_LIST_PERMISSION_ID);
+
+        // All are a signer
+        vm.startPrank(alice);
+        registry.setOwnPublicKey(bytes32(uint256(1)));
+        vm.startPrank(bob);
+        registry.setOwnPublicKey(bytes32(uint256(2)));
+        vm.startPrank(carol);
+        registry.setOwnPublicKey(bytes32(uint256(3)));
+        vm.startPrank(david);
+        registry.setOwnPublicKey(bytes32(uint256(4)));
+
+        // Add more
+        address[] memory _signers = new address[](2);
+        _signers[0] = address(0x1234);
+        _signers[1] = address(0x2345);
+        vm.startPrank(alice);
+        signerList.addSigners(_signers);
+
+        // New signers
+        vm.startPrank(address(0x1234));
+        registry.setOwnPublicKey(bytes32(uint256(5)));
+        vm.startPrank(address(0x2345));
+        registry.setOwnPublicKey(bytes32(uint256(6)));
+
+        vm.assertEq(registry.accountList(0), alice);                                                                                                                                                                                                    
+        vm.assertEq(registry.accountList(1), bob);
+        vm.assertEq(registry.accountList(2), carol);
+        vm.assertEq(registry.accountList(3), david);
+        vm.assertEq(registry.accountList(4), address(0x1234));
+        vm.assertEq(registry.accountList(5), address(0x2345));
+
+        // Clean
+        vm.startPrank(alice);
+        signerList.removeSigners(_signers);
+        registry.removeUnused();
+
+        vm.assertEq(registry.accountList(0), alice);
+        vm.assertEq(registry.accountList(1), bob);
+        vm.assertEq(registry.accountList(2), carol);
+        vm.assertEq(registry.accountList(3), david);
+        vm.expectRevert();
+        vm.assertEq(registry.accountList(4), address(0));
+        vm.expectRevert();
+        vm.assertEq(registry.accountList(5), address(0));
     }
 
     /// @dev mock function for test_TheConstructorShouldRevertIfInvalidAddressList()
