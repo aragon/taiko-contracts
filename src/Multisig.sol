@@ -274,7 +274,7 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     /// @return destinationActions The actions to be executed by the destination plugin after the proposal passes.
     /// @return destinationPlugin The address of the plugin where the proposal will be forwarded to when executed.
     function getProposal(uint256 _proposalId)
-        public
+        external
         view
         returns (
             bool executed,
@@ -296,7 +296,7 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     }
 
     /// @inheritdoc IMultisig
-    function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
+    function hasApproved(uint256 _proposalId, address _account) external view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
         address _owner =
             multisigSettings.signerList.getListedEncryptionOwnerAtBlock(_account, proposal_.parameters.snapshotBlock);
@@ -305,7 +305,7 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     }
 
     /// @inheritdoc IMultisig
-    function execute(uint256 _proposalId) public {
+    function execute(uint256 _proposalId) external {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }

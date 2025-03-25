@@ -4,7 +4,9 @@ Below is the graphical definition of the contract tests implemented on [the test
 
 ```
 EmergencyMultisigTest
-├── Given a newly deployed contract
+├── When deploying the contract
+│   └── It should disable the initializers
+├── Given a new proxy contract
 │   └── Given calling initialize
 │       ├── It should initialize the first time
 │       ├── It should refuse to initialize again
@@ -219,7 +221,9 @@ EmergencyMultisigTest
 
 ```
 MultisigTest
-├── Given a newly deployed contract
+├── When deploying the contract
+│   └── It should disable the initializers
+├── Given a new proxy contract
 │   └── Given calling initialize
 │       ├── It should initialize the first time
 │       ├── It should refuse to initialize again
@@ -442,6 +446,8 @@ MultisigTest
 ```
 SignerListTest
 ├── When deploying the contract
+│   └── It should disable the initializers
+├── When cloning the contract
 │   └── It should initialize normally
 ├── Given a deployed contract
 │   └── It should refuse to initialize again
@@ -479,6 +485,10 @@ SignerListTest
 │   │   └── It should revert
 │   ├── Given duplicate addresses on addSigners
 │   │   └── It should revert
+│   ├── Given unused addresses
+│   │   └── It should remove the non signer addresses
+│   ├── Given no unused addresses
+│   │   └── It should keep the list as it is
 │   ├── It should append the new addresses to the list
 │   ├── It should return true on isListed
 │   └── It should emit the SignersAdded event
@@ -560,3 +570,4 @@ SignerListTest
             ├── It result does not contain unlisted addresses
             └── It result does not contain non appointed addresses
 ```
+

@@ -102,7 +102,7 @@ contract TaikoDaoFactory {
         settings = _settings;
     }
 
-    function deployOnce() public {
+    function deployOnce() external {
         if (address(deployment.dao) != address(0)) revert AlreadyDeployed();
 
         IPluginSetup.PreparedSetupData memory preparedMultisigSetupData;
@@ -391,11 +391,11 @@ contract TaikoDaoFactory {
 
     // Getters
 
-    function getSettings() public view returns (DeploymentSettings memory) {
+    function getSettings() external view returns (DeploymentSettings memory) {
         return settings;
     }
 
-    function getDeployment() public view returns (Deployment memory) {
+    function getDeployment() external view returns (Deployment memory) {
         return deployment;
     }
 }

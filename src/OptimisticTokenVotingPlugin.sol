@@ -248,7 +248,7 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function hasVetoed(uint256 _proposalId, address _voter) public view returns (bool) {
+    function hasVetoed(uint256 _proposalId, address _voter) external view returns (bool) {
         return proposals[_proposalId].vetoVoters[_voter];
     }
 
@@ -328,7 +328,7 @@ contract OptimisticTokenVotingPlugin is
     /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
     /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
     function getProposal(uint256 _proposalId)
-        public
+        external
         view
         virtual
         returns (
@@ -420,7 +420,7 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function veto(uint256 _proposalId) public virtual {
+    function veto(uint256 _proposalId) external virtual {
         address _voter = _msgSender();
 
         if (!canVeto(_proposalId, _voter)) {
@@ -442,7 +442,7 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
-    function execute(uint256 _proposalId) public virtual {
+    function execute(uint256 _proposalId) external virtual {
         if (!canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -455,7 +455,7 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Updates the governance settings.
     /// @param _governanceSettings The new governance settings.
     function updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings)
-        public
+        external
         virtual
         auth(UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID)
     {
@@ -465,7 +465,7 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Splits the components behind the given proposal ID
     /// @param _proposalId The ID to split
     function parseProposalId(uint256 _proposalId)
-        public
+        external
         pure
         returns (uint256 counter, uint64 startDate, uint64 endDate)
     {

@@ -104,7 +104,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
     }
 
     /// @inheritdoc ISignerList
-    function isListedOrAppointedByListed(address _address) public view returns (bool listedOrAppointedByListed) {
+    function isListedOrAppointedByListed(address _address) external view returns (bool listedOrAppointedByListed) {
         if (isListed(_address)) {
             return true;
         } else if (isListed(settings.encryptionRegistry.appointerOf(_address))) {
@@ -116,7 +116,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
 
     /// @inheritdoc ISignerList
     function getListedEncryptionOwnerAtBlock(address _address, uint256 _blockNumber)
-        public
+        external
         view
         returns (address _owner)
     {
@@ -133,7 +133,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
 
     /// @inheritdoc ISignerList
     function resolveEncryptionAccountAtBlock(address _address, uint256 _blockNumber)
-        public
+        external
         view
         returns (address _owner, address _agent)
     {

@@ -274,7 +274,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     /// @return destinationActionsHash The hash of the actions to be executed by the destination plugin after the proposal passes.
     /// @return destinationPlugin The address of the plugin where the proposal will be forwarded to when executed.
     function getProposal(uint256 _proposalId)
-        public
+        external
         view
         returns (
             bool executed,
@@ -298,7 +298,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     }
 
     /// @inheritdoc IEmergencyMultisig
-    function hasApproved(uint256 _proposalId, address _account) public view returns (bool) {
+    function hasApproved(uint256 _proposalId, address _account) external view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
         address _owner =
             multisigSettings.signerList.getListedEncryptionOwnerAtBlock(_account, proposal_.parameters.snapshotBlock);
@@ -307,7 +307,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     }
 
     /// @inheritdoc IEmergencyMultisig
-    function execute(uint256 _proposalId, bytes memory _metadataUri, IDAO.Action[] calldata _actions) public {
+    function execute(uint256 _proposalId, bytes memory _metadataUri, IDAO.Action[] calldata _actions) external {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }

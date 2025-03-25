@@ -38,7 +38,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function appointAgent(address _newAgent) public {
+    function appointAgent(address _newAgent) external {
         // Appointing ourselves is the same as unappointing
         if (_newAgent == msg.sender) _newAgent = address(0);
 
@@ -91,7 +91,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function setOwnPublicKey(bytes32 _publicKey) public {
+    function setOwnPublicKey(bytes32 _publicKey) external {
         if (!addresslist.isListed(msg.sender)) {
             revert MustBeListed();
         }
@@ -107,7 +107,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function setPublicKey(address _accountOwner, bytes32 _publicKey) public {
+    function setPublicKey(address _accountOwner, bytes32 _publicKey) external {
         if (!addresslist.isListed(_accountOwner)) {
             revert MustBeListed();
         } else if (accounts[_accountOwner].appointedAgent != msg.sender) {
@@ -119,12 +119,12 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function getRegisteredAccounts() public view returns (address[] memory) {
+    function getRegisteredAccounts() external view returns (address[] memory) {
         return accountList;
     }
 
     /// @inheritdoc IEncryptionRegistry
-    function getAppointedAgent(address _account) public view returns (address) {
+    function getAppointedAgent(address _account) external view returns (address) {
         if (accounts[_account].appointedAgent != address(0)) {
             return accounts[_account].appointedAgent;
         }
@@ -132,7 +132,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     }
     
     /// @notice Removes the addresses on accountList which are not a signer on the SignerList
-    function removeUnused() public {
+    function removeUnused() external {
         for (uint256 i = 0; i < accountList.length; ) {
             if (!addresslist.isListed(accountList[i])) {
                 // Swap it with the last element and remove it
