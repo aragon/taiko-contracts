@@ -136,6 +136,11 @@ contract DaoBuilder is Test {
         return this;
     }
 
+    function withTaikoInbox(address newTaikoInbox) public returns (DaoBuilder) {
+        taikoInbox = newTaikoInbox;
+        return this;
+    }
+
     function withOnlyListed() public returns (DaoBuilder) {
         onlyListed = true;
         return this;

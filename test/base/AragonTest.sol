@@ -43,6 +43,7 @@ contract AragonTest is Test {
         vm.label(carol, "Carol");
         vm.label(david, "David");
         vm.label(taikoBridge, "Bridge");
+        vm.label(taikoInbox, "Inbox");
         vm.label(randomWallet, "Random wallet");
     }
 

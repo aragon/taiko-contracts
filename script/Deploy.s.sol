@@ -106,9 +106,9 @@ contract Deploy is Script {
         console.log("Using test token settings");
 
         address taikoBridgeAddress = address(0x1234567890);
-        address taikoInboxAddress = address(0x1234567891);
+        address taikoInboxAddress = address(0x12341234);
         address[] memory multisigMembers = readMultisigMembers();
-        address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
+        address votingToken = createTestToken(multisigMembers, taikoBridgeAddress, taikoInboxAddress);
 
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
@@ -190,12 +190,16 @@ contract Deploy is Script {
         if (result.length == 0) revert EmptyMultisig();
     }
 
-    function createTestToken(address[] memory members, address taikoBridge) internal returns (address) {
-        address[] memory allTokenHolders = new address[](members.length + 1);
+    function createTestToken(address[] memory members, address taikoBridge, address taikoInbox)
+        internal
+        returns (address)
+    {
+        address[] memory allTokenHolders = new address[](members.length + 2);
         for (uint256 i = 0; i < members.length; i++) {
             allTokenHolders[i] = members[i];
         }
         allTokenHolders[members.length] = taikoBridge;
+        allTokenHolders[members.length + 1] = taikoInbox;
 
         GovernanceERC20Mock testToken = new GovernanceERC20Mock(address(0));
         console.log("Minting test tokens for the multisig members and the bridge");
