@@ -307,7 +307,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
-        address taikoInboxAddress = address(0x01);
+        address taikoInboxAddress = address(0x0101);
         address[] memory multisigMembers = new address[](13);
         for (uint256 i = 0; i < 13; i++) {
             multisigMembers[i] = address(uint160(i + 1));
