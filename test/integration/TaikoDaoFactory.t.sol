@@ -720,9 +720,9 @@ contract TaikoDaoFactoryTest is AragonTest {
         assertNotEq(
             address(deployment.optimisticTokenVotingPlugin), address(0), "Empty optimisticTokenVotingPlugin field"
         );
-        // assertEq(
-        //     address(deployment.optimisticTokenVotingPlugin.votingToken()), address(tokenAddress), "Invalid votingToken"
-        // );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.votingToken()), address(tokenAddress), "Invalid votingToken"
+        );
         assertEq(
             address(deployment.optimisticTokenVotingPlugin.taikoL1()),
             address(taikoL1ContractAddress),
