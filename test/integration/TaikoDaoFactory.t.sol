@@ -86,6 +86,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Incorrect taikoL1ContractAddress"
         );
         assertEq(actualSettings.taikoBridgeAddress, creationSettings.taikoBridgeAddress, "Incorrect taikoBridgeAddress");
+        assertEq(actualSettings.taikoInboxAddress, creationSettings.taikoInboxAddress, "Incorrect taikoInboxAddress");
         assertEq(actualSettings.timelockPeriod, creationSettings.timelockPeriod, "Incorrect timelockPeriod");
         assertEq(actualSettings.l2InactivityPeriod, creationSettings.l2InactivityPeriod, "Incorrect l2InactivityPeriod");
         assertEq(
@@ -220,6 +221,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             "Incorrect taikoL1ContractAddress"
         );
         assertEq(actualSettings.taikoBridgeAddress, creationSettings.taikoBridgeAddress, "Incorrect taikoBridgeAddress");
+        assertEq(actualSettings.taikoInboxAddress, creationSettings.taikoInboxAddress, "Incorrect taikoInboxAddress");
         assertEq(actualSettings.timelockPeriod, creationSettings.timelockPeriod, "Incorrect timelockPeriod");
         assertEq(actualSettings.l2InactivityPeriod, creationSettings.l2InactivityPeriod, "Incorrect l2InactivityPeriod");
         assertEq(
@@ -478,6 +480,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             address(taikoBridgeAddress),
             "Invalid taikoBridge"
         );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.taikoInbox()),
+            address(taikoInboxAddress),
+            "Invalid taikoInbox"
+        );
         assertEq(deployment.optimisticTokenVotingPlugin.proposalCount(), 0, "Invalid proposal count");
         {
             (
@@ -725,6 +732,11 @@ contract TaikoDaoFactoryTest is AragonTest {
             address(deployment.optimisticTokenVotingPlugin.taikoBridge()),
             address(taikoBridgeAddress),
             "Invalid taikoBridge"
+        );
+        assertEq(
+            address(deployment.optimisticTokenVotingPlugin.taikoInbox()),
+            address(taikoInboxAddress),
+            "Invalid taikoInbox"
         );
         assertEq(deployment.optimisticTokenVotingPlugin.proposalCount(), 0, "Invalid proposal count");
         {
