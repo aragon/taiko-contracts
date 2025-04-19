@@ -25,6 +25,11 @@ interface IOptimisticTokenVoting {
     /// @return The total bridged voting power.
     function bridgedVotingPower(uint256 _timestamp) external view returns (uint256);
 
+    /// @notice Returns the voting power (token balance) held by the Taiko Inbox contract at a past snapshot block.
+    /// @param _timestamp The target timestamp.
+    /// @return Amount of voting tokens held by TaikoInbox.
+    function inboxVotingPower(uint256 _timestamp) external view returns (uint256);
+
     /// @notice Returns the effective voting power that can vote at the given timestamp.
     /// @dev This assumes that the Taiko Bridge is delegating to itself.
     /// @param _timestamp The target timestamp.

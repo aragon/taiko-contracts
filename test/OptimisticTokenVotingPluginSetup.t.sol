@@ -29,6 +29,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     GovernanceERC20.MintSettings mintSettings;
     ITaikoL1 taikoL1;
     address taikoBridge;
+    address taikoInbox;
     uint64 stdProposalMinDuration;
     address stdProposer;
     address emergencyProposer;
@@ -87,14 +88,10 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     }
 
     function test_ShouldRevertIfConstructorGetsEmptyAddresses() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.EmptyAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.EmptyAddress.selector));
         new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(0)), governanceWrappedERC20Base);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.EmptyAddress.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPluginSetup.EmptyAddress.selector));
         new OptimisticTokenVotingPluginSetup(governanceERC20Base, GovernanceWrappedERC20(address(0)));
     }
 
@@ -107,6 +104,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -135,6 +133,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -161,6 +160,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -186,6 +186,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -212,6 +213,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(0x1234),
                 address(0x5678), // taikoBridge
+                address(0x6789), // taikoInbox
                 5 days, // stdProposalMinDuration
                 stdProposer,
                 emergencyProposer
@@ -234,6 +236,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(0x1111),
                 address(0x2222), // taikoBridge
+                address(0x3333), // taikoInbox
                 15 days, // stdProposalMinDuration
                 stdProposer,
                 emergencyProposer
@@ -278,6 +281,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(0x9999),
                 address(0xaaaa),
+                address(0xbbbb),
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -367,6 +371,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(0xbbbb),
                 address(0xcccc),
+                address(0xdddd),
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -432,6 +437,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -530,6 +536,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -635,6 +642,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -731,6 +739,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -757,6 +766,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -776,6 +786,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -837,6 +848,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -898,6 +910,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -923,6 +936,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -956,6 +970,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -993,6 +1008,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -1047,6 +1063,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 mintSettings,
                 address(taikoL1),
                 taikoBridge,
+                taikoInbox,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer

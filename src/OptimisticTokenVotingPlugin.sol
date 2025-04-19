@@ -92,6 +92,9 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
     address public taikoBridge;
 
+    /// @notice The address of the Taiko Inbox contract, to determine the balance in Inbox on proposal creation.
+    address public taikoInbox;
+
     /// @notice Taiko L1 contract to check the status from.
     ITaikoL1 public taikoL1;
 
@@ -162,12 +165,14 @@ contract OptimisticTokenVotingPlugin is
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     /// @param _taikoL1 The address of the contract where the protocol status can be checked.
     /// @param _taikoBridge The address of the contract that can bridge voting vetoes back.
+    /// @param _taikoInbox The address of the contract that can bridge voting vetoes to the L2.
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
         address _taikoL1,
-        address _taikoBridge
+        address _taikoBridge,
+        address _taikoInbox
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
@@ -176,6 +181,7 @@ contract OptimisticTokenVotingPlugin is
         votingToken = _token;
         taikoL1 = ITaikoL1(_taikoL1);
         taikoBridge = _taikoBridge;
+        taikoInbox = _taikoInbox;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
@@ -205,8 +211,13 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
+    function inboxVotingPower(uint256 _timestamp) public view returns (uint256) {
+        return votingToken.getPastVotes(taikoInbox, _timestamp);
+    }
+
+    /// @inheritdoc IOptimisticTokenVoting
     function effectiveVotingPower(uint256 _timestamp, bool _includeL2VotingPower) public view returns (uint256) {
-        uint256 _totalVotingPower = totalVotingPower(_timestamp);
+        uint256 _totalVotingPower = totalVotingPower(_timestamp) - inboxVotingPower(_timestamp);
         if (!_includeL2VotingPower) {
             return _totalVotingPower - bridgedVotingPower(_timestamp);
         }

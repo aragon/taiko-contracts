@@ -30,6 +30,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
+        address taikoInboxAddress = address(0x5678);
         address[] memory multisigMembers = new address[](13);
 
         MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
@@ -47,6 +48,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 7 days,
             l2InactivityPeriod: 10 minutes, // uint32
             l2AggregationGracePeriod: 2 days, // uint32
@@ -162,6 +164,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
+        address taikoInboxAddress = address(0x5678);
         address[] memory multisigMembers = new address[](15);
 
         MultisigPluginSetup multisigPluginSetup = new MultisigPluginSetup();
@@ -179,6 +182,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 14 days,
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 77 days, // uint32
@@ -301,6 +305,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
+        address taikoInboxAddress = address(0x5678);
         address[] memory multisigMembers = new address[](13);
         for (uint256 i = 0; i < 13; i++) {
             multisigMembers[i] = address(uint160(i + 1));
@@ -334,6 +339,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 20 days,
             l2InactivityPeriod: 10 minutes, // uint32
             l2AggregationGracePeriod: 2 days, // uint32
@@ -547,6 +553,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x5678);
+        address taikoInboxAddress = address(0x6789);
         address[] memory multisigMembers = new address[](16);
         for (uint256 i = 0; i < 16; i++) {
             multisigMembers[i] = address(uint160(i + 1));
@@ -580,6 +587,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 9 days, // uint32
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 3 days, // uint32
@@ -793,6 +801,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x5678);
+        address taikoInboxAddress = address(0x6789);
         address[] memory multisigMembers = new address[](16);
         for (uint256 i = 0; i < 16; i++) {
             multisigMembers[i] = address(uint160(i + 1));
@@ -826,6 +835,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 9 days, // uint32
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 3 days, // uint32
@@ -879,6 +889,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x5678);
+        address taikoInboxAddress = address(0x6789);
         address[] memory multisigMembers = new address[](16);
         for (uint256 i = 0; i < 16; i++) {
             multisigMembers[i] = address(uint160(i + 1));
@@ -912,6 +923,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 9 days, // uint32
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 3 days, // uint32
@@ -961,7 +973,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
         assertEq(hasPerm, true, "Incorrect hasPermission");
 
-         hasPerm = deployment.dao.hasPermission(
+        hasPerm = deployment.dao.hasPermission(
             address(deployment.emergencyMultisigPluginRepo),
             address(deployment.dao),
             deployment.emergencyMultisigPluginRepo.MAINTAINER_PERMISSION_ID(),
@@ -969,7 +981,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
         assertEq(hasPerm, true, "Incorrect hasPermission");
 
-         hasPerm = deployment.dao.hasPermission(
+        hasPerm = deployment.dao.hasPermission(
             address(deployment.optimisticTokenVotingPluginRepo),
             address(deployment.dao),
             deployment.optimisticTokenVotingPluginRepo.MAINTAINER_PERMISSION_ID(),
@@ -990,6 +1002,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         GovernanceERC20Mock tokenAddress = new GovernanceERC20Mock(address(tempMgmtDao));
         TaikoL1Mock taikoL1ContractAddress = new TaikoL1Mock();
         address taikoBridgeAddress = address(0x1234);
+        address taikoInboxAddress = address(0x5678);
         address[] memory multisigMembers = new address[](13);
         for (uint256 i = 0; i < 13; i++) {
             multisigMembers[i] = address(uint160(i + 1));
@@ -1023,6 +1036,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            taikoInboxAddress: taikoInboxAddress, // address
             timelockPeriod: 11 days,
             l2InactivityPeriod: 10 minutes, // uint32
             l2AggregationGracePeriod: 2 days, // uint32

@@ -11,7 +11,14 @@ import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
 import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
-import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
+import {
+    ALICE_ADDRESS,
+    BOB_ADDRESS,
+    CAROL_ADDRESS,
+    DAVID_ADDRESS,
+    TAIKO_BRIDGE_ADDRESS,
+    TAIKO_INBOX_ADDRESS
+} from "../constants.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract AragonTest is Test {
@@ -20,6 +27,7 @@ contract AragonTest is Test {
     address immutable carol = CAROL_ADDRESS;
     address immutable david = DAVID_ADDRESS;
     address immutable taikoBridge = TAIKO_BRIDGE_ADDRESS;
+    address immutable taikoInbox = TAIKO_INBOX_ADDRESS;
     address immutable randomWallet = vm.addr(1234567890);
 
     address immutable DAO_BASE = address(new DAO());

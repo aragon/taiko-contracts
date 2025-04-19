@@ -54,6 +54,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         GovernanceERC20.MintSettings mintSettings;
         address taikoL1;
         address taikoBridge;
+        address taikoInbox;
         uint64 stdProposalMinDuration;
         address stdProposer;
         address emergencyProposer;
@@ -81,7 +82,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         if (address(_governanceERC20Base) == address(0) || address(_governanceWrappedERC20Base) == address(0)) {
             revert EmptyAddress();
         }
-        
+
         optimisticTokenVotingPluginBase = new OptimisticTokenVotingPlugin();
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
@@ -144,7 +145,8 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                     installationParams.votingSettings,
                     IVotesUpgradeable(token),
                     installationParams.taikoL1,
-                    installationParams.taikoBridge
+                    installationParams.taikoBridge,
+                    installationParams.taikoInbox
                 )
             )
         );

@@ -71,7 +71,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         });
 
         vm.expectRevert(bytes("Initializable: contract is already initialized"));
-        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge);
+        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox);
     }
 
     // Initialize
@@ -87,7 +87,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         });
 
         vm.expectRevert(bytes("Initializable: contract is already initialized"));
-        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge);
+        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox);
     }
 
     function test_InitializeSetsTheRightValues() public {
@@ -105,7 +105,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -136,7 +137,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -161,7 +163,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -187,7 +190,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -213,7 +217,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -239,7 +244,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -265,7 +271,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -294,7 +301,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -320,7 +328,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -347,7 +356,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
                     OptimisticTokenVotingPlugin.initialize,
-                    (dao, settings, votingToken, address(taikoL1), newTaikoBridge)
+                    (dao, settings, votingToken, address(taikoL1), newTaikoBridge, taikoInbox)
                 )
             )
         );
@@ -386,7 +395,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -403,13 +413,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             skipL2: false
         });
         taikoL1 = ITaikoL1(address(0));
-        
+
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.EmptyAddress.selector));
         optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -471,7 +482,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -620,7 +632,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -976,7 +989,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize,
+                    (dao, settings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );
@@ -2530,7 +2544,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
                     OptimisticTokenVotingPlugin.initialize,
-                    (dao, newSettings, votingToken, address(taikoL1), taikoBridge)
+                    (dao, newSettings, votingToken, address(taikoL1), taikoBridge, taikoInbox)
                 )
             )
         );

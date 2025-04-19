@@ -74,6 +74,7 @@ contract Deploy is Script {
             tokenAddress: IVotesUpgradeable(vm.envAddress("TOKEN_ADDRESS")),
             taikoL1ContractAddress: vm.envAddress("TAIKO_L1_ADDRESS"),
             taikoBridgeAddress: vm.envAddress("TAIKO_BRIDGE_ADDRESS"),
+            taikoInboxAddress: vm.envAddress("TAIKO_INBOX_ADDRESS"),
             timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
             l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
@@ -105,6 +106,7 @@ contract Deploy is Script {
         console.log("Using test token settings");
 
         address taikoBridgeAddress = address(0x1234567890);
+        address taikoInboxAddress = address(0x1234567891);
         address[] memory multisigMembers = readMultisigMembers();
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
 
@@ -113,6 +115,7 @@ contract Deploy is Script {
             tokenAddress: IVotesUpgradeable(votingToken),
             taikoL1ContractAddress: address(new TaikoL1Mock()),
             taikoBridgeAddress: taikoBridgeAddress,
+            taikoInboxAddress: taikoInboxAddress,
             timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
             l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
@@ -149,6 +152,7 @@ contract Deploy is Script {
         console.log("DAO:", address(daoDeployment.dao));
         console.log("Voting token:", address(settings.tokenAddress));
         console.log("Taiko Bridge:", settings.taikoBridgeAddress);
+        console.log("Taiko Inbox:", settings.taikoInboxAddress);
         console.log("");
 
         console.log("Plugins");
