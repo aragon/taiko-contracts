@@ -54,6 +54,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         GovernanceERC20.MintSettings mintSettings;
         address taikoL1;
         address taikoBridge;
+        address[] excludedVotingPowerHolders;
         uint64 stdProposalMinDuration;
         address stdProposer;
         address emergencyProposer;
@@ -81,7 +82,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         if (address(_governanceERC20Base) == address(0) || address(_governanceWrappedERC20Base) == address(0)) {
             revert EmptyAddress();
         }
-        
+
         optimisticTokenVotingPluginBase = new OptimisticTokenVotingPlugin();
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
@@ -144,14 +145,15 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                     installationParams.votingSettings,
                     IVotesUpgradeable(token),
                     installationParams.taikoL1,
-                    installationParams.taikoBridge
+                    installationParams.taikoBridge,
+                    installationParams.excludedVotingPowerHolders
                 )
             )
         );
 
         // Prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions =
-            new PermissionLib.MultiTargetPermission[](installationParams.tokenSettings.addr != address(0) ? 5 : 6);
+            new PermissionLib.MultiTargetPermission[](installationParams.tokenSettings.addr != address(0) ? 6 : 7);
 
         // Request the permissions to be granted
 
@@ -164,8 +166,17 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             permissionId: optimisticTokenVotingPluginBase.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         });
 
-        // The DAO can upgrade the plugin implementation
+        // The DAO can update the plugin excluded voting power holders
         permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            where: plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: optimisticTokenVotingPluginBase.UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID()
+        });
+
+        // The DAO can upgrade the plugin implementation
+        permissions[2] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
             who: _dao,
@@ -174,7 +185,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         });
 
         // The plugin can make the DAO execute actions
-        permissions[2] = PermissionLib.MultiTargetPermission({
+        permissions[3] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: _dao,
             who: plugin,
@@ -187,7 +198,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 new StandardProposalCondition(installationParams.stdProposalMinDuration);
 
             // Proposer plugins can create proposals
-            permissions[3] = PermissionLib.MultiTargetPermission({
+            permissions[4] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: plugin,
                 who: installationParams.stdProposer,
@@ -195,7 +206,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 permissionId: optimisticTokenVotingPluginBase.PROPOSER_PERMISSION_ID()
             });
         }
-        permissions[4] = PermissionLib.MultiTargetPermission({
+        permissions[5] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
             who: installationParams.emergencyProposer,
@@ -205,7 +216,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
 
         if (installationParams.tokenSettings.addr == address(0x0)) {
             // The DAO can mint ERC20 tokens
-            permissions[5] = PermissionLib.MultiTargetPermission({
+            permissions[6] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: token,
                 who: _dao,

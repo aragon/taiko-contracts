@@ -86,6 +86,10 @@ contract OptimisticTokenVotingPlugin is
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
+    /// @notice The ID of the permission required to call the `updateExcludedVotingPowerHolders` function
+    bytes32 public constant UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID =
+        keccak256("UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID");
+
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
@@ -98,6 +102,9 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The struct storing the governance settings.
     /// @dev Takes 1 storage slot (32+64+64+64+8 < 256)
     OptimisticGovernanceSettings public governanceSettings;
+
+    /// @notice The list of addresses that are excluded from the voting power.
+    address[] public excludedVotingPowerHolders;
 
     /// @notice A mapping between proposal IDs and proposal information.
     mapping(uint256 => Proposal) internal proposals;
@@ -114,6 +121,10 @@ contract OptimisticTokenVotingPlugin is
     event OptimisticGovernanceSettingsUpdated(
         uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
     );
+
+    /// @notice Emitted when the excluded voting power holders are updated.
+    /// @param excludedVotingPowerHolders The updated list of excluded addresses.
+    event ExcludedVotingPowerHoldersUpdated(address[] excludedVotingPowerHolders);
 
     /// @notice Emitted when a veto is cast by a voter.
     /// @param proposalId The ID of the proposal.
@@ -162,12 +173,14 @@ contract OptimisticTokenVotingPlugin is
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     /// @param _taikoL1 The address of the contract where the protocol status can be checked.
     /// @param _taikoBridge The address of the contract that can bridge voting vetoes back.
+    /// @param _excludedVotingPowerHolders The list of addresses to be excluded from voting power.
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
         address _taikoL1,
-        address _taikoBridge
+        address _taikoBridge,
+        address[] calldata _excludedVotingPowerHolders
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
@@ -177,6 +190,7 @@ contract OptimisticTokenVotingPlugin is
         taikoL1 = ITaikoL1(_taikoL1);
         taikoBridge = _taikoBridge;
 
+        _updateExcludedVotingPowerHolders(_excludedVotingPowerHolders);
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
     }
@@ -207,10 +221,19 @@ contract OptimisticTokenVotingPlugin is
     /// @inheritdoc IOptimisticTokenVoting
     function effectiveVotingPower(uint256 _timestamp, bool _includeL2VotingPower) public view returns (uint256) {
         uint256 _totalVotingPower = totalVotingPower(_timestamp);
-        if (!_includeL2VotingPower) {
-            return _totalVotingPower - bridgedVotingPower(_timestamp);
+        uint256 _excludedTotal = 0;
+        // Subtract voting power of excluded addresses
+        for (uint256 i = 0; i < excludedVotingPowerHolders.length; i++) {
+            _excludedTotal += votingToken.getPastVotes(excludedVotingPowerHolders[i], _timestamp);
         }
-        return _totalVotingPower;
+
+        // Conditionally subtract taikoBridge if L2 voting is skipped
+        if (!_includeL2VotingPower) {
+            _excludedTotal += bridgedVotingPower(_timestamp);
+        }
+
+        require(_totalVotingPower >= _excludedTotal, "Excluded exceeds total");
+        return _totalVotingPower - _excludedTotal;
     }
 
     /// @notice Determines whether L2 votes are currently usable for voting
@@ -234,6 +257,11 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
         return true;
+    }
+
+    /// @notice Returns the number of excluded voting power holders.
+    function excludedVotingPowerHoldersLength() external view returns (uint256) {
+        return excludedVotingPowerHolders.length;
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -462,6 +490,16 @@ contract OptimisticTokenVotingPlugin is
         _updateOptimisticGovernanceSettings(_governanceSettings);
     }
 
+    /// @notice Updates the excluded voting power holders.
+    /// @param _excludedVotingPowerHolders The new excluded voting power holders.
+    function updateExcludedVotingPowerHolders(address[] calldata _excludedVotingPowerHolders)
+        external
+        virtual
+        auth(UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID)
+    {
+        _updateExcludedVotingPowerHolders(_excludedVotingPowerHolders);
+    }
+
     /// @notice Splits the components behind the given proposal ID
     /// @param _proposalId The ID to split
     function parseProposalId(uint256 _proposalId)
@@ -537,6 +575,24 @@ contract OptimisticTokenVotingPlugin is
             l2InactivityPeriod: _governanceSettings.l2InactivityPeriod,
             skipL2: _governanceSettings.skipL2
         });
+    }
+
+    /// @notice Internal function to update the excluded voting power holders.
+    /// @param _excludedVotingPowerHolders The list of addresses to be excluded from voting power.
+    function _updateExcludedVotingPowerHolders(address[] calldata _excludedVotingPowerHolders) internal {
+        delete excludedVotingPowerHolders;
+        for (uint256 i = 0; i < _excludedVotingPowerHolders.length; i++) {
+            address a = _excludedVotingPowerHolders[i];
+            if (a == address(0)) revert("Cannot exclude zero address");
+            if (a == address(votingToken)) revert("Cannot exclude voting token address");
+            if (a == taikoBridge) revert("Cannot exclude taikoBridge (already handled separately)");
+            for (uint256 j = i + 1; j < _excludedVotingPowerHolders.length; j++) {
+                if (a == _excludedVotingPowerHolders[j]) revert("Duplicate excludedVotingPowerHolders address");
+            }
+            excludedVotingPowerHolders.push(a);
+        }
+
+        emit ExcludedVotingPowerHoldersUpdated(_excludedVotingPowerHolders);
     }
 
     /// @notice Internal function to check if a proposal vote is open.

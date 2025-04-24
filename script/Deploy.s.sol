@@ -78,6 +78,7 @@ contract Deploy is Script {
             l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
             skipL2: bool(vm.envBool("SKIP_L2")),
+            excludedVotingPowerHolders: readExcludedVotingPowerHolders(),
             // Voting settings
             minVetoRatio: uint32(vm.envUint("MIN_VETO_RATIO")),
             minStdProposalDuration: uint32(vm.envUint("MIN_STD_PROPOSAL_DURATION")),
@@ -106,6 +107,7 @@ contract Deploy is Script {
 
         address taikoBridgeAddress = address(0x1234567890);
         address[] memory multisigMembers = readMultisigMembers();
+        address[] memory excludedVotingPowerHolders = readExcludedVotingPowerHolders();
         address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
 
         settings = TaikoDaoFactory.DeploymentSettings({
@@ -113,6 +115,7 @@ contract Deploy is Script {
             tokenAddress: IVotesUpgradeable(votingToken),
             taikoL1ContractAddress: address(new TaikoL1Mock()),
             taikoBridgeAddress: taikoBridgeAddress,
+            excludedVotingPowerHolders: excludedVotingPowerHolders,
             timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
             l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
@@ -149,6 +152,7 @@ contract Deploy is Script {
         console.log("DAO:", address(daoDeployment.dao));
         console.log("Voting token:", address(settings.tokenAddress));
         console.log("Taiko Bridge:", settings.taikoBridgeAddress);
+        // console.log("Excluded voting power holders:", settings.excludedVotingPowerHolders);
         console.log("");
 
         console.log("Plugins");
@@ -184,6 +188,20 @@ contract Deploy is Script {
         result = vm.parseJsonAddressArray(strJson, "$.members");
 
         if (result.length == 0) revert EmptyMultisig();
+    }
+
+    function readExcludedVotingPowerHolders() public view returns (address[] memory result) {
+        // JSON list of excluded addresses
+        string memory excludedFilePath = vm.envString("EXCLUDED_VOTING_POWER_HOLDERS_JSON_FILE_NAME");
+        string memory path = string.concat(vm.projectRoot(), excludedFilePath);
+        string memory strJson = vm.readFile(path);
+
+        bool exists = vm.keyExistsJson(strJson, "$.addesses");
+        if (!exists) revert("addesses key missing");
+
+        result = vm.parseJsonAddressArray(strJson, "$.addesses");
+
+        // Do NOT revert if the list is empty — allow proceeding with an empty exclusion list
     }
 
     function createTestToken(address[] memory members, address taikoBridge) internal returns (address) {

@@ -12,7 +12,12 @@ import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock, TaikoL1Incompatible} from "../mocks/TaikoL1Mock.sol";
 import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
-import {ALICE_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
+import {
+    ALICE_ADDRESS,
+    TAIKO_BRIDGE_ADDRESS,
+    EXCLUDED_VOTING_POWER_HOLDER_1,
+    EXCLUDED_VOTING_POWER_HOLDER_2
+} from "../constants.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
 
 contract DaoBuilder is Test {
@@ -36,6 +41,7 @@ contract DaoBuilder is Test {
 
     address public owner = ALICE_ADDRESS;
     address public taikoBridge = TAIKO_BRIDGE_ADDRESS;
+    address[] public excludedVotingPowerHolders = [EXCLUDED_VOTING_POWER_HOLDER_1, EXCLUDED_VOTING_POWER_HOLDER_2];
 
     TaikoL1Status public taikoL1Status = TaikoL1Status.Standard;
     address[] public multisigMembers;
@@ -225,7 +231,14 @@ contract DaoBuilder is Test {
                     address(OPTIMISTIC_BASE),
                     abi.encodeCall(
                         OptimisticTokenVotingPlugin.initialize,
-                        (dao, targetContractSettings, votingToken, address(taikoL1), taikoBridge)
+                        (
+                            dao,
+                            targetContractSettings,
+                            votingToken,
+                            address(taikoL1),
+                            taikoBridge,
+                            excludedVotingPowerHolders
+                        )
                     )
                 )
             );
