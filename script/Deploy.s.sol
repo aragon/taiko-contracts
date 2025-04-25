@@ -201,6 +201,17 @@ contract Deploy is Script {
 
         result = vm.parseJsonAddressArray(strJson, "$.addesses");
 
+        // Sort the array (simple insertion sort for small arrays)
+        for (uint256 i = 1; i < result.length; i++) {
+            address key = result[i];
+            uint256 j = i;
+            while (j > 0 && result[j - 1] > key) {
+                result[j] = result[j - 1];
+                j--;
+            }
+            result[j] = key;
+        }
+
         // Do NOT revert if the list is empty — allow proceeding with an empty exclusion list
     }
 

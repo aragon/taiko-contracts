@@ -2754,6 +2754,125 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(skipL2, false);
     }
 
+    function test_UpdateExcludedVotingPowerHoldersRevertsWhenNoPermission() public {
+        address[] memory newExcluded = new address[](2);
+        newExcluded[0] = address(0x221234);
+        newExcluded[1] = address(0x225678);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector,
+                address(dao),
+                address(optimisticPlugin),
+                alice,
+                optimisticPlugin.UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID()
+            )
+        );
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        dao.grant(
+            address(optimisticPlugin),
+            alice,
+            optimisticPlugin.UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID()
+        );
+
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+    }
+
+    function test_UpdateExcludedVotingPowerHoldersEmitsAnEventWhenSuccessful() public {
+        dao.grant(
+            address(optimisticPlugin),
+            alice,
+            optimisticPlugin.UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID()
+        );
+
+        address[] memory newExcluded = new address[](2);
+        newExcluded[0] = address(0x221234);
+        newExcluded[1] = address(0x225678);
+
+        vm.expectEmit();
+        emit ExcludedVotingPowerHoldersUpdated(newExcluded);
+
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        // 2
+
+        newExcluded = new address[](0);
+
+        vm.warp(block.timestamp + 1);
+
+        vm.expectEmit();
+        emit ExcludedVotingPowerHoldersUpdated(newExcluded);
+
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        // 3
+
+        newExcluded = new address[](3);
+        newExcluded[0] = address(0x221234);
+        newExcluded[1] = address(0x225678);
+        newExcluded[2] = address(0x335678);
+
+        vm.warp(block.timestamp + 1);
+
+        vm.expectEmit();
+        emit ExcludedVotingPowerHoldersUpdated(newExcluded);
+
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+    }
+
+    function test_UpdateOptimisticGovernanceSettingsReverts() public {
+        dao.grant(
+            address(optimisticPlugin),
+            alice,
+            optimisticPlugin.UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID()
+        );
+
+        address[] memory newExcluded = new address[](1);
+        newExcluded[0] = address(0);
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.EmptyAddress.selector));
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        vm.warp(block.timestamp + 1);
+
+        newExcluded[0] = address(votingToken);
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.VotingTokenAddressNotAllowed.selector));
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        vm.warp(block.timestamp + 1);
+
+        newExcluded[0] = address(taikoBridge);
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.TaikoBridgeAddressNotAllowed.selector));
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        vm.warp(block.timestamp + 1);
+
+        newExcluded = new address[](2);
+        newExcluded[0] = address(0x221234);
+        newExcluded[1] = address(0x221234);
+        vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NotStrictlyIncreasing.selector));
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+    }
+
+    function test_ExcludedVotingPowerHoldersReturnsTheRightValues() public {
+        dao.grant(
+            address(optimisticPlugin),
+            alice,
+            optimisticPlugin.UPDATE_OPTIMISTIC_EXCLUDED_VOTING_POWER_HOLDERS_PERMISSION_ID()
+        );
+
+        address[] memory newExcluded = new address[](3);
+        newExcluded[0] = address(0x221234);
+        newExcluded[1] = address(0x225678);
+        newExcluded[2] = address(0x335678);
+
+        optimisticPlugin.updateExcludedVotingPowerHolders(newExcluded);
+
+        assertEq(optimisticPlugin.excludedVotingPowerHoldersLength(), 3);
+        assertEq(optimisticPlugin.excludedVotingPowerHolders(0), newExcluded[0]);
+        assertEq(optimisticPlugin.excludedVotingPowerHolders(1), newExcluded[1]);
+        assertEq(optimisticPlugin.excludedVotingPowerHolders(2), newExcluded[2]);
+    }
+
     // Upgrade optimisticPlugin
     function test_UpgradeToRevertsWhenCalledFromNonUpgrader() public {
         address initialImplementation = optimisticPlugin.implementation();

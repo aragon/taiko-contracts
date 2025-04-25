@@ -158,8 +158,17 @@ contract OptimisticTokenVotingPlugin is
     /// @param proposalId The ID of the proposal.
     error ProposalExecutionForbidden(uint256 proposalId);
 
-    /// @notice Thrown if the voting power is zero
+    /// @notice Thrown if the voting power is zero.
     error NoVotingPower();
+
+    /// @notice Thrown when the excluded list contains the address of the voting token.
+    error VotingTokenAddressNotAllowed();
+
+    /// @notice Thrown when the excluded list contains the taikoBridge address, which is handled separately.
+    error TaikoBridgeAddressNotAllowed();
+
+    /// @notice Thrown when the excluded list is not strictly increasing (used to detect duplicates or unordered input).
+    error NotStrictlyIncreasing();
 
     /// @notice Disables the initializers on the implementation contract to prevent it from being left uninitialized.
     constructor() {
@@ -491,7 +500,7 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice Updates the excluded voting power holders.
-    /// @param _excludedVotingPowerHolders The new excluded voting power holders.
+    /// @param _excludedVotingPowerHolders The new excluded voting power holders sorted in ascending order.
     function updateExcludedVotingPowerHolders(address[] calldata _excludedVotingPowerHolders)
         external
         virtual
@@ -581,15 +590,17 @@ contract OptimisticTokenVotingPlugin is
     /// @param _excludedVotingPowerHolders The list of addresses to be excluded from voting power.
     function _updateExcludedVotingPowerHolders(address[] calldata _excludedVotingPowerHolders) internal {
         delete excludedVotingPowerHolders;
+        address prev = address(0);
+
         for (uint256 i = 0; i < _excludedVotingPowerHolders.length; i++) {
-            address a = _excludedVotingPowerHolders[i];
-            if (a == address(0)) revert("Cannot exclude zero address");
-            if (a == address(votingToken)) revert("Cannot exclude voting token address");
-            if (a == taikoBridge) revert("Cannot exclude taikoBridge (already handled separately)");
-            for (uint256 j = i + 1; j < _excludedVotingPowerHolders.length; j++) {
-                if (a == _excludedVotingPowerHolders[j]) revert("Duplicate excludedVotingPowerHolders address");
-            }
-            excludedVotingPowerHolders.push(a);
+            address current = _excludedVotingPowerHolders[i];
+            if (current == address(0)) revert EmptyAddress();
+            if (current == address(votingToken)) revert VotingTokenAddressNotAllowed();
+            if (current == taikoBridge) revert TaikoBridgeAddressNotAllowed();
+            if (current <= prev) revert NotStrictlyIncreasing();
+
+            excludedVotingPowerHolders.push(current);
+            prev = current;
         }
 
         emit ExcludedVotingPowerHoldersUpdated(_excludedVotingPowerHolders);
