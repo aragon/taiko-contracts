@@ -152,7 +152,7 @@ contract Deploy is Script {
         console.log("DAO:", address(daoDeployment.dao));
         console.log("Voting token:", address(settings.tokenAddress));
         console.log("Taiko Bridge:", settings.taikoBridgeAddress);
-        // console.log("Excluded voting power holders:", settings.excludedVotingPowerHolders);
+        console.log("Excluded voting power holders:", settings.excludedVotingPowerHolders);
         console.log("");
 
         console.log("Plugins");
