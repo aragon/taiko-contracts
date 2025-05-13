@@ -29,6 +29,7 @@ contract TaikoDaoFactory {
     /// @param l2InactivityPeriod How many seconds until the lack of L2 blocks is considered as an inactive L2
     /// @param l2AggregationGracePeriod How many additional seconds will be allowed for L2 sourced vetoes to be relayed
     /// @param skipL2 Whether L2 votes should be ignored for vetoing
+    /// @param excludedVotingPowerHolders The list of addresses that should be excluded from the voting power calculation
     /// @param minVetoRatio The minimum percentage of the effective token supply required to defeat a proposal
     /// @param minStdProposalDuration The amount of seconds that an optimistic proposal will last before it can (eventually) be executed
     /// @param minStdApprovals The number of approvals needed for a multisig proposal to be relayed to the optimistic voting phase
@@ -53,6 +54,7 @@ contract TaikoDaoFactory {
         uint32 l2InactivityPeriod;
         uint32 l2AggregationGracePeriod;
         bool skipL2;
+        address[] excludedVotingPowerHolders;
         // Voting settings
         uint32 minVetoRatio;
         uint32 minStdProposalDuration;
@@ -317,6 +319,7 @@ contract TaikoDaoFactory {
                     unusedMintSettings,
                     settings.taikoL1ContractAddress,
                     settings.taikoBridgeAddress,
+                    settings.excludedVotingPowerHolders,
                     settings.minStdProposalDuration,
                     stdProposer,
                     emergencyProposer

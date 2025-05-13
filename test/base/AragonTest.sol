@@ -11,7 +11,15 @@ import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock} from "../mocks/TaikoL1Mock.sol";
 import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
-import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
+import {
+    ALICE_ADDRESS,
+    BOB_ADDRESS,
+    CAROL_ADDRESS,
+    DAVID_ADDRESS,
+    TAIKO_BRIDGE_ADDRESS,
+    EXCLUDED_VOTING_POWER_HOLDER_1,
+    EXCLUDED_VOTING_POWER_HOLDER_2
+} from "../constants.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract AragonTest is Test {
@@ -20,6 +28,8 @@ contract AragonTest is Test {
     address immutable carol = CAROL_ADDRESS;
     address immutable david = DAVID_ADDRESS;
     address immutable taikoBridge = TAIKO_BRIDGE_ADDRESS;
+    address immutable excludedVotingPowerHolder1 = EXCLUDED_VOTING_POWER_HOLDER_1;
+    address immutable excludedVotingPowerHolder2 = EXCLUDED_VOTING_POWER_HOLDER_2;
     address immutable randomWallet = vm.addr(1234567890);
 
     address immutable DAO_BASE = address(new DAO());
@@ -35,6 +45,8 @@ contract AragonTest is Test {
         vm.label(carol, "Carol");
         vm.label(david, "David");
         vm.label(taikoBridge, "Bridge");
+        vm.label(excludedVotingPowerHolder1, "Excluded voting power holder 1");
+        vm.label(excludedVotingPowerHolder2, "Excluded voting power holder 2");
         vm.label(randomWallet, "Random wallet");
     }
 
@@ -46,5 +58,13 @@ contract AragonTest is Test {
         pk = uint256(keccak256(abi.encodePacked(name)));
         addr = vm.addr(pk);
         vm.label(addr, name);
+    }
+
+    /// @notice Returns a predefined list of excluded voting power holders.
+    function getExcludedVotingPowerHolders() internal view returns (address[] memory excluded) {
+        excluded = new address[](2);
+        excluded[0] = excludedVotingPowerHolder1;
+        excluded[1] = excludedVotingPowerHolder2;
+        return excluded;
     }
 }

@@ -47,6 +47,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 7 days,
             l2InactivityPeriod: 10 minutes, // uint32
             l2AggregationGracePeriod: 2 days, // uint32
@@ -179,6 +180,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 14 days,
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 77 days, // uint32
@@ -334,6 +336,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 20 days,
             l2InactivityPeriod: 10 minutes, // uint32
             l2AggregationGracePeriod: 2 days, // uint32
@@ -580,6 +583,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 9 days, // uint32
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 3 days, // uint32
@@ -826,6 +830,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 9 days, // uint32
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 3 days, // uint32
@@ -912,6 +917,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 9 days, // uint32
             l2InactivityPeriod: 27 minutes, // uint32
             l2AggregationGracePeriod: 3 days, // uint32
@@ -961,7 +967,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
         assertEq(hasPerm, true, "Incorrect hasPermission");
 
-         hasPerm = deployment.dao.hasPermission(
+        hasPerm = deployment.dao.hasPermission(
             address(deployment.emergencyMultisigPluginRepo),
             address(deployment.dao),
             deployment.emergencyMultisigPluginRepo.MAINTAINER_PERMISSION_ID(),
@@ -969,7 +975,7 @@ contract TaikoDaoFactoryTest is AragonTest {
         );
         assertEq(hasPerm, true, "Incorrect hasPermission");
 
-         hasPerm = deployment.dao.hasPermission(
+        hasPerm = deployment.dao.hasPermission(
             address(deployment.optimisticTokenVotingPluginRepo),
             address(deployment.dao),
             deployment.optimisticTokenVotingPluginRepo.MAINTAINER_PERMISSION_ID(),
@@ -1023,6 +1029,7 @@ contract TaikoDaoFactoryTest is AragonTest {
             tokenAddress: tokenAddress,
             taikoL1ContractAddress: address(taikoL1ContractAddress), // address
             taikoBridgeAddress: taikoBridgeAddress, // address
+            excludedVotingPowerHolders: getExcludedVotingPowerHolders(),
             timelockPeriod: 11 days,
             l2InactivityPeriod: 10 minutes, // uint32
             l2AggregationGracePeriod: 2 days, // uint32
