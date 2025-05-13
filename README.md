@@ -1,5 +1,8 @@
 # Taiko DAO contracts
 
+> [!NOTE]
+> This repository is now read-only. You can find the most up to date version on [https://github.com/taikoxyz/dao-ui-mono](https://github.com/taikoxyz/dao-contracts)
+
 This reposity contains the codebase of the Taiko DAO, along with its 3 plugins and helper contracts.
 
 See the [audits folder](./audits) for the most up to date audit reports.
