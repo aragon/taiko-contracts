@@ -35,6 +35,35 @@ Mainnet deployment using `.env.mainnet-deployment`
 ```
 ## Holesky
 
+### June 2nd 2025
+Deployment of a fresh Hekla DAO for testing
+```
+  Deploying from: 0x4100a9B680B1Be1F10Cb8b5a57fE59eA77A8184e
+  
+  Factory: 0x2f19c231A2099453519653473a1e830Dd5029315
+  
+  DAO: 0x3b7FFC62241647369d28881479b907DFF6e71882
+  Voting token: 0x6490E12d480549D333499236fF2Ba6676C296011
+  Taiko Bridge: 0xA098b76a3Dd499D3F6D58D8AcCaFC8efBFd06807
+  
+  Plugins
+  - Multisig plugin: 0xCBD72Ba85bccF95BD39AA7A1bdD3F2213C642cd4
+  - Emergency multisig plugin: 0x53b6A327aFaf16F842Ce46fF18019418dd629bE7
+  - Optimistic token voting plugin: 0xB1807C3cE200016b5bdAFe0B0df0A91853D24Cb3
+  
+  Helpers
+  - Signer list 0xE919a2e4FE5b029d3C835622dfaF1d09FdF2E4C8
+  - Encryption registry 0xb1CB4ae1f00204Bc752a717f1Bf6d4cDA8609099
+  - Delegation wall 0x2994078a949D679d62744D136f295aba4Bc42421
+  
+  Plugin repositories
+  - Multisig plugin repository: 0xd44478C2ED4d3d988b4Fef60b419bCC53d337c91
+  - Emergency multisig plugin repository: 0x0f5bf3065EA76880408e2428BF3E7dDC24230E90
+  - Optimistic token voting plugin repository: 0x64f9EB39cE9b3665Fc9985CaB249f7629795E624
+
+
+```
+
 ### April 28th 2025
 Reduced exit windows + SecurityCouncilDrill
 ```
