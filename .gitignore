@@ -15,6 +15,7 @@ docs/
 # Dotenv file
 .env
 .env.test
+!networks/**/.env
 
 lcov.info*
 report/
