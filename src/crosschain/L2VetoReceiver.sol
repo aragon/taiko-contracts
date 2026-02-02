@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.17;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IBridge} from "../interfaces/IBridge.sol";
 import {IMessageInvocable} from "../interfaces/IMessageInvocable.sol";
 import {IL2VetoReceiver} from "../interfaces/IL2VetoReceiver.sol";
 
 /// @title L2VetoReceiver
 /// @notice L1 contract that receives aggregated L2 veto tallies via Taiko Bridge
-/// @dev Implements IMessageInvocable for bridge callbacks. All configuration is immutable.
+/// @dev Implements IMessageInvocable for bridge callbacks.
 ///
 /// Security model:
 /// 1. Only accepts calls from the Taiko Bridge contract
@@ -15,11 +16,13 @@ import {IL2VetoReceiver} from "../interfaces/IL2VetoReceiver.sol";
 /// 3. Verifies source chain ID matches expected L2
 /// 4. Allows partial aggregation (later messages replace earlier tallies)
 ///
-/// Configuration changes:
-/// - To change the trusted L2 aggregator, deploy a new L2VetoReceiver
-/// - Update the OptimisticTokenVotingPlugin via setL2VetoReceiver()
-/// - This keeps the receiver simple and reduces attack surface
-contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable {
+/// Deployment:
+/// 1. Deploy L2VetoReceiver on L1 (trustedL2Aggregator can be zero initially)
+/// 2. Deploy L2VetoAggregator on L2
+/// 3. Call setTrustedL2Aggregator() with L2VetoAggregator address
+/// 4. Call setL1Receiver() on L2VetoAggregator with this contract's address
+/// 5. Call renounceOwnership() on both contracts to lock configuration
+contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
     // =========================================================================
     // IMMUTABLES
     // =========================================================================
@@ -27,15 +30,15 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable {
     /// @notice The Taiko Bridge contract address
     address public immutable override bridge;
 
-    /// @notice The trusted L2VetoAggregator address on L2
-    address public immutable override trustedL2Aggregator;
-
     /// @notice The expected L2 chain ID for validation
     uint64 public immutable override l2ChainId;
 
     // =========================================================================
     // STORAGE
     // =========================================================================
+
+    /// @notice The trusted L2VetoAggregator address on L2
+    address public override trustedL2Aggregator;
 
     /// @notice Mapping of proposalRef => L2 veto tally
     mapping(bytes32 => uint256) private _l2VetoTallies;
@@ -47,17 +50,16 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable {
     // CONSTRUCTOR
     // =========================================================================
 
-    /// @notice Constructs the L2VetoReceiver with immutable configuration
+    /// @notice Constructs the L2VetoReceiver
+    /// @dev The deployer becomes the owner. After configuring trustedL2Aggregator,
+    ///      call renounceOwnership() to lock the configuration.
     /// @param _bridge The Taiko Bridge address on L1
-    /// @param _trustedL2Aggregator The trusted L2VetoAggregator address on L2
     /// @param _l2ChainId The expected L2 chain ID
-    constructor(address _bridge, address _trustedL2Aggregator, uint64 _l2ChainId) {
+    constructor(address _bridge, uint64 _l2ChainId) {
         if (_bridge == address(0)) revert InvalidAddress();
-        if (_trustedL2Aggregator == address(0)) revert InvalidAddress();
         if (_l2ChainId == 0) revert InvalidAddress();
 
         bridge = _bridge;
-        trustedL2Aggregator = _trustedL2Aggregator;
         l2ChainId = _l2ChainId;
     }
 
@@ -111,5 +113,19 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable {
     /// @inheritdoc IL2VetoReceiver
     function hasReceivedL2Vetoes(bytes32 _proposalRef) external view override returns (bool) {
         return _l2DispatchTimestamps[_proposalRef] != 0;
+    }
+
+    // =========================================================================
+    // ADMIN
+    // =========================================================================
+
+    /// @inheritdoc IL2VetoReceiver
+    function setTrustedL2Aggregator(address _trustedL2Aggregator) external override onlyOwner {
+        if (_trustedL2Aggregator == address(0)) revert InvalidAddress();
+
+        address oldAggregator = trustedL2Aggregator;
+        trustedL2Aggregator = _trustedL2Aggregator;
+
+        emit TrustedL2AggregatorUpdated(oldAggregator, _trustedL2Aggregator);
     }
 }

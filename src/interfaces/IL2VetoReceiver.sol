@@ -3,8 +3,7 @@ pragma solidity ^0.8.17;
 
 /// @title IL2VetoReceiver
 /// @notice Interface for the L1 contract that receives L2 veto tallies via Taiko Bridge
-/// @dev Configuration is immutable. To change trusted aggregator, deploy new receiver
-///      and update the plugin via setL2VetoReceiver().
+/// @dev Bridge and L2 chain ID are immutable. Trusted aggregator can be updated by owner.
 interface IL2VetoReceiver {
     // =========================================================================
     // EVENTS
@@ -15,6 +14,11 @@ interface IL2VetoReceiver {
     /// @param vetoTally The total L2 veto voting power
     /// @param dispatchedAt The timestamp when vetoes were dispatched from L2
     event L2VetosReceived(bytes32 indexed proposalRef, uint256 vetoTally, uint256 dispatchedAt);
+
+    /// @notice Emitted when the trusted L2 aggregator is updated
+    /// @param oldAggregator The previous aggregator address
+    /// @param newAggregator The new aggregator address
+    event TrustedL2AggregatorUpdated(address oldAggregator, address newAggregator);
 
     // =========================================================================
     // ERRORS
@@ -54,7 +58,7 @@ interface IL2VetoReceiver {
     /// @return True if vetoes have been received
     function hasReceivedL2Vetoes(bytes32 proposalRef) external view returns (bool);
 
-    /// @notice Returns the trusted L2 aggregator address (immutable)
+    /// @notice Returns the trusted L2 aggregator address
     /// @return The address of the L2VetoAggregator contract on L2
     function trustedL2Aggregator() external view returns (address);
 
@@ -65,4 +69,8 @@ interface IL2VetoReceiver {
     /// @notice Returns the expected L2 chain ID (immutable)
     /// @return The chain ID of the L2 network
     function l2ChainId() external view returns (uint64);
+
+    /// @notice Sets the trusted L2 aggregator address
+    /// @param newAggregator The new L2VetoAggregator address on L2
+    function setTrustedL2Aggregator(address newAggregator) external;
 }

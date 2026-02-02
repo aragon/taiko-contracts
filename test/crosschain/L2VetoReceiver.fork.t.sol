@@ -53,7 +53,8 @@ contract L2VetoReceiverForkTest is Test {
         trustedAggregator = address(0x1234567890123456789012345678901234567890);
 
         vm.selectFork(l1Fork);
-        receiver = new L2VetoReceiver(l1Bridge, trustedAggregator, l2ChainId);
+        receiver = new L2VetoReceiver(l1Bridge, l2ChainId);
+        receiver.setTrustedL2Aggregator(trustedAggregator);
 
         taikoHelper = new TaikoHelper();
     }

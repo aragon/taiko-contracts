@@ -15,10 +15,12 @@ contract L2VetoReceiverTest is Test {
     uint64 public l2ChainId = 167000;
 
     event L2VetosReceived(bytes32 indexed proposalRef, uint256 vetoTally, uint256 dispatchedAt);
+    event TrustedL2AggregatorUpdated(address oldAggregator, address newAggregator);
 
     function setUp() public {
         bridge = new TaikoBridgeMock();
-        receiver = new L2VetoReceiver(address(bridge), trustedAggregator, l2ChainId);
+        receiver = new L2VetoReceiver(address(bridge), l2ChainId);
+        receiver.setTrustedL2Aggregator(trustedAggregator);
     }
 
     // =========================================================================
@@ -27,23 +29,66 @@ contract L2VetoReceiverTest is Test {
 
     function test_constructor_setsImmutables() public view {
         assertEq(receiver.bridge(), address(bridge));
-        assertEq(receiver.trustedL2Aggregator(), trustedAggregator);
         assertEq(receiver.l2ChainId(), l2ChainId);
+        assertEq(receiver.owner(), address(this));
     }
 
     function test_constructor_revert_zeroBridge() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(0), trustedAggregator, l2ChainId);
-    }
-
-    function test_constructor_revert_zeroAggregator() public {
-        vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(bridge), address(0), l2ChainId);
+        new L2VetoReceiver(address(0), l2ChainId);
     }
 
     function test_constructor_revert_zeroChainId() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(bridge), trustedAggregator, 0);
+        new L2VetoReceiver(address(bridge), 0);
+    }
+
+    // =========================================================================
+    // SET TRUSTED L2 AGGREGATOR TESTS
+    // =========================================================================
+
+    function test_setTrustedL2Aggregator_success() public {
+        L2VetoReceiver newReceiver = new L2VetoReceiver(address(bridge), l2ChainId);
+
+        address newAggregator = address(0x1234567890);
+
+        vm.expectEmit(true, true, false, false);
+        emit TrustedL2AggregatorUpdated(address(0), newAggregator);
+
+        newReceiver.setTrustedL2Aggregator(newAggregator);
+
+        assertEq(newReceiver.trustedL2Aggregator(), newAggregator);
+    }
+
+    function test_setTrustedL2Aggregator_revert_zeroAddress() public {
+        vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
+        receiver.setTrustedL2Aggregator(address(0));
+    }
+
+    function test_setTrustedL2Aggregator_revert_notOwner() public {
+        address notOwner = address(0xBAD);
+
+        vm.prank(notOwner);
+        vm.expectRevert();
+        receiver.setTrustedL2Aggregator(address(0x123));
+    }
+
+    function test_setTrustedL2Aggregator_canUpdate() public {
+        address newAggregator = address(0x999);
+
+        vm.expectEmit(true, true, false, false);
+        emit TrustedL2AggregatorUpdated(trustedAggregator, newAggregator);
+
+        receiver.setTrustedL2Aggregator(newAggregator);
+
+        assertEq(receiver.trustedL2Aggregator(), newAggregator);
+    }
+
+    function test_renounceOwnership_locksConfig() public {
+        receiver.renounceOwnership();
+
+        vm.expectRevert();
+        receiver.setTrustedL2Aggregator(address(0x123));
     }
 
     // =========================================================================
@@ -246,16 +291,15 @@ contract L2VetoReceiverTest is Test {
         assertTrue(receiver.hasReceivedL2Vetoes(proposalRef));
     }
 
-    function testFuzz_constructor_validParams(address _bridge, address _aggregator, uint64 _chainId) public {
+    function testFuzz_constructor_validParams(address _bridge, uint64 _chainId) public {
         vm.assume(_bridge != address(0));
-        vm.assume(_aggregator != address(0));
         vm.assume(_chainId > 0);
 
-        L2VetoReceiver newReceiver = new L2VetoReceiver(_bridge, _aggregator, _chainId);
+        L2VetoReceiver newReceiver = new L2VetoReceiver(_bridge, _chainId);
 
         assertEq(newReceiver.bridge(), _bridge);
-        assertEq(newReceiver.trustedL2Aggregator(), _aggregator);
         assertEq(newReceiver.l2ChainId(), _chainId);
+        assertEq(newReceiver.owner(), address(this));
     }
 
     // =========================================================================
