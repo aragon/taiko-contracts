@@ -43,6 +43,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     event OptimisticGovernanceSettingsUpdated(
         uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
     );
+    event L2VetoesReceived(uint256 indexed proposalId, uint256 l2VetoTally);
     event Upgraded(address indexed implementation);
 
     function setUp() public {
@@ -992,17 +993,17 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         vm.warp(2 days);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
-        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
         assertEq(proposalId, expectedPid, "Should have created proposal 0");
 
         vm.warp(5 days);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 5 days);
-        expectedPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64) + 1;
+        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64 | 1;
         assertEq(proposalId, expectedPid, "Should have created proposal 1");
 
         vm.warp(500 days);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 5 days);
-        expectedPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64) + 2;
+        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64 | 2;
         assertEq(proposalId, expectedPid, "Should have created proposal 2");
     }
 
@@ -1024,7 +1025,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalIndexesThePid() public {
-        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         // 1
@@ -1033,20 +1034,20 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.proposalIds(0), expectedPid);
 
         // 2
-        expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 100 days) << 64 | 1;
+        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 100 days) << 64 | 1;
         assertEq(optimisticPlugin.proposalIds(1), 0);
         optimisticPlugin.createProposal("ipfs://meta", actions, 0, 100 days);
         assertEq(optimisticPlugin.proposalIds(1), expectedPid);
 
         // 3
-        expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64 | 2;
+        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64 | 2;
         assertEq(optimisticPlugin.proposalIds(2), 0);
         optimisticPlugin.createProposal("", actions, 0, 50 days);
         assertEq(optimisticPlugin.proposalIds(2), expectedPid);
     }
 
     function test_CreateProposalEmitsAnEvent() public {
-        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         vm.expectEmit();
@@ -1063,13 +1064,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(block.timestamp + 23456);
         uint256 proposalId2 = optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        (uint256 counter1, uint64 startDate1, uint64 endDate1) = optimisticPlugin.parseProposalId(proposalId1);
-        (uint256 counter2, uint64 startDate2, uint64 endDate2) = optimisticPlugin.parseProposalId(proposalId2);
+        (uint64 counter1, uint64 startDate1, uint64 endDate1, uint64 snapshotTimestamp1) = optimisticPlugin.parseProposalId(proposalId1);
+        (uint64 counter2, uint64 startDate2, uint64 endDate2, uint64 snapshotTimestamp2) = optimisticPlugin.parseProposalId(proposalId2);
 
         assertEq(counter1, 0, "Counter should be 0");
         assertEq(counter2, 1, "Counter should be 1");
         assertEq(startDate2 - startDate1, 23456, "Date diff should be +23456");
         assertEq(endDate2 - endDate1, 23456, "Date diff should be +23456");
+        assertEq(snapshotTimestamp2 - snapshotTimestamp1, 23456, "Snapshot diff should be +23456");
     }
 
     function test_GetProposalReturnsTheRightValuesL1OnlyAndL1L2() public {
@@ -2636,6 +2638,188 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(optimisticPlugin.implementation(), address(_newImplementation));
     }
+
+    // receiveL2Vetoes
+
+    function _setupL2VetoReceiver(address receiver) internal {
+        dao.grant(address(optimisticPlugin), alice, optimisticPlugin.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID());
+        optimisticPlugin.setL2VetoReceiver(receiver);
+    }
+
+    function _createProposalWithL2(uint64 duration) internal returns (uint256 proposalId) {
+        // Rebuild with bridge tokens so L2 is available
+        (dao, optimisticPlugin,,, votingToken,,,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, duration);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenCallerNotReceiver() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+
+        vm.expectRevert(OptimisticTokenVotingPlugin.UnauthorizedL2VetoReceiver.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenProposalDoesNotExist() public {
+        _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        uint256 nonexistentId = 999;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, nonexistentId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(nonexistentId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesSucceedsWhileProposalOpen() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        vm.expectEmit();
+        emit L2VetoesReceived(proposalId, 1 ether);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 1 ether, "Veto tally should be updated");
+    }
+
+    function test_ReceiveL2VetoesSucceedsDuringGracePeriod() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Move past vetoEndDate but within grace period
+        vm.warp(block.timestamp + 4 days);
+
+        (bool open,,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(open, false, "Proposal should no longer be open");
+
+        vm.stopPrank();
+
+        optimisticPlugin.receiveL2Vetoes(proposalId, 2 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 2 ether, "Veto tally should be updated during grace period");
+    }
+
+    function test_ReceiveL2VetoesSucceedsAtGracePeriodBoundary() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Move to exactly 1 second before grace period ends
+        vm.warp(block.timestamp + 4 days + builder.l2AggregationGracePeriod() - 1);
+
+        vm.stopPrank();
+
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 1 ether, "Should succeed at boundary");
+    }
+
+    function test_ReceiveL2VetoesRevertsAfterGracePeriod() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Move past grace period
+        vm.warp(block.timestamp + 4 days + builder.l2AggregationGracePeriod());
+
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenProposalExecuted() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Wait for full duration + grace period + timelock to make executable
+        (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
+        vm.warp(block.timestamp + 4 days + builder.l2AggregationGracePeriod() + timelockPeriod);
+
+        optimisticPlugin.execute(proposalId);
+
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenL2Unavailable() public {
+        // Build with L2 unavailable (skipL2)
+        (dao, optimisticPlugin,,, votingToken,,,) = builder.withSkipL2().build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesReplacesExistingL2Tally() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // First tally
+        optimisticPlugin.receiveL2Vetoes(proposalId, 3 ether);
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 3 ether, "First tally");
+
+        // Second tally replaces (not adds)
+        optimisticPlugin.receiveL2Vetoes(proposalId, 5 ether);
+        (,,, vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 5 ether, "Tally should be replaced, not added");
+    }
+
+    function test_ReceiveL2VetoesAddsToL1Vetoes() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Alice vetoes on L1
+        optimisticPlugin.veto(proposalId);
+
+        (,, IOptimisticTokenVoting.ProposalParameters memory params,,,,) = optimisticPlugin.getProposal(proposalId);
+        uint256 aliceVotingPower = votingToken.getPastVotes(alice, params.snapshotTimestamp);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, aliceVotingPower, "Should have Alice's L1 veto");
+
+        vm.stopPrank();
+
+        // L2 vetoes arrive
+        optimisticPlugin.receiveL2Vetoes(proposalId, 2 ether);
+
+        (,,, vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, aliceVotingPower + 2 ether, "Should combine L1 + L2 vetoes");
+    }
+
+    // Upgrade
 
     function test_UpgradeToAndCallSucceedsWhenCalledFromUpgrader() public {
         dao.grant(address(optimisticPlugin), alice, optimisticPlugin.UPGRADE_PLUGIN_PERMISSION_ID());

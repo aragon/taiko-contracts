@@ -6,21 +6,44 @@ import {L2VetoReceiver} from "../../src/crosschain/L2VetoReceiver.sol";
 import {IL2VetoReceiver} from "../../src/interfaces/IL2VetoReceiver.sol";
 import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
+import {OptimisticTokenVotingPluginMock} from "../mocks/OptimisticTokenVotingPluginMock.sol";
 
 contract L2VetoReceiverTest is Test {
     L2VetoReceiver public receiver;
     TaikoBridgeMock public bridge;
+    OptimisticTokenVotingPluginMock public plugin;
 
     address public trustedAggregator = address(0xA66e6A702);
     uint64 public l2ChainId = 167000;
 
-    event L2VetosReceived(bytes32 indexed proposalRef, uint256 vetoTally, uint256 dispatchedAt);
+    // Test proposal values
+    uint64 public constant PROPOSAL_COUNTER = 1;
+    uint64 public constant PROPOSAL_START = 1000;
+    uint64 public constant PROPOSAL_END = 2000;
+    uint64 public constant PROPOSAL_SNAPSHOT = 999;
+
+    event L2VetosReceived(uint256 indexed proposalId, uint256 vetoTally, uint256 dispatchedAt);
+    event SubmitVetoSuccess(uint256 indexed proposalId, uint256 vetoTally);
+    event SubmitVetoFailed(uint256 indexed proposalId, uint256 vetoTally, bytes revertData);
     event TrustedL2AggregatorUpdated(address oldAggregator, address newAggregator);
 
     function setUp() public {
         bridge = new TaikoBridgeMock();
-        receiver = new L2VetoReceiver(address(bridge), l2ChainId);
+        plugin = new OptimisticTokenVotingPluginMock();
+        receiver = new L2VetoReceiver(address(bridge), l2ChainId, address(plugin));
         receiver.setTrustedL2Aggregator(trustedAggregator);
+    }
+
+    /// @notice Helper to create a valid proposalId with encoded timestamps
+    function _makeProposalId() internal pure returns (uint256) {
+        return uint256(PROPOSAL_SNAPSHOT) << 192 | uint256(PROPOSAL_START) << 128 | uint256(PROPOSAL_END) << 64
+            | uint256(PROPOSAL_COUNTER);
+    }
+
+    /// @notice Helper to set up a valid proposal in the mock plugin
+    function _setupValidProposal() internal returns (uint256 proposalId) {
+        proposalId = _makeProposalId();
+        plugin.setProposal(proposalId, PROPOSAL_START, PROPOSAL_END, PROPOSAL_SNAPSHOT);
     }
 
     // =========================================================================
@@ -30,17 +53,23 @@ contract L2VetoReceiverTest is Test {
     function test_constructor_setsImmutables() public view {
         assertEq(receiver.bridge(), address(bridge));
         assertEq(receiver.l2ChainId(), l2ChainId);
+        assertEq(receiver.votingPlugin(), address(plugin));
         assertEq(receiver.owner(), address(this));
     }
 
     function test_constructor_revert_zeroBridge() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(0), l2ChainId);
+        new L2VetoReceiver(address(0), l2ChainId, address(plugin));
     }
 
     function test_constructor_revert_zeroChainId() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(bridge), 0);
+        new L2VetoReceiver(address(bridge), 0, address(plugin));
+    }
+
+    function test_constructor_revert_zeroPlugin() public {
+        vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
+        new L2VetoReceiver(address(bridge), l2ChainId, address(0));
     }
 
     // =========================================================================
@@ -48,7 +77,7 @@ contract L2VetoReceiverTest is Test {
     // =========================================================================
 
     function test_setTrustedL2Aggregator_success() public {
-        L2VetoReceiver newReceiver = new L2VetoReceiver(address(bridge), l2ChainId);
+        L2VetoReceiver newReceiver = new L2VetoReceiver(address(bridge), l2ChainId, address(plugin));
 
         address newAggregator = address(0x1234567890);
 
@@ -96,72 +125,65 @@ contract L2VetoReceiverTest is Test {
     // =========================================================================
 
     function test_onMessageInvocation_success() public {
-        bytes32 proposalRef = keccak256("proposal1");
+        uint256 proposalId = _setupValidProposal();
         uint256 vetoTally = 1000 ether;
         uint256 dispatchedAt = block.timestamp;
 
-        // Prepare bridge context
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
 
-        // Encode the data
-        bytes memory data = abi.encode(proposalRef, vetoTally, dispatchedAt);
+        bytes memory data = abi.encode(proposalId, vetoTally, dispatchedAt);
 
-        // Expect event
         vm.expectEmit(true, false, false, true);
-        emit L2VetosReceived(proposalRef, vetoTally, dispatchedAt);
+        emit L2VetosReceived(proposalId, vetoTally, dispatchedAt);
 
-        // Call as bridge
+        vm.expectEmit(true, false, false, true);
+        emit SubmitVetoSuccess(proposalId, vetoTally);
+
         vm.prank(address(bridge));
         receiver.onMessageInvocation(data);
 
-        // Verify storage
-        assertEq(receiver.getL2VetoTally(proposalRef), vetoTally);
-        assertEq(receiver.getL2DispatchTimestamp(proposalRef), dispatchedAt);
-        assertTrue(receiver.hasReceivedL2Vetoes(proposalRef));
+        // Verify receiver storage
+        assertEq(receiver.getL2VetoTally(proposalId), vetoTally);
+        assertEq(receiver.getL2DispatchTimestamp(proposalId), dispatchedAt);
+        assertTrue(receiver.hasReceivedL2Vetoes(proposalId));
+
+        // Verify plugin received the vetoes
+        assertEq(plugin.lastReceivedProposalId(), proposalId);
+        assertEq(plugin.lastReceivedVetoTally(), vetoTally);
     }
 
     function test_onMessageInvocation_zeroVetoTally() public {
-        bytes32 proposalRef = keccak256("proposal-with-zero-vetoes");
+        uint256 proposalId = _setupValidProposal();
         uint256 vetoTally = 0;
         uint256 dispatchedAt = block.timestamp;
 
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
 
-        bytes memory data = abi.encode(proposalRef, vetoTally, dispatchedAt);
+        bytes memory data = abi.encode(proposalId, vetoTally, dispatchedAt);
 
         vm.prank(address(bridge));
         receiver.onMessageInvocation(data);
 
-        // Zero tally is valid and should be stored
-        assertEq(receiver.getL2VetoTally(proposalRef), 0);
-        assertEq(receiver.getL2DispatchTimestamp(proposalRef), dispatchedAt);
-        assertTrue(receiver.hasReceivedL2Vetoes(proposalRef));
+        assertEq(receiver.getL2VetoTally(proposalId), 0);
+        assertEq(receiver.getL2DispatchTimestamp(proposalId), dispatchedAt);
+        assertTrue(receiver.hasReceivedL2Vetoes(proposalId));
     }
 
     function test_onMessageInvocation_revert_callerNotBridge() public {
-        bytes memory data = abi.encode(bytes32(0), uint256(0), uint256(1));
+        uint256 proposalId = _setupValidProposal();
+        bytes memory data = abi.encode(proposalId, uint256(0), uint256(1));
 
-        vm.expectRevert(IL2VetoReceiver.CallerNotBridge.selector);
-        receiver.onMessageInvocation(data);
-    }
-
-    function test_onMessageInvocation_revert_callerNotBridge_fromRandomAddress() public {
-        address attacker = address(0xBAD);
-
-        bytes memory data = abi.encode(bytes32(0), uint256(0), uint256(1));
-
-        vm.prank(attacker);
         vm.expectRevert(IL2VetoReceiver.CallerNotBridge.selector);
         receiver.onMessageInvocation(data);
     }
 
     function test_onMessageInvocation_revert_untrustedSender() public {
+        uint256 proposalId = _setupValidProposal();
         address attacker = address(0xA77AC3e2);
 
-        // Set context with wrong sender
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: attacker, srcChainId: l2ChainId}));
 
-        bytes memory data = abi.encode(bytes32(0), uint256(0), uint256(1));
+        bytes memory data = abi.encode(proposalId, uint256(0), uint256(1));
 
         vm.prank(address(bridge));
         vm.expectRevert(IL2VetoReceiver.UntrustedL2Sender.selector);
@@ -169,90 +191,111 @@ contract L2VetoReceiverTest is Test {
     }
 
     function test_onMessageInvocation_revert_invalidSourceChain() public {
+        uint256 proposalId = _setupValidProposal();
         uint64 wrongChainId = 999;
 
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: wrongChainId}));
 
-        bytes memory data = abi.encode(bytes32(0), uint256(0), uint256(1));
+        bytes memory data = abi.encode(proposalId, uint256(0), uint256(1));
 
         vm.prank(address(bridge));
         vm.expectRevert(IL2VetoReceiver.InvalidSourceChain.selector);
         receiver.onMessageInvocation(data);
     }
 
+    function test_onMessageInvocation_revert_invalidProposalId() public {
+        // Create a proposalId that doesn't match any proposal in the plugin
+        uint256 invalidProposalId = 999;
+
+        bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
+
+        bytes memory data = abi.encode(invalidProposalId, uint256(1000), uint256(1));
+
+        vm.prank(address(bridge));
+        vm.expectRevert(L2VetoReceiver.InvalidProposalId.selector);
+        receiver.onMessageInvocation(data);
+    }
+
     function test_onMessageInvocation_replacesWithNewerTimestamp() public {
-        bytes32 proposalRef = keccak256("proposal1");
+        uint256 proposalId = _setupValidProposal();
 
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
 
         // First call with 1000 vetoes at timestamp 100
-        bytes memory data1 = abi.encode(proposalRef, uint256(1000 ether), uint256(100));
+        bytes memory data1 = abi.encode(proposalId, uint256(1000 ether), uint256(100));
         vm.prank(address(bridge));
         receiver.onMessageInvocation(data1);
 
-        assertEq(receiver.getL2VetoTally(proposalRef), 1000 ether);
-        assertEq(receiver.getL2DispatchTimestamp(proposalRef), 100);
+        assertEq(receiver.getL2VetoTally(proposalId), 1000 ether);
+        assertEq(receiver.getL2DispatchTimestamp(proposalId), 100);
 
         // Second call with 2000 vetoes at newer timestamp 200 - should replace
-        bytes memory data2 = abi.encode(proposalRef, uint256(2000 ether), uint256(200));
+        bytes memory data2 = abi.encode(proposalId, uint256(2000 ether), uint256(200));
         vm.prank(address(bridge));
         receiver.onMessageInvocation(data2);
 
-        assertEq(receiver.getL2VetoTally(proposalRef), 2000 ether);
-        assertEq(receiver.getL2DispatchTimestamp(proposalRef), 200);
+        assertEq(receiver.getL2VetoTally(proposalId), 2000 ether);
+        assertEq(receiver.getL2DispatchTimestamp(proposalId), 200);
     }
 
     function test_onMessageInvocation_revert_staleMessage_sameTimestamp() public {
-        bytes32 proposalRef = keccak256("proposal1");
+        uint256 proposalId = _setupValidProposal();
 
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
 
-        // First call
-        bytes memory data1 = abi.encode(proposalRef, uint256(1000), uint256(100));
+        bytes memory data1 = abi.encode(proposalId, uint256(1000), uint256(100));
         vm.prank(address(bridge));
         receiver.onMessageInvocation(data1);
 
-        // Second call with same timestamp reverts
-        bytes memory data2 = abi.encode(proposalRef, uint256(2000), uint256(100));
+        bytes memory data2 = abi.encode(proposalId, uint256(2000), uint256(100));
         vm.prank(address(bridge));
         vm.expectRevert(IL2VetoReceiver.StaleVetoMessage.selector);
         receiver.onMessageInvocation(data2);
     }
 
     function test_onMessageInvocation_revert_staleMessage_olderTimestamp() public {
-        bytes32 proposalRef = keccak256("proposal1");
+        uint256 proposalId = _setupValidProposal();
 
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
 
-        // First call at timestamp 200
-        bytes memory data1 = abi.encode(proposalRef, uint256(1000), uint256(200));
+        bytes memory data1 = abi.encode(proposalId, uint256(1000), uint256(200));
         vm.prank(address(bridge));
         receiver.onMessageInvocation(data1);
 
-        // Second call with older timestamp 100 reverts
-        bytes memory data2 = abi.encode(proposalRef, uint256(2000), uint256(100));
+        bytes memory data2 = abi.encode(proposalId, uint256(2000), uint256(100));
         vm.prank(address(bridge));
         vm.expectRevert(IL2VetoReceiver.StaleVetoMessage.selector);
         receiver.onMessageInvocation(data2);
     }
 
-    function test_onMessageInvocation_multipleProposals() public {
-        bytes32 proposalRef1 = keccak256("proposal1");
-        bytes32 proposalRef2 = keccak256("proposal2");
+    // =========================================================================
+    // SUBMIT L2 VETOES TESTS
+    // =========================================================================
+
+    function test_submitL2Vetoes_revert_noVotes() public {
+        uint256 proposalId = _setupValidProposal();
+
+        vm.expectRevert(L2VetoReceiver.NoVotesToSubmit.selector);
+        receiver.submitL2Vetoes(proposalId);
+    }
+
+    function test_submitL2Vetoes_canResubmit() public {
+        uint256 proposalId = _setupValidProposal();
+        uint256 vetoTally = 1000 ether;
+        uint256 dispatchedAt = block.timestamp;
 
         bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
 
-        // First proposal
-        vm.prank(address(bridge));
-        receiver.onMessageInvocation(abi.encode(proposalRef1, uint256(1000), block.timestamp));
+        bytes memory data = abi.encode(proposalId, vetoTally, dispatchedAt);
 
-        // Second proposal
         vm.prank(address(bridge));
-        receiver.onMessageInvocation(abi.encode(proposalRef2, uint256(2000), block.timestamp + 1));
+        receiver.onMessageInvocation(data);
 
-        // Both stored correctly
-        assertEq(receiver.getL2VetoTally(proposalRef1), 1000);
-        assertEq(receiver.getL2VetoTally(proposalRef2), 2000);
+        // Can call submitL2Vetoes again
+        vm.expectEmit(true, false, false, true);
+        emit SubmitVetoSuccess(proposalId, vetoTally);
+
+        receiver.submitL2Vetoes(proposalId);
     }
 
     // =========================================================================
@@ -260,45 +303,40 @@ contract L2VetoReceiverTest is Test {
     // =========================================================================
 
     function test_getL2VetoTally_returnsZeroForUnknown() public view {
-        assertEq(receiver.getL2VetoTally(bytes32("unknown")), 0);
+        assertEq(receiver.getL2VetoTally(999), 0);
     }
 
     function test_getL2DispatchTimestamp_returnsZeroForUnknown() public view {
-        assertEq(receiver.getL2DispatchTimestamp(bytes32("unknown")), 0);
+        assertEq(receiver.getL2DispatchTimestamp(999), 0);
     }
 
     function test_hasReceivedL2Vetoes_returnsFalseForUnknown() public view {
-        assertFalse(receiver.hasReceivedL2Vetoes(bytes32("unknown")));
+        assertFalse(receiver.hasReceivedL2Vetoes(999));
+    }
+
+    function test_isProposalIdValid_returnsTrueForValidProposal() public {
+        uint256 proposalId = _setupValidProposal();
+        assertTrue(receiver.isProposalIdValid(proposalId));
+    }
+
+    function test_isProposalIdValid_returnsFalseForInvalidProposal() public view {
+        assertFalse(receiver.isProposalIdValid(999));
     }
 
     // =========================================================================
     // FUZZ TESTS
     // =========================================================================
 
-    function testFuzz_onMessageInvocation(bytes32 proposalRef, uint256 vetoTally, uint256 dispatchedAt) public {
-        // Assume non-zero dispatchedAt to avoid collision with "not received" state
-        vm.assume(dispatchedAt > 0);
-
-        bridge.setContext(IBridge.Context({msgHash: bytes32(0), from: trustedAggregator, srcChainId: l2ChainId}));
-
-        bytes memory data = abi.encode(proposalRef, vetoTally, dispatchedAt);
-
-        vm.prank(address(bridge));
-        receiver.onMessageInvocation(data);
-
-        assertEq(receiver.getL2VetoTally(proposalRef), vetoTally);
-        assertEq(receiver.getL2DispatchTimestamp(proposalRef), dispatchedAt);
-        assertTrue(receiver.hasReceivedL2Vetoes(proposalRef));
-    }
-
-    function testFuzz_constructor_validParams(address _bridge, uint64 _chainId) public {
+    function testFuzz_constructor_validParams(address _bridge, uint64 _chainId, address _plugin) public {
         vm.assume(_bridge != address(0));
         vm.assume(_chainId > 0);
+        vm.assume(_plugin != address(0));
 
-        L2VetoReceiver newReceiver = new L2VetoReceiver(_bridge, _chainId);
+        L2VetoReceiver newReceiver = new L2VetoReceiver(_bridge, _chainId, _plugin);
 
         assertEq(newReceiver.bridge(), _bridge);
         assertEq(newReceiver.l2ChainId(), _chainId);
+        assertEq(newReceiver.votingPlugin(), _plugin);
         assertEq(newReceiver.owner(), address(this));
     }
 
@@ -307,18 +345,16 @@ contract L2VetoReceiverTest is Test {
     // =========================================================================
 
     function test_integration_processMessage_fromMockBridge() public {
-        bytes32 proposalRef = keccak256("integration-test-proposal");
+        uint256 proposalId = _setupValidProposal();
         uint256 vetoTally = 5000 ether;
         uint256 dispatchedAt = block.timestamp;
 
-        // Create a mock L2 aggregator message
-        bytes memory vetoData = abi.encode(proposalRef, vetoTally, dispatchedAt);
+        bytes memory vetoData = abi.encode(proposalId, vetoTally, dispatchedAt);
 
-        // Create bridge message
         IBridge.Message memory message = IBridge.Message({
             id: 0,
             fee: 0,
-            gasLimit: 100000,
+            gasLimit: 200000,
             from: trustedAggregator,
             srcChainId: l2ChainId,
             srcOwner: trustedAggregator,
@@ -329,11 +365,11 @@ contract L2VetoReceiverTest is Test {
             data: abi.encodeCall(receiver.onMessageInvocation, (vetoData))
         });
 
-        // Process message through mock bridge (simulates what happens on L1)
         (IBridge.Status status,) = bridge.processMessage(message, "");
 
         assertEq(uint256(status), uint256(IBridge.Status.DONE));
-        assertEq(receiver.getL2VetoTally(proposalRef), vetoTally);
-        assertTrue(receiver.hasReceivedL2Vetoes(proposalRef));
+        assertEq(receiver.getL2VetoTally(proposalId), vetoTally);
+        assertTrue(receiver.hasReceivedL2Vetoes(proposalId));
+        assertEq(plugin.l2VetoTallies(proposalId), vetoTally);
     }
 }

@@ -4,16 +4,32 @@ pragma solidity ^0.8.17;
 /// @title IL2VetoReceiver
 /// @notice Interface for the L1 contract that receives L2 veto tallies via Taiko Bridge
 /// @dev Bridge and L2 chain ID are immutable. Trusted aggregator can be updated by owner.
+///
+/// Push Model:
+/// 1. Receiver stores the L2 veto tally for staleness protection
+/// 2. Receiver immediately calls plugin.receiveL2Vetoes() to submit
+/// 3. If submission fails, submitL2Vetoes() can be called later
 interface IL2VetoReceiver {
     // =========================================================================
     // EVENTS
     // =========================================================================
 
     /// @notice Emitted when L2 vetoes are received and stored
-    /// @param proposalRef The unique proposal reference (hash of chainId + plugin + proposalId)
+    /// @param proposalId The proposal ID on L1
     /// @param vetoTally The total L2 veto voting power
     /// @param dispatchedAt The timestamp when vetoes were dispatched from L2
-    event L2VetosReceived(bytes32 indexed proposalRef, uint256 vetoTally, uint256 dispatchedAt);
+    event L2VetosReceived(uint256 indexed proposalId, uint256 vetoTally, uint256 dispatchedAt);
+
+    /// @notice Emitted when L2 vetoes are successfully submitted to the voting plugin
+    /// @param proposalId The proposal ID
+    /// @param vetoTally The veto tally submitted
+    event SubmitVetoSuccess(uint256 indexed proposalId, uint256 vetoTally);
+
+    /// @notice Emitted when L2 veto submission to the plugin fails
+    /// @param proposalId The proposal ID
+    /// @param vetoTally The veto tally that failed to submit
+    /// @param revertData The revert data from the failed call
+    event SubmitVetoFailed(uint256 indexed proposalId, uint256 vetoTally, bytes revertData);
 
     /// @notice Emitted when the trusted L2 aggregator is updated
     /// @param oldAggregator The previous aggregator address
@@ -44,19 +60,23 @@ interface IL2VetoReceiver {
     // =========================================================================
 
     /// @notice Returns the L2 veto tally for a proposal
-    /// @param proposalRef The unique proposal reference
+    /// @param proposalId The proposal ID on L1
     /// @return The total L2 veto voting power (0 if not received)
-    function getL2VetoTally(bytes32 proposalRef) external view returns (uint256);
+    function getL2VetoTally(uint256 proposalId) external view returns (uint256);
 
     /// @notice Returns when the L2 vetoes were dispatched
-    /// @param proposalRef The unique proposal reference
+    /// @param proposalId The proposal ID on L1
     /// @return The dispatch timestamp (0 if not received)
-    function getL2DispatchTimestamp(bytes32 proposalRef) external view returns (uint256);
+    function getL2DispatchTimestamp(uint256 proposalId) external view returns (uint256);
 
     /// @notice Checks if L2 vetoes have been received for a proposal
-    /// @param proposalRef The unique proposal reference
+    /// @param proposalId The proposal ID on L1
     /// @return True if vetoes have been received
-    function hasReceivedL2Vetoes(bytes32 proposalRef) external view returns (bool);
+    function hasReceivedL2Vetoes(uint256 proposalId) external view returns (bool);
+
+    /// @notice Returns the voting plugin address
+    /// @return The address of the OptimisticTokenVotingPlugin
+    function votingPlugin() external view returns (address);
 
     /// @notice Returns the trusted L2 aggregator address
     /// @return The address of the L2VetoAggregator contract on L2
@@ -69,6 +89,10 @@ interface IL2VetoReceiver {
     /// @notice Returns the expected L2 chain ID (immutable)
     /// @return The chain ID of the L2 network
     function l2ChainId() external view returns (uint64);
+
+    // =========================================================================
+    // ADMIN
+    // =========================================================================
 
     /// @notice Sets the trusted L2 aggregator address
     /// @param newAggregator The new L2VetoAggregator address on L2

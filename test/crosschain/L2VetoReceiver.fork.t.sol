@@ -49,11 +49,12 @@ contract L2VetoReceiverForkTest is Test {
         l2Bridge = vm.envAddress("L2_TAIKO_BRIDGE");
         l2ChainId = uint64(vm.envUint("L2_CHAIN_ID"));
 
-        // Deploy a mock aggregator address (would be real in production)
+        // Deploy mock addresses (would be real in production)
         trustedAggregator = address(0x1234567890123456789012345678901234567890);
+        address mockVotingPlugin = makeAddr("mockVotingPlugin");
 
         vm.selectFork(l1Fork);
-        receiver = new L2VetoReceiver(l1Bridge, l2ChainId);
+        receiver = new L2VetoReceiver(l1Bridge, l2ChainId, mockVotingPlugin);
         receiver.setTrustedL2Aggregator(trustedAggregator);
 
         taikoHelper = new TaikoHelper();
