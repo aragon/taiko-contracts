@@ -2780,6 +2780,28 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
     }
 
+    function test_ReceiveL2VetoesRevertsWhenTallyNotIncreased() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // Zero tally on fresh proposal (previousL2Tally == 0)
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyNotIncreased.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 0);
+
+        // Set initial tally
+        optimisticPlugin.receiveL2Vetoes(proposalId, 3 ether);
+
+        // Equal tally
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyNotIncreased.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 3 ether);
+
+        // Lower tally
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyNotIncreased.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 2 ether);
+    }
+
     function test_ReceiveL2VetoesReplacesExistingL2Tally() public {
         uint256 proposalId = _createProposalWithL2(4 days);
         _setupL2VetoReceiver(address(this));

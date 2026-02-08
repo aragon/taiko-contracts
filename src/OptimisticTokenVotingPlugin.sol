@@ -157,6 +157,9 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Thrown if caller is not the authorized L2VetoReceiver.
     error UnauthorizedL2VetoReceiver();
 
+    /// @notice Thrown if the new L2 veto tally is not greater than the previous one.
+    error L2VetoTallyNotIncreased();
+
     /// @notice Disables the initializers on the implementation contract to prevent it from being left uninitialized.
     constructor() {
         _disableInitializers();
@@ -487,6 +490,9 @@ contract OptimisticTokenVotingPlugin is
 
         // Calculate the difference from the previous L2 tally
         uint256 previousL2Tally = proposal_.aggregatedL2Balance;
+
+        // New tally must be strictly greater (prevents replays and tally reduction)
+        if (_l2VetoTally <= previousL2Tally) revert L2VetoTallyNotIncreased();
 
         // Update the L2 tally
         proposal_.aggregatedL2Balance = _l2VetoTally;
