@@ -88,28 +88,41 @@ contract L2VetoAggregator is IL2VetoAggregator, Ownable {
 
     /// @inheritdoc IL2VetoAggregator
     function veto(uint256 proposalId) external override {
+        address _voter = _msgSender();
+
+        if (!canVeto(proposalId, _voter)) {
+            revert ProposalVetoingForbidden(proposalId, _voter);
+        }
+
+        (uint64 snapshotTimestamp,,) = _decodeTimestamps(proposalId);
+        uint256 votingPower = votingToken.getPastVotes(_voter, snapshotTimestamp);
+
+        // Update state
+        _tallies[proposalId] += votingPower;
+        _hasVetoed[proposalId][_voter] = true;
+
+        emit VetoCast(proposalId, _voter, votingPower);
+    }
+
+    function canVeto(uint256 proposalId, address voter) public view returns (bool) {
         // Decode proposal timing from the proposalId
         (uint64 snapshotTimestamp, uint64 startDate, uint64 endDate) = _decodeTimestamps(proposalId);
 
         // Check veto period is open
-        if (block.timestamp < startDate || block.timestamp >= endDate) {
-            revert ProposalNotOpen(proposalId);
+        if (snapshotTimestamp == 0 || block.timestamp < startDate || block.timestamp >= endDate) {
+            return false;
         }
 
         // Check voter hasn't already vetoed
-        if (_hasVetoed[proposalId][msg.sender]) {
-            revert AlreadyVetoed(proposalId, msg.sender);
+        if (_hasVetoed[proposalId][voter]) {
+            return false;
         }
 
         // Read voting power at the snapshot timestamp
-        uint256 votingPower = votingToken.getPastVotes(msg.sender, snapshotTimestamp);
-        if (votingPower == 0) revert NoVotingPower();
+        uint256 votingPower = votingToken.getPastVotes(voter, snapshotTimestamp);
+        if (votingPower == 0) return false;
 
-        // Update state
-        _tallies[proposalId] += votingPower;
-        _hasVetoed[proposalId][msg.sender] = true;
-
-        emit VetoCast(proposalId, msg.sender, votingPower);
+        return true;
     }
 
     /// @inheritdoc IL2VetoAggregator

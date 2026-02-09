@@ -97,6 +97,7 @@ contract OptimisticTokenVotingPlugin is
     mapping(uint256 => uint256) public proposalIds;
 
     /// @notice The address of the L2VetoReceiver contract that can submit L2 vetoes.
+    /// @dev There shouldn't be live proposals when this value is modified
     address public l2VetoReceiver;
 
     /// @notice Emitted when the vetoing settings are updated.
@@ -488,17 +489,14 @@ contract OptimisticTokenVotingPlugin is
             revert ProposalVetoingForbidden(_proposalId, msg.sender);
         }
 
-        // Calculate the difference from the previous L2 tally
-        uint256 previousL2Tally = proposal_.aggregatedL2Balance;
-
         // New tally must be strictly greater (prevents replays and tally reduction)
-        if (_l2VetoTally <= previousL2Tally) revert L2VetoTallyNotIncreased();
+        if (_l2VetoTally <= proposal_.aggregatedL2Balance) revert L2VetoTallyNotIncreased();
+
+        // Update the total veto tally: remove old L2 contribution, add new one
+        proposal_.vetoTally = proposal_.vetoTally - proposal_.aggregatedL2Balance + _l2VetoTally;
 
         // Update the L2 tally
         proposal_.aggregatedL2Balance = _l2VetoTally;
-
-        // Update the total veto tally: remove old L2 contribution, add new one
-        proposal_.vetoTally = proposal_.vetoTally - previousL2Tally + _l2VetoTally;
 
         emit L2VetoesReceived(_proposalId, _l2VetoTally);
     }

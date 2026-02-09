@@ -168,7 +168,7 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
         if (params.snapshotTimestamp == 0) return false;
 
         // Validate timestamps match (proposal exists and hasn't been tampered with)
-        return params.vetoStartDate == startDate && params.snapshotTimestamp == snapshotTimestamp
+        return params.snapshotTimestamp == snapshotTimestamp && params.vetoStartDate == startDate
             && params.vetoEndDate == endDate;
     }
 

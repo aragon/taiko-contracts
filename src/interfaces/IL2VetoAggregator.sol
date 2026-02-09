@@ -33,13 +33,7 @@ interface IL2VetoAggregator {
     // =========================================================================
 
     /// @notice Thrown when a proposal's veto period is not currently open
-    error ProposalNotOpen(uint256 proposalId);
-
-    /// @notice Thrown when a voter has already vetoed a proposal
-    error AlreadyVetoed(uint256 proposalId, address voter);
-
-    /// @notice Thrown when a voter has no voting power at the snapshot timestamp
-    error NoVotingPower();
+    error ProposalVetoingForbidden(uint256 proposalId, address voter);
 
     /// @notice Thrown when dispatch is called but no L1 receiver is set
     error NoL1Receiver();

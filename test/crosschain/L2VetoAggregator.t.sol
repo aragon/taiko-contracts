@@ -131,7 +131,7 @@ contract L2VetoAggregatorTest is Test {
         vm.warp(START - 1); // Before start
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalNotOpen.selector, proposalId));
+        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalVetoingForbidden.selector, proposalId, alice));
         aggregator.veto(proposalId);
     }
 
@@ -140,7 +140,7 @@ contract L2VetoAggregatorTest is Test {
         vm.warp(END); // At endDate (not open, uses strict <)
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalNotOpen.selector, proposalId));
+        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalVetoingForbidden.selector, proposalId, alice));
         aggregator.veto(proposalId);
     }
 
@@ -149,7 +149,7 @@ contract L2VetoAggregatorTest is Test {
         vm.warp(END + 1000);
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalNotOpen.selector, proposalId));
+        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalVetoingForbidden.selector, proposalId, alice));
         aggregator.veto(proposalId);
     }
 
@@ -161,7 +161,7 @@ contract L2VetoAggregatorTest is Test {
         aggregator.veto(proposalId);
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.AlreadyVetoed.selector, proposalId, alice));
+        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalVetoingForbidden.selector, proposalId, alice));
         aggregator.veto(proposalId);
     }
 
@@ -170,7 +170,7 @@ contract L2VetoAggregatorTest is Test {
         vm.warp(START);
 
         vm.prank(carol); // Carol has no tokens
-        vm.expectRevert(IL2VetoAggregator.NoVotingPower.selector);
+        vm.expectRevert(abi.encodeWithSelector(IL2VetoAggregator.ProposalVetoingForbidden.selector, proposalId, carol));
         aggregator.veto(proposalId);
     }
 
