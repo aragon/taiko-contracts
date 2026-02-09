@@ -80,8 +80,8 @@ contract OptimisticTokenVotingPlugin is
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
-    /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
-    address public taikoBridge;
+    /// @notice The address of the ERC20Vault holding bridged TAIKO tokens on L1.
+    address public taikoERC20Vault;
 
     /// @notice Taiko L1 contract to check the status from.
     ITaikoL1 public taikoL1;
@@ -172,13 +172,13 @@ contract OptimisticTokenVotingPlugin is
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     /// @param _taikoL1 The address of the contract where the protocol status can be checked.
-    /// @param _taikoBridge The address of the contract that can bridge voting vetoes back.
+    /// @param _taikoERC20Vault The address of the ERC20Vault holding bridged TAIKO tokens.
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
         address _taikoL1,
-        address _taikoBridge
+        address _taikoERC20Vault
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
@@ -186,7 +186,7 @@ contract OptimisticTokenVotingPlugin is
 
         votingToken = _token;
         taikoL1 = ITaikoL1(_taikoL1);
-        taikoBridge = _taikoBridge;
+        taikoERC20Vault = _taikoERC20Vault;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
@@ -212,7 +212,7 @@ contract OptimisticTokenVotingPlugin is
 
     /// @inheritdoc IOptimisticTokenVoting
     function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
-        return votingToken.getPastVotes(taikoBridge, _timestamp);
+        return votingToken.getPastVotes(taikoERC20Vault, _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -283,7 +283,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // The bridge cannot vote directly. It must use a dedicated function.
-        if (_voter == taikoBridge) {
+        if (_voter == taikoERC20Vault) {
             return false;
         }
 
@@ -378,7 +378,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // Checks
-        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
+        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoERC20Vault, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
@@ -656,5 +656,5 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
-    uint256[44] private __gap;
+    uint256[43] private __gap;
 }

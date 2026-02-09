@@ -942,8 +942,8 @@ contract MultisigTest is AragonTest {
         multisig.createProposal("", actions, optimisticPlugin, false);
 
         // 2
-        vm.startPrank(taikoBridge);
-        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, taikoBridge));
+        vm.startPrank(taikoERC20Vault);
+        vm.expectRevert(abi.encodeWithSelector(Multisig.ProposalCreationForbidden.selector, taikoERC20Vault));
         multisig.createProposal("", actions, optimisticPlugin, false);
 
         // It reverts if listed before but not now

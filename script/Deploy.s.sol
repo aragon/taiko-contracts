@@ -73,7 +73,7 @@ contract Deploy is Script {
             // Taiko contract settings
             tokenAddress: IVotesUpgradeable(vm.envAddress("TOKEN_ADDRESS")),
             taikoL1ContractAddress: vm.envAddress("TAIKO_L1_ADDRESS"),
-            taikoBridgeAddress: vm.envAddress("TAIKO_BRIDGE_ADDRESS"),
+            taikoERC20VaultAddress: vm.envAddress("TAIKO_ERC20_VAULT_ADDRESS"),
             timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
             l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
@@ -104,15 +104,15 @@ contract Deploy is Script {
     function getTestTokenSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
         console.log("Using test token settings");
 
-        address taikoBridgeAddress = address(0x1234567890);
+        address taikoERC20VaultAddress = address(0x1234567890);
         address[] memory multisigMembers = readMultisigMembers();
-        address votingToken = createTestToken(multisigMembers, taikoBridgeAddress);
+        address votingToken = createTestToken(multisigMembers, taikoERC20VaultAddress);
 
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
             tokenAddress: IVotesUpgradeable(votingToken),
             taikoL1ContractAddress: address(new TaikoL1Mock()),
-            taikoBridgeAddress: taikoBridgeAddress,
+            taikoERC20VaultAddress: taikoERC20VaultAddress,
             timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
             l2InactivityPeriod: uint32(vm.envUint("L2_INACTIVITY_PERIOD")),
             l2AggregationGracePeriod: uint32(vm.envUint("L2_AGGREGATION_GRACE_PERIOD")),
@@ -148,7 +148,7 @@ contract Deploy is Script {
         console.log("");
         console.log("DAO:", address(daoDeployment.dao));
         console.log("Voting token:", address(settings.tokenAddress));
-        console.log("Taiko Bridge:", settings.taikoBridgeAddress);
+        console.log("Taiko ERC20Vault:", settings.taikoERC20VaultAddress);
         console.log("");
 
         console.log("Plugins");
@@ -186,15 +186,15 @@ contract Deploy is Script {
         if (result.length == 0) revert EmptyMultisig();
     }
 
-    function createTestToken(address[] memory members, address taikoBridge) internal returns (address) {
+    function createTestToken(address[] memory members, address taikoERC20Vault) internal returns (address) {
         address[] memory allTokenHolders = new address[](members.length + 1);
         for (uint256 i = 0; i < members.length; i++) {
             allTokenHolders[i] = members[i];
         }
-        allTokenHolders[members.length] = taikoBridge;
+        allTokenHolders[members.length] = taikoERC20Vault;
 
         GovernanceERC20Mock testToken = new GovernanceERC20Mock(address(0));
-        console.log("Minting test tokens for the multisig members and the bridge");
+        console.log("Minting test tokens for the multisig members and the ERC20Vault");
         testToken.mintAndDelegate(allTokenHolders, 10 ether);
 
         return address(testToken);

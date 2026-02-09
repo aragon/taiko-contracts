@@ -28,7 +28,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
     OptimisticTokenVotingPluginSetup.TokenSettings tokenSettings;
     GovernanceERC20.MintSettings mintSettings;
     ITaikoL1 taikoL1;
-    address taikoBridge;
+    address taikoERC20Vault;
     uint64 stdProposalMinDuration;
     address stdProposer;
     address emergencyProposer;
@@ -70,7 +70,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         });
         mintSettings = GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)});
         taikoL1 = ITaikoL1(address(0x66666666));
-        taikoBridge = address(0x55555555);
+        taikoERC20Vault = address(0x55555555);
         stdProposalMinDuration = 10 days;
         stdProposer = address(0x1234567890);
         emergencyProposer = address(0x2345678901);
@@ -106,7 +106,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -134,7 +134,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -160,7 +160,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -185,7 +185,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -211,7 +211,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(0x1234),
-                address(0x5678), // taikoBridge
+                address(0x5678), // taikoERC20Vault
                 5 days, // stdProposalMinDuration
                 stdProposer,
                 emergencyProposer
@@ -233,7 +233,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(0x1111),
-                address(0x2222), // taikoBridge
+                address(0x2222), // taikoERC20Vault
                 15 days, // stdProposalMinDuration
                 stdProposer,
                 emergencyProposer
@@ -322,7 +322,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
 
         // Taiko contracts
         assertEq(address(_decodedInstallationParams.taikoL1), address(0x9999), "Incorrect taikoL1");
-        assertEq(address(_decodedInstallationParams.taikoBridge), address(0xaaaa), "Incorrect taikoBridge");
+        assertEq(address(_decodedInstallationParams.taikoERC20Vault), address(0xaaaa), "Incorrect taikoERC20Vault");
 
         // Proposals
         assertEq(_decodedInstallationParams.stdProposalMinDuration, 6 days, "Incorrect stdProposalMinDuration");
@@ -415,7 +415,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
 
         // Taiko contracts
         assertEq(address(_decodedInstallationParams.taikoL1), address(0xbbbb), "Incorrect taikoL1");
-        assertEq(address(_decodedInstallationParams.taikoBridge), address(0xcccc), "Incorrect taikoBridge");
+        assertEq(address(_decodedInstallationParams.taikoERC20Vault), address(0xcccc), "Incorrect taikoERC20Vault");
 
         // Proposal
         assertEq(_decodedInstallationParams.stdProposalMinDuration, 9 days, "Incorrect stdProposalMinDuration");
@@ -431,7 +431,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -529,7 +529,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -634,7 +634,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -730,7 +730,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -756,7 +756,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -775,7 +775,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -836,7 +836,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -897,7 +897,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -922,7 +922,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -955,7 +955,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 // only used for GovernanceERC20 (when a token is not passed)
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -992,7 +992,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer
@@ -1046,7 +1046,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
                 tokenSettings,
                 mintSettings,
                 address(taikoL1),
-                taikoBridge,
+                taikoERC20Vault,
                 stdProposalMinDuration,
                 stdProposer,
                 emergencyProposer

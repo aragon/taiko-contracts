@@ -53,7 +53,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // only used for GovernanceERC20 (when token is not passed)
         GovernanceERC20.MintSettings mintSettings;
         address taikoL1;
-        address taikoBridge;
+        address taikoERC20Vault;
         uint64 stdProposalMinDuration;
         address stdProposer;
         address emergencyProposer;
@@ -144,7 +144,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                     installationParams.votingSettings,
                     IVotesUpgradeable(token),
                     installationParams.taikoL1,
-                    installationParams.taikoBridge
+                    installationParams.taikoERC20Vault
                 )
             )
         );

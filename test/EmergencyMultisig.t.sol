@@ -946,8 +946,8 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // 2
-        vm.startPrank(taikoBridge);
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoBridge));
+        vm.startPrank(taikoERC20Vault);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoERC20Vault));
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // It reverts if listed before but not now

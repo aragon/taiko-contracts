@@ -233,7 +233,7 @@ Check the available make targets to simulate and deploy the smart contracts:
   - [ ] I have ensured all multisig members have undergone a proper security review and are aware of the security implications of being on said multisig
   - [ ] I have checked that `MIN_STD_APPROVALS`, `MIN_EMERGENCY_APPROVALS` and `MULTISIG_PROPOSAL_EXPIRATION_PERIOD` are correct
   - [ ] I have verified that `TOKEN_ADDRESS` corresponds to the intended ERC20 contract on the test chain
-  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` belong to the test chain
+  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_ERC20_VAULT_ADDRESS` belong to the test chain
   - The plugin ENS subdomain
     - [ ] Contains a meaningful and unique value
   - The given OSx addresses:
@@ -249,7 +249,7 @@ Check the available make targets to simulate and deploy the smart contracts:
   - [ ] I have tested that these contracts work successfully
 - **Target production network**
     - [ ] I have updated `TOKEN_ADDRESS` to have the address of the prodnet
-    - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_BRIDGE_ADDRESS` target the correct network
+    - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_ERC20_VAULT_ADDRESS` target the correct network
 - [ ] My deployment wallet is a newly created account, ready for safe production deploys.
 - My computer:
   - [ ] Is running in a safe physical location and a trusted network
