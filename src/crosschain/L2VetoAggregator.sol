@@ -12,27 +12,12 @@ import {IL2VetoAggregator} from "../interfaces/IL2VetoAggregator.sol";
 ///         tracks veto votes using the L2 bridged voting token, and dispatches
 ///         aggregated tallies to L1 via the Taiko Bridge.
 ///
-/// @dev The L2 contract does NOT mirror L1 state. It decodes the proposalId to determine
-///      timing — no oracle or event tracking is needed.
-///
 /// ProposalId encoding (from L1):
 ///   bits 192-255: snapshotTimestamp
 ///   bits 128-191: startDate
 ///   bits 64-127:  endDate
 ///   bits 0-63:    counter
-///
-/// Flow:
-///   1. L2 voter calls veto(proposalId) with a proposalId from L1
-///   2. Contract decodes startDate/endDate, checks startDate <= now < endDate
-///   3. Reads voter power via votingToken.getPastVotes(voter, snapshotTimestamp)
-///   4. Stores per-proposal tally, marks voter as having vetoed
-///   5. Anyone calls dispatch(proposalId) to bridge (proposalId, vetoTally, block.timestamp) to L1
-///
-/// Deployment:
-///   1. Deploy L2VetoReceiver on L1 (trustedL2Aggregator can be zero initially)
-///   2. Deploy L2VetoAggregator on L2 with the L2VetoReceiver address
-///   3. Call setTrustedL2Aggregator() on L2VetoReceiver with L2VetoAggregator's address
-///   4. Call renounceOwnership() on L2VetoReceiver to lock configuration
+
 contract L2VetoAggregator is IL2VetoAggregator {
     // =========================================================================
     // IMMUTABLES
@@ -122,7 +107,6 @@ contract L2VetoAggregator is IL2VetoAggregator {
 
     /// @inheritdoc IL2VetoAggregator
     function dispatch(uint256 proposalId) external payable override {
-
         uint256 vetoTally = _tallies[proposalId];
 
         // Encode the veto data for L1

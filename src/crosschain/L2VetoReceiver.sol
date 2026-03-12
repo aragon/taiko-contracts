@@ -11,25 +11,6 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 /// @title L2VetoReceiver
 /// @notice L1 contract that receives aggregated L2 veto tallies via Taiko Bridge
 /// @dev Implements IMessageInvocable for bridge callbacks.
-///
-/// Push Model:
-/// 1. Receives L2 veto tallies from the bridge
-/// 2. Validates the proposalId against the plugin's proposal data
-/// 3. Stores the tally locally (for staleness protection)
-/// 4. Immediately pushes to the plugin via receiveL2Vetoes()
-///
-/// Security model:
-/// 1. Only accepts calls from the Taiko Bridge contract
-/// 2. Verifies bridge context shows message from trusted L2 aggregator
-/// 3. Verifies source chain ID matches expected L2
-/// 4. Validates proposalId contains correct timestamps from the plugin
-/// 5. Allows partial aggregation (later messages replace earlier tallies)
-///
-/// Deployment:
-/// 1. Deploy L2VetoReceiver on L1 (trustedL2Aggregator can be zero initially)
-/// 2. Deploy L2VetoAggregator on L2 with the L2VetoReceiver address
-/// 3. Call setTrustedL2Aggregator() on L2VetoReceiver with L2VetoAggregator's address
-/// 4. Call renounceOwnership() on L2VetoReceiver to lock configuration
 contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
     // =========================================================================
     // IMMUTABLES
@@ -95,20 +76,20 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
     /// @dev Implements IMessageInvocable interface
     /// @param _data ABI-encoded (uint256 proposalId, uint256 vetoTally, uint256 dispatchedAt)
     function onMessageInvocation(bytes calldata _data) external payable override {
-        // Security check 1: Only bridge can call
+        // Only bridge can call
         if (msg.sender != bridge) revert CallerNotBridge();
 
-        // Security check 2: Verify message is from trusted L2 aggregator
+        // Verify message is from trusted L2 aggregator
         IBridge.Context memory ctx = IBridge(bridge).context();
         if (ctx.from != trustedL2Aggregator) revert UntrustedL2Sender();
 
-        // Security check 3: Verify source chain ID
+        // Verify source chain ID
         if (ctx.srcChainId != l2ChainId) revert InvalidSourceChain();
 
         // Decode the veto data
         (uint256 proposalId, uint256 vetoTally, uint256 dispatchedAt) = abi.decode(_data, (uint256, uint256, uint256));
 
-        // Security check 4: Validate proposalId against plugin's proposal data
+        // Validate proposalId against plugin's proposal data
         if (!isProposalIdValid(proposalId)) revert InvalidProposalId();
 
         // Only accept if newer than existing (prevents stale message replay)
