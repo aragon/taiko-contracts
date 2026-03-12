@@ -46,7 +46,7 @@ contract DaoBuilder is Test {
     uint32 public minDuration = 4 days;
     uint32 public timelockPeriod = 7 days;
     uint32 public l2InactivityPeriod = 10 minutes;
-    uint32 public l2AggregationGracePeriod = 2 days;
+    uint32 public l2AggregationGracePeriod = 1 days;
     bool public skipL2 = false;
 
     bool public onlyListed = true;

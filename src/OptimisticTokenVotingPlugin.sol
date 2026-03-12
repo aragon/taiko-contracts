@@ -107,7 +107,12 @@ contract OptimisticTokenVotingPlugin is
     /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
     /// @param skipL2 Defines wether the plugin should ignore the voting power bridged to the L2, in terms of the token supply and L2 votes accepted.
     event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
+        uint32 minVetoRatio,
+        uint64 minDuration,
+        uint64 timelockPeriod,
+        uint64 l2AggregationGracePeriod,
+        uint64 l2InactivityPeriod,
+        bool skipL2
     );
 
     /// @notice Emitted when a veto is cast by a voter.
@@ -138,6 +143,11 @@ contract OptimisticTokenVotingPlugin is
     /// @param limit The limit value.
     /// @param actual The actual value.
     error MinDurationOutOfBounds(uint64 limit, uint64 actual);
+
+    /// @notice Thrown if the timelock period is less than the grace period.
+    /// @param limit The limit value.
+    /// @param actual The actual value.
+    error TimelockPeriodOutOfBounds(uint64 limit, uint64 actual);
 
     /// @notice Thrown if an account is not allowed to cast a veto. This can be because the challenge period
     /// - has not started,
@@ -591,11 +601,18 @@ contract OptimisticTokenVotingPlugin is
             revert MinDurationOutOfBounds({limit: 365 days, actual: _governanceSettings.minDuration});
         }
 
+        if (_governanceSettings.timelockPeriod < _governanceSettings.l2AggregationGracePeriod) {
+            revert TimelockPeriodOutOfBounds({
+                limit: _governanceSettings.l2AggregationGracePeriod, actual: _governanceSettings.timelockPeriod
+            });
+        }
+
         governanceSettings = _governanceSettings;
 
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: _governanceSettings.minVetoRatio,
             minDuration: _governanceSettings.minDuration,
+            timelockPeriod: _governanceSettings.timelockPeriod,
             l2AggregationGracePeriod: _governanceSettings.l2AggregationGracePeriod,
             l2InactivityPeriod: _governanceSettings.l2InactivityPeriod,
             skipL2: _governanceSettings.skipL2
@@ -647,10 +664,6 @@ contract OptimisticTokenVotingPlugin is
     /// @return True if the proposal cannot be executed because the exit window hasn't elapsed yet
     function _proposalInExitWindow(Proposal storage proposal_) internal view virtual returns (bool) {
         uint64 exitWindowTimestamp = proposal_.parameters.vetoEndDate + governanceSettings.timelockPeriod;
-
-        if (!proposal_.parameters.unavailableL2) {
-            exitWindowTimestamp += governanceSettings.l2AggregationGracePeriod;
-        }
 
         return block.timestamp.toUint64() < exitWindowTimestamp;
     }
