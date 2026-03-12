@@ -29,15 +29,13 @@ contract L2VetoAggregatorTest is Test {
 
     event VetoCast(uint256 indexed proposalId, address indexed voter, uint256 votingPower);
     event VetoDispatched(uint256 indexed proposalId, uint256 vetoTally, bytes32 msgHash);
-    event L1ReceiverUpdated(address oldReceiver, address newReceiver);
 
     function setUp() public {
         bridge = new TaikoBridgeMock();
         // GovernanceERC20Mock needs a DAO address, use a dummy
         token = new GovernanceERC20Mock(address(0xDA0));
 
-        aggregator = new L2VetoAggregator(address(bridge), l1ChainId, address(token));
-        aggregator.setL1Receiver(l1Receiver);
+        aggregator = new L2VetoAggregator(address(bridge), l1ChainId, address(token), l1Receiver);
 
         // Mint and delegate tokens to test voters
         // Warp to before SNAPSHOT so checkpoints are recorded before snapshot
@@ -75,22 +73,27 @@ contract L2VetoAggregatorTest is Test {
         assertEq(aggregator.bridge(), address(bridge));
         assertEq(aggregator.l1ChainId(), l1ChainId);
         assertEq(address(aggregator.votingToken()), address(token));
-        assertEq(aggregator.owner(), address(this));
+        assertEq(aggregator.l1Receiver(), l1Receiver);
     }
 
     function test_constructor_revert_zeroBridge() public {
         vm.expectRevert(IL2VetoAggregator.InvalidAddress.selector);
-        new L2VetoAggregator(address(0), l1ChainId, address(token));
+        new L2VetoAggregator(address(0), l1ChainId, address(token), l1Receiver);
     }
 
     function test_constructor_revert_zeroChainId() public {
         vm.expectRevert(IL2VetoAggregator.InvalidAddress.selector);
-        new L2VetoAggregator(address(bridge), 0, address(token));
+        new L2VetoAggregator(address(bridge), 0, address(token), l1Receiver);
     }
 
     function test_constructor_revert_zeroToken() public {
         vm.expectRevert(IL2VetoAggregator.InvalidAddress.selector);
-        new L2VetoAggregator(address(bridge), l1ChainId, address(0));
+        new L2VetoAggregator(address(bridge), l1ChainId, address(0), l1Receiver);
+    }
+
+    function test_constructor_revert_zeroL1Receiver() public {
+        vm.expectRevert(IL2VetoAggregator.InvalidAddress.selector);
+        new L2VetoAggregator(address(bridge), l1ChainId, address(token), address(0));
     }
 
     // =========================================================================
@@ -240,14 +243,6 @@ contract L2VetoAggregatorTest is Test {
         assertEq(messages.length, 1);
     }
 
-    function test_dispatch_revert_noL1Receiver() public {
-        L2VetoAggregator freshAggregator = new L2VetoAggregator(address(bridge), l1ChainId, address(token));
-        // l1Receiver is address(0) by default
-
-        vm.expectRevert(IL2VetoAggregator.NoL1Receiver.selector);
-        freshAggregator.dispatch(_makeProposalId());
-    }
-
     function test_dispatch_encodesDataCorrectly() public {
         uint256 proposalId = _makeProposalId();
         vm.warp(START);
@@ -299,52 +294,6 @@ contract L2VetoAggregatorTest is Test {
 
         IBridge.Message[] memory messages = bridge.getSentMessages();
         assertEq(messages.length, 1);
-    }
-
-    // =========================================================================
-    // SET L1 RECEIVER TESTS
-    // =========================================================================
-
-    function test_setL1Receiver_success() public {
-        L2VetoAggregator freshAggregator = new L2VetoAggregator(address(bridge), l1ChainId, address(token));
-
-        address newReceiver = address(0x1234);
-
-        vm.expectEmit(true, true, false, false);
-        emit L1ReceiverUpdated(address(0), newReceiver);
-
-        freshAggregator.setL1Receiver(newReceiver);
-
-        assertEq(freshAggregator.l1Receiver(), newReceiver);
-    }
-
-    function test_setL1Receiver_revert_zeroAddress() public {
-        vm.expectRevert(IL2VetoAggregator.InvalidAddress.selector);
-        aggregator.setL1Receiver(address(0));
-    }
-
-    function test_setL1Receiver_revert_notOwner() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        aggregator.setL1Receiver(address(0x999));
-    }
-
-    function test_setL1Receiver_canUpdate() public {
-        address newReceiver = address(0x999);
-
-        vm.expectEmit(true, true, false, false);
-        emit L1ReceiverUpdated(l1Receiver, newReceiver);
-
-        aggregator.setL1Receiver(newReceiver);
-
-        assertEq(aggregator.l1Receiver(), newReceiver);
-    }
-
-    function test_renounceOwnership_locksConfig() public {
-        aggregator.renounceOwnership();
-
-        vm.expectRevert();
-        aggregator.setL1Receiver(address(0x123));
     }
 
     // =========================================================================
@@ -488,16 +437,18 @@ contract L2VetoAggregatorTest is Test {
     // FUZZ TESTS
     // =========================================================================
 
-    function testFuzz_constructor_validParams(address _bridge, uint64 _chainId, address _token) public {
+    function testFuzz_constructor_validParams(address _bridge, uint64 _chainId, address _token, address _l1Receiver) public {
         vm.assume(_bridge != address(0));
         vm.assume(_chainId > 0);
         vm.assume(_token != address(0));
+        vm.assume(_l1Receiver != address(0));
 
-        L2VetoAggregator a = new L2VetoAggregator(_bridge, _chainId, _token);
+        L2VetoAggregator a = new L2VetoAggregator(_bridge, _chainId, _token, _l1Receiver);
 
         assertEq(a.bridge(), _bridge);
         assertEq(a.l1ChainId(), _chainId);
         assertEq(address(a.votingToken()), _token);
+        assertEq(a.l1Receiver(), _l1Receiver);
     }
 
 }

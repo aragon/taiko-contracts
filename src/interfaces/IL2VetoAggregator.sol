@@ -23,20 +23,12 @@ interface IL2VetoAggregator {
     /// @param msgHash The bridge message hash
     event VetoDispatched(uint256 indexed proposalId, uint256 vetoTally, bytes32 msgHash);
 
-    /// @notice Emitted when the L1 receiver address is updated
-    /// @param oldReceiver The previous receiver address
-    /// @param newReceiver The new receiver address
-    event L1ReceiverUpdated(address oldReceiver, address newReceiver);
-
     // =========================================================================
     // ERRORS
     // =========================================================================
 
     /// @notice Thrown when a proposal's veto period is not currently open
     error ProposalVetoingForbidden(uint256 proposalId, address voter);
-
-    /// @notice Thrown when dispatch is called but no L1 receiver is set
-    error NoL1Receiver();
 
     /// @notice Thrown when setting a zero address where one is not allowed
     error InvalidAddress();
@@ -89,11 +81,4 @@ interface IL2VetoAggregator {
     /// @return The IVotesUpgradeable token used for voting power
     function votingToken() external view returns (IVotesUpgradeable);
 
-    // =========================================================================
-    // ADMIN
-    // =========================================================================
-
-    /// @notice Sets the L1 receiver address (L2VetoReceiver on L1)
-    /// @param newReceiver The new L1 receiver address
-    function setL1Receiver(address newReceiver) external;
 }

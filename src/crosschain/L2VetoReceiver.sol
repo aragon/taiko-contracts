@@ -27,10 +27,9 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 ///
 /// Deployment:
 /// 1. Deploy L2VetoReceiver on L1 (trustedL2Aggregator can be zero initially)
-/// 2. Deploy L2VetoAggregator on L2
-/// 3. Call setTrustedL2Aggregator() with L2VetoAggregator address
-/// 4. Call setL1Receiver() on L2VetoAggregator with this contract's address
-/// 5. Call renounceOwnership() on both contracts to lock configuration
+/// 2. Deploy L2VetoAggregator on L2 with the L2VetoReceiver address
+/// 3. Call setTrustedL2Aggregator() on L2VetoReceiver with L2VetoAggregator's address
+/// 4. Call renounceOwnership() on L2VetoReceiver to lock configuration
 contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
     // =========================================================================
     // IMMUTABLES

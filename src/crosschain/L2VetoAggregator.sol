@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.17;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {IBridge} from "../interfaces/IBridge.sol";
 import {IMessageInvocable} from "../interfaces/IMessageInvocable.sol";
@@ -30,12 +29,11 @@ import {IL2VetoAggregator} from "../interfaces/IL2VetoAggregator.sol";
 ///   5. Anyone calls dispatch(proposalId) to bridge (proposalId, vetoTally, block.timestamp) to L1
 ///
 /// Deployment:
-///   1. Deploy L2VetoAggregator on L2 (l1Receiver can be zero initially)
-///   2. Deploy L2VetoReceiver on L1
-///   3. Call setL1Receiver() with L2VetoReceiver address
-///   4. Call setTrustedL2Aggregator() on L2VetoReceiver with this contract's address
-///   5. Call renounceOwnership() on both contracts to lock configuration
-contract L2VetoAggregator is IL2VetoAggregator, Ownable {
+///   1. Deploy L2VetoReceiver on L1 (trustedL2Aggregator can be zero initially)
+///   2. Deploy L2VetoAggregator on L2 with the L2VetoReceiver address
+///   3. Call setTrustedL2Aggregator() on L2VetoReceiver with L2VetoAggregator's address
+///   4. Call renounceOwnership() on L2VetoReceiver to lock configuration
+contract L2VetoAggregator is IL2VetoAggregator {
     // =========================================================================
     // IMMUTABLES
     // =========================================================================
@@ -49,12 +47,8 @@ contract L2VetoAggregator is IL2VetoAggregator, Ownable {
     /// @notice The L2 voting token (bridged from L1) with ERC20Votes support
     IVotesUpgradeable public immutable override votingToken;
 
-    // =========================================================================
-    // STORAGE
-    // =========================================================================
-
-    /// @notice The L2VetoReceiver address on L1 (owner-settable)
-    address public override l1Receiver;
+    /// @notice The L2VetoReceiver address on L1 (immutable)
+    address public immutable override l1Receiver;
 
     /// @notice Mapping of proposalId => total veto voting power
     mapping(uint256 => uint256) private _tallies;
@@ -67,19 +61,20 @@ contract L2VetoAggregator is IL2VetoAggregator, Ownable {
     // =========================================================================
 
     /// @notice Constructs the L2VetoAggregator
-    /// @dev The deployer becomes the owner. After configuring l1Receiver,
-    ///      call renounceOwnership() to lock the configuration.
     /// @param _bridge The Taiko Bridge address on L2
     /// @param _l1ChainId The L1 chain ID
     /// @param _votingToken The L2 bridged voting token with ERC20Votes support
-    constructor(address _bridge, uint64 _l1ChainId, address _votingToken) {
+    /// @param _l1Receiver The L2VetoReceiver address on L1
+    constructor(address _bridge, uint64 _l1ChainId, address _votingToken, address _l1Receiver) {
         if (_bridge == address(0)) revert InvalidAddress();
         if (_l1ChainId == 0) revert InvalidAddress();
         if (_votingToken == address(0)) revert InvalidAddress();
+        if (_l1Receiver == address(0)) revert InvalidAddress();
 
         bridge = _bridge;
         l1ChainId = _l1ChainId;
         votingToken = IVotesUpgradeable(_votingToken);
+        l1Receiver = _l1Receiver;
     }
 
     // =========================================================================
@@ -88,7 +83,7 @@ contract L2VetoAggregator is IL2VetoAggregator, Ownable {
 
     /// @inheritdoc IL2VetoAggregator
     function veto(uint256 proposalId) external override {
-        address _voter = _msgSender();
+        address _voter = msg.sender;
 
         if (!canVeto(proposalId, _voter)) {
             revert ProposalVetoingForbidden(proposalId, _voter);
@@ -127,7 +122,6 @@ contract L2VetoAggregator is IL2VetoAggregator, Ownable {
 
     /// @inheritdoc IL2VetoAggregator
     function dispatch(uint256 proposalId) external payable override {
-        if (l1Receiver == address(0)) revert NoL1Receiver();
 
         uint256 vetoTally = _tallies[proposalId];
 
@@ -193,20 +187,6 @@ contract L2VetoAggregator is IL2VetoAggregator, Ownable {
         endDate = uint64(proposalId >> 64) & type(uint64).max;
         startDate = uint64(proposalId >> 128) & type(uint64).max;
         snapshotTimestamp = uint64(proposalId >> 192);
-    }
-
-    // =========================================================================
-    // ADMIN
-    // =========================================================================
-
-    /// @inheritdoc IL2VetoAggregator
-    function setL1Receiver(address newReceiver) external override onlyOwner {
-        if (newReceiver == address(0)) revert InvalidAddress();
-
-        address oldReceiver = l1Receiver;
-        l1Receiver = newReceiver;
-
-        emit L1ReceiverUpdated(oldReceiver, newReceiver);
     }
 
     // =========================================================================
