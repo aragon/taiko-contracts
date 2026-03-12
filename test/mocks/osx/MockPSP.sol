@@ -356,41 +356,17 @@ contract MockPluginSetupProcessor {
         external
         canApply(_dao, APPLY_INSTALLATION_PERMISSION_ID)
     {
-        // bytes32 pluginInstallationId = _getPluginInstallationId(_dao, _params.plugin);
-
-        // PluginState storage pluginState = states[pluginInstallationId];
-
-        // bytes32 preparedSetupId = _getPreparedSetupId(
-        //     _params.pluginSetupRef,
-        //     hashPermissions(_params.permissions),
-        //     _params.helpersHash,
-        //     bytes(""),
-        //     PreparationType.Installation
-        // );
-
-        // // Check if this plugin is already installed.
-        // if (pluginState.currentAppliedSetupId != bytes32(0)) {
-        //     revert PluginAlreadyInstalled();
-        // }
-
-        // validatePreparedSetupId(pluginInstallationId, preparedSetupId);
-
-        // bytes32 appliedSetupId = _getAppliedSetupId(_params.pluginSetupRef, _params.helpersHash);
-
-        // pluginState.currentAppliedSetupId = appliedSetupId;
-        // pluginState.blockNumber = block.number;
+        // Track state so that prepareUpdate/applyUpdate can validate the current installation.
+        bytes32 pluginInstallationId = _getPluginInstallationId(_dao, _params.plugin);
+        PluginState storage pluginState = states[pluginInstallationId];
+        bytes32 appliedSetupId = _getAppliedSetupId(_params.pluginSetupRef, _params.helpersHash);
+        pluginState.currentAppliedSetupId = appliedSetupId;
+        pluginState.blockNumber = block.number;
 
         // Process the permissions, which requires the `ROOT_PERMISSION_ID` from the installing DAO.
         if (_params.permissions.length > 0) {
             DAO(payable(_dao)).applyMultiTargetPermissions(_params.permissions);
         }
-
-        // emit InstallationApplied({
-        //     dao: _dao,
-        //     plugin: _params.plugin,
-        //     preparedSetupId: preparedSetupId,
-        //     appliedSetupId: appliedSetupId
-        // });
     }
 
     /// @notice Prepares the update of an UUPS upgradeable plugin.
