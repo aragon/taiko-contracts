@@ -445,7 +445,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.helpers.length, 1, "One helper expected");
         assertEq(
             _preparedSetupData.permissions.length,
-            5, // base + 2 proposers
+            6, // base + 2 proposers + L2 receiver
             "Incorrect permission length"
         );
         // 1
@@ -501,8 +501,18 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[4].who, address(emergencyProposer));
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
         assertEq(_preparedSetupData.permissions[4].permissionId, keccak256("PROPOSER_PERMISSION"));
-
-        // no more: no minted token
+        // L2 veto receiver
+        assertEq(
+            uint256(_preparedSetupData.permissions[5].operation),
+            uint256(PermissionLib.Operation.Grant),
+            "Incorrect operation"
+        );
+        assertEq(_preparedSetupData.permissions[5].where, _plugin);
+        assertEq(_preparedSetupData.permissions[5].who, address(dao));
+        assertEq(_preparedSetupData.permissions[5].condition, address(0));
+        assertEq(
+            _preparedSetupData.permissions[5].permissionId, keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION")
+        );
     }
 
     function test_PrepareInstallationReturnsTheProperPermissions_UseToken() public {
@@ -543,7 +553,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.helpers.length, 1, "One helper expected");
         assertEq(
             _preparedSetupData.permissions.length,
-            3 + 2, // base + 2 proposers
+            3 + 2 + 1, // base + 2 proposers + L2 receiver
             "Incorrect permission length"
         );
         // 1
@@ -599,8 +609,18 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[4].who, address(emergencyProposer));
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
         assertEq(_preparedSetupData.permissions[4].permissionId, keccak256("PROPOSER_PERMISSION"));
-
-        // no more: no minted token
+        // L2 veto receiver
+        assertEq(
+            uint256(_preparedSetupData.permissions[5].operation),
+            uint256(PermissionLib.Operation.Grant),
+            "Incorrect operation"
+        );
+        assertEq(_preparedSetupData.permissions[5].where, _plugin);
+        assertEq(_preparedSetupData.permissions[5].who, address(dao));
+        assertEq(_preparedSetupData.permissions[5].condition, address(0));
+        assertEq(
+            _preparedSetupData.permissions[5].permissionId, keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION")
+        );
     }
 
     function test_PrepareInstallationReturnsTheProperPermissions_MintToken() public {
@@ -648,7 +668,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.helpers.length, 1, "One helper expected");
         assertEq(
             _preparedSetupData.permissions.length,
-            3 + 2 + 1, // base + proposers
+            3 + 2 + 1 + 1, // base + proposers + mint + L2 receiver
             "Incorrect permission length"
         );
         // 1
@@ -705,16 +725,28 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_preparedSetupData.permissions[4].condition, address(0));
         assertEq(_preparedSetupData.permissions[4].permissionId, keccak256("PROPOSER_PERMISSION"));
 
-        // minting
+        // L2 veto receiver
         assertEq(
             uint256(_preparedSetupData.permissions[5].operation),
             uint256(PermissionLib.Operation.Grant),
             "Incorrect operation"
         );
-        assertEq(_preparedSetupData.permissions[5].where, _preparedSetupData.helpers[0]);
+        assertEq(_preparedSetupData.permissions[5].where, _plugin);
         assertEq(_preparedSetupData.permissions[5].who, address(dao));
         assertEq(_preparedSetupData.permissions[5].condition, address(0));
-        assertEq(_preparedSetupData.permissions[5].permissionId, keccak256("MINT_PERMISSION"));
+        assertEq(
+            _preparedSetupData.permissions[5].permissionId, keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION")
+        );
+        // minting
+        assertEq(
+            uint256(_preparedSetupData.permissions[6].operation),
+            uint256(PermissionLib.Operation.Grant),
+            "Incorrect operation"
+        );
+        assertEq(_preparedSetupData.permissions[6].where, _preparedSetupData.helpers[0]);
+        assertEq(_preparedSetupData.permissions[6].who, address(dao));
+        assertEq(_preparedSetupData.permissions[6].condition, address(0));
+        assertEq(_preparedSetupData.permissions[6].permissionId, keccak256("MINT_PERMISSION"));
     }
 
     function test_PrepareInstallationWithNonContractTokenReverts() public {
@@ -791,7 +823,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         PermissionLib.MultiTargetPermission[] memory _permissionChanges =
             pluginSetup.prepareUninstallation(address(dao), _payload);
 
-        assertEq(_permissionChanges.length, 4, "Incorrect permission changes length");
+        assertEq(_permissionChanges.length, 5, "Incorrect permission changes length");
         // 1
         assertEq(
             uint256(_permissionChanges[0].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
@@ -816,14 +848,24 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_permissionChanges[2].who, _dummyPlugin);
         assertEq(_permissionChanges[2].condition, address(0));
         assertEq(_permissionChanges[2].permissionId, keccak256("EXECUTE_PERMISSION"));
-        // minting 1
+        // L2 veto receiver
         assertEq(
             uint256(_permissionChanges[3].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
-        assertEq(_permissionChanges[3].where, address(governanceERC20Base), "Incorrect where");
+        assertEq(_permissionChanges[3].where, _dummyPlugin, "Incorrect where");
         assertEq(_permissionChanges[3].who, address(dao), "Incorrect who");
         assertEq(_permissionChanges[3].condition, address(0), "Incorrect condition");
-        assertEq(_permissionChanges[3].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
+        assertEq(
+            _permissionChanges[3].permissionId, keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION"), "Incorrect permission"
+        );
+        // minting
+        assertEq(
+            uint256(_permissionChanges[4].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
+        );
+        assertEq(_permissionChanges[4].where, address(governanceERC20Base), "Incorrect where");
+        assertEq(_permissionChanges[4].who, address(dao), "Incorrect who");
+        assertEq(_permissionChanges[4].condition, address(0), "Incorrect condition");
+        assertEq(_permissionChanges[4].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
     }
 
     function test_PrepareUninstallationReturnsTheProperPermissions_2() public {
@@ -852,7 +894,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         PermissionLib.MultiTargetPermission[] memory _permissionChanges =
             pluginSetup.prepareUninstallation(address(dao), _payload);
 
-        assertEq(_permissionChanges.length, 4, "Incorrect permission changes length");
+        assertEq(_permissionChanges.length, 5, "Incorrect permission changes length");
         // 1
         assertEq(
             uint256(_permissionChanges[0].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
@@ -877,14 +919,24 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_permissionChanges[2].who, _dummyPlugin);
         assertEq(_permissionChanges[2].condition, address(0));
         assertEq(_permissionChanges[2].permissionId, keccak256("EXECUTE_PERMISSION"));
-        // minting 1
+        // L2 veto receiver
         assertEq(
             uint256(_permissionChanges[3].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
         );
-        assertEq(_permissionChanges[3].where, _preparedSetupData.helpers[0], "Incorrect where");
-        assertEq(_permissionChanges[3].who, address(dao), "Incorrect who");
-        assertEq(_permissionChanges[3].condition, address(0), "Incorrect condition");
-        assertEq(_permissionChanges[3].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
+        assertEq(_permissionChanges[3].where, _dummyPlugin);
+        assertEq(_permissionChanges[3].who, address(dao));
+        assertEq(_permissionChanges[3].condition, address(0));
+        assertEq(
+            _permissionChanges[3].permissionId, keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION"), "Incorrect permission"
+        );
+        // minting
+        assertEq(
+            uint256(_permissionChanges[4].operation), uint256(PermissionLib.Operation.Revoke), "Incorrect operation"
+        );
+        assertEq(_permissionChanges[4].where, _preparedSetupData.helpers[0], "Incorrect where");
+        assertEq(_permissionChanges[4].who, address(dao), "Incorrect who");
+        assertEq(_permissionChanges[4].condition, address(0), "Incorrect condition");
+        assertEq(_permissionChanges[4].permissionId, keccak256("MINT_PERMISSION"), "Incorrect permission");
     }
 
     function test_PrepareUninstallationRevertsWithWrongHelpersLength() public {
@@ -1062,6 +1114,84 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         assertEq(_wrappedToken.balanceOf(address(0x1234)), 100);
         assertEq(_wrappedToken.balanceOf(address(0x5678)), 200);
         assertEq(_wrappedToken.balanceOf(address(0x0)), 0);
+    }
+
+    // prepareUpdate
+
+    function test_PrepareUpdateFromBuild1GrantsL2Permission() public {
+        // Prepare a dummy install
+        bytes memory installationParams = pluginSetup.encodeInstallationParams(
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                address(taikoL1),
+                taikoERC20Vault,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
+        );
+        (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
+
+        IPluginSetup.SetupPayload memory _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
+
+        (bytes memory initData, IPluginSetup.PreparedSetupData memory updateSetupData) =
+            pluginSetup.prepareUpdate(address(dao), 1, _payload);
+
+        assertEq(initData.length, 0, "No initData expected");
+        assertEq(updateSetupData.permissions.length, 1, "Should have 1 permission");
+
+        assertEq(
+            uint256(updateSetupData.permissions[0].operation),
+            uint256(PermissionLib.Operation.Grant),
+            "Should be Grant"
+        );
+        assertEq(updateSetupData.permissions[0].where, _dummyPlugin, "Incorrect where");
+        assertEq(updateSetupData.permissions[0].who, address(dao), "Incorrect who");
+        assertEq(updateSetupData.permissions[0].condition, address(0), "Incorrect condition");
+        assertEq(
+            updateSetupData.permissions[0].permissionId,
+            keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION"),
+            "Incorrect permission"
+        );
+
+        // Helpers should be preserved
+        assertEq(updateSetupData.helpers.length, 1, "Should preserve 1 helper");
+        assertEq(updateSetupData.helpers[0], _preparedSetupData.helpers[0], "Helper should match voting token");
+    }
+
+    function test_PrepareUpdateFromBuild2ReturnsEmpty() public {
+        // Prepare a dummy install
+        bytes memory installationParams = pluginSetup.encodeInstallationParams(
+            OptimisticTokenVotingPluginSetup.InstallationParameters(
+                votingSettings,
+                tokenSettings,
+                mintSettings,
+                address(taikoL1),
+                taikoERC20Vault,
+                stdProposalMinDuration,
+                stdProposer,
+                emergencyProposer
+            )
+        );
+        (address _dummyPlugin, IPluginSetup.PreparedSetupData memory _preparedSetupData) =
+            pluginSetup.prepareInstallation(address(dao), installationParams);
+
+        IPluginSetup.SetupPayload memory _payload =
+            IPluginSetup.SetupPayload({plugin: _dummyPlugin, currentHelpers: _preparedSetupData.helpers, data: hex""});
+
+        (bytes memory initData, IPluginSetup.PreparedSetupData memory updateSetupData) =
+            pluginSetup.prepareUpdate(address(dao), 2, _payload);
+
+        assertEq(initData.length, 0, "No initData expected");
+        assertEq(updateSetupData.permissions.length, 0, "No permissions expected for build 2");
+
+        // Helpers should be preserved
+        assertEq(updateSetupData.helpers.length, 1, "Should preserve 1 helper");
+        assertEq(updateSetupData.helpers[0], _preparedSetupData.helpers[0], "Helper should match voting token");
     }
 
     // HELPERS
