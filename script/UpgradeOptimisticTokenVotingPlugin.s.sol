@@ -39,8 +39,8 @@ contract UpgradeOptimisticTokenVotingPlugin is Script {
         address psp = vm.envAddress("PLUGIN_SETUP_PROCESSOR");
         address governanceERC20Base = vm.envAddress("GOVERNANCE_ERC20_BASE");
         address governanceWrappedERC20Base = vm.envAddress("GOVERNANCE_WRAPPED_ERC20_BASE");
-        address votingToken = vm.envAddress("VOTING_TOKEN_ADDRESS");
-        address taikoBridge = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
+        address votingToken = vm.envAddress("L1_VOTING_TOKEN");
+        address taikoBridge = vm.envAddress("L1_TAIKO_BRIDGE");
         uint64 l2ChainId = uint64(vm.envUint("L2_CHAIN_ID"));
 
         // Deploy L2VetoReceiver (L1)

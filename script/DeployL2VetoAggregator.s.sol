@@ -14,9 +14,9 @@ contract DeployL2VetoAggregator is Script {
     }
 
     function run() external broadcast {
-        address bridge = vm.envAddress("TAIKO_BRIDGE_ADDRESS");
+        address bridge = vm.envAddress("L2_TAIKO_BRIDGE");
         uint64 l1ChainId = uint64(vm.envUint("L1_CHAIN_ID"));
-        address votingToken = vm.envAddress("TAIKO_TOKEN_ADDRESS");
+        address votingToken = vm.envAddress("L2_VOTING_TOKEN");
         address l1Receiver = vm.envAddress("L2_VETO_RECEIVER_ADDRESS");
 
         L2VetoAggregator aggregator = new L2VetoAggregator(bridge, l1ChainId, votingToken, l1Receiver);
