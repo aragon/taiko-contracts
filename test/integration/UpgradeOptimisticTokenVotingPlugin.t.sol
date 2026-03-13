@@ -1,185 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {AragonTest} from "../base/AragonTest.sol";
-import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {UpgradeTestBase} from "../base/UpgradeTestBase.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
-import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
-import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
-import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
-import {PluginRepoRegistry} from "@aragon/osx/framework/plugin/repo/PluginRepoRegistry.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
-import {IPluginSetup} from "@aragon/osx/framework/plugin/setup/IPluginSetup.sol";
-import {PluginSetupRef, hashHelpers} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
-import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
-import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
-import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
-import {OptimisticTokenVotingPluginSetup} from "../../src/setup/OptimisticTokenVotingPluginSetup.sol";
-import {
-    UpgradeOptimisticTokenVotingPluginFactory
-} from "../../src/factory/UpgradeOptimisticTokenVotingPluginFactory.sol";
-import {MockPluginSetupProcessor} from "../mocks/osx/MockPSP.sol";
-import {MockPluginRepoRegistry} from "../mocks/osx/MockPluginRepoRegistry.sol";
-import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
-import {TaikoL1Mock} from "../mocks/TaikoL1Mock.sol";
-import {L2VetoReceiver} from "../../src/crosschain/L2VetoReceiver.sol";
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
 import {IBridge} from "../../src/interfaces/IBridge.sol";
 
-contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
-    DAO dao;
-    OptimisticTokenVotingPlugin plugin;
-    PluginRepo pluginRepo;
-    MockPluginSetupProcessor psp;
-    GovernanceERC20Mock votingToken;
-    OptimisticTokenVotingPluginSetup initialSetup;
-    UpgradeOptimisticTokenVotingPluginFactory upgradeFactory;
-
-    L2VetoReceiver l2VetoReceiver;
+contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
     TaikoBridgeMock taikoBridge;
-    address trustedL2Aggregator = address(0xCAFE);
     uint64 l2ChainId = 167000;
-    address implBefore;
 
     function setUp() public {
         _install();
 
-        // Deploy TaikoBridgeMock and L2VetoReceiver
         taikoBridge = new TaikoBridgeMock();
-        l2VetoReceiver = new L2VetoReceiver(
-            IDAO(address(dao)),
-            address(taikoBridge),
-            l2ChainId,
-            address(plugin)
-        );
-
-        implBefore = plugin.implementation();
-
-        upgradeFactory = new UpgradeOptimisticTokenVotingPluginFactory(
-            GovernanceERC20(address(1)), GovernanceWrappedERC20(address(1))
-        );
-
-        // Advance block so PSP state tracking works (install was in previous block)
-        vm.roll(block.number + 1);
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    function _install() internal {
-        // Create DAO with `this` as ROOT
-        dao = DAO(
-            payable(createProxyAndCall(
-                    address(new DAO()), abi.encodeCall(DAO.initialize, ("", address(this), address(0x0), ""))
-                ))
-        );
-
-        // Deploy voting token and mint
-        votingToken = new GovernanceERC20Mock(address(dao));
-        votingToken.mintAndDelegate(alice, 10 ether);
-
-        // Create mock OSx infrastructure
-        MockPluginRepoRegistry repoRegistry = new MockPluginRepoRegistry();
-        PluginRepoFactory repoFactory = new PluginRepoFactory(PluginRepoRegistry(address(repoRegistry)));
-
-        // Deploy initial setup (address(1) bases are fine since we pass an existing token)
-        initialSetup =
-            new OptimisticTokenVotingPluginSetup(GovernanceERC20(address(1)), GovernanceWrappedERC20(address(1)));
-
-        // Create PluginRepo with Build 1 (this test contract = maintainer)
-        pluginRepo = repoFactory.createPluginRepoWithFirstVersion(
-            "optimistic-voting", address(initialSetup), address(this), bytes("0x00"), bytes("0x00")
-        );
-
-        // Create MockPSP with initial setup queued
-        address[] memory setups = new address[](1);
-        setups[0] = address(initialSetup);
-        psp = new MockPluginSetupProcessor(setups);
-
-        // Grant temporary permissions for installation
-        dao.grant(address(dao), address(psp), dao.ROOT_PERMISSION_ID());
-        dao.grant(address(psp), address(this), psp.APPLY_INSTALLATION_PERMISSION_ID());
-
-        // Prepare installation
-        bytes memory installData = initialSetup.encodeInstallationParams(
-            OptimisticTokenVotingPluginSetup.InstallationParameters({
-                votingSettings: OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
-                    minVetoRatio: uint32(RATIO_BASE / 10),
-                    minDuration: 4 days,
-                    timelockPeriod: 7 days,
-                    l2InactivityPeriod: 10 minutes,
-                    l2AggregationGracePeriod: 2 days,
-                    skipL2: false
-                }),
-                tokenSettings: OptimisticTokenVotingPluginSetup.TokenSettings({
-                    addr: address(votingToken), name: "", symbol: ""
-                }),
-                mintSettings: GovernanceERC20.MintSettings(new address[](0), new uint256[](0)),
-                taikoL1: address(new TaikoL1Mock()),
-                taikoERC20Vault: taikoERC20Vault,
-                stdProposalMinDuration: 10 days,
-                stdProposer: alice,
-                emergencyProposer: alice
-            })
-        );
-
-        PluginSetupRef memory setupRef = PluginSetupRef(PluginRepo.Tag(1, 1), pluginRepo);
-
-        (address pluginAddr, IPluginSetup.PreparedSetupData memory preparedSetupData) = psp.prepareInstallation(
-            address(dao),
-            MockPluginSetupProcessor.PrepareInstallationParams({pluginSetupRef: setupRef, data: installData})
-        );
-        plugin = OptimisticTokenVotingPlugin(pluginAddr);
-
-        psp.applyInstallation(
-            address(dao),
-            MockPluginSetupProcessor.ApplyInstallationParams({
-                pluginSetupRef: setupRef,
-                plugin: pluginAddr,
-                permissions: preparedSetupData.permissions,
-                helpersHash: hashHelpers(preparedSetupData.helpers)
-            })
-        );
-
-        // Revoke temporary installation permissions
-        dao.revoke(address(psp), address(this), psp.APPLY_INSTALLATION_PERMISSION_ID());
-        dao.revoke(address(dao), address(psp), dao.ROOT_PERMISSION_ID());
-    }
-
-    function _runUpgrade() internal {
-        // Grant ROOT on DAO to factory
-        dao.grant(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID());
-
-        // Grant MAINTAINER on repo to factory
-        pluginRepo.grant(address(pluginRepo), address(upgradeFactory), pluginRepo.MAINTAINER_PERMISSION_ID());
-
-        upgradeFactory.upgrade(
-            UpgradeOptimisticTokenVotingPluginFactory.UpgradeParams({
-                dao: dao,
-                psp: PluginSetupProcessor(address(psp)),
-                plugin: plugin,
-                pluginRepo: pluginRepo,
-                votingToken: address(votingToken),
-                l2VetoReceiver: address(l2VetoReceiver)
-            })
-        );
-
-        // Revoke MAINTAINER on repo from factory
-        pluginRepo.revoke(address(pluginRepo), address(upgradeFactory), pluginRepo.MAINTAINER_PERMISSION_ID());
-    }
-
-    function _runFinalize() internal {
-        // Re-grant ROOT (upgrade revoked it)
-        dao.grant(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID());
-
-        upgradeFactory.finalize(
-            dao,
-            address(l2VetoReceiver),
-            trustedL2Aggregator
-        );
+        _deployL2VetoReceiver(address(taikoBridge), l2ChainId);
+        _initUpgradeFactory();
     }
 
     // =========================================================================
@@ -372,7 +211,6 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
     function test_CanCreateProposalAfterUpgrade() public {
         _runUpgrade();
 
-        // Advance time and block so token checkpoints are available
         vm.warp(block.timestamp + 1);
         vm.roll(block.number + 1);
 
@@ -387,7 +225,6 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
     function test_CanVetoAfterUpgrade() public {
         _runUpgrade();
 
-        // Advance time and block so token checkpoints are available
         vm.warp(block.timestamp + 1);
         vm.roll(block.number + 1);
 
@@ -409,22 +246,14 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
         _runUpgrade();
         _runFinalize();
 
-        // Plugin upgraded
         assertTrue(plugin.implementation() != implBefore, "Implementation should have changed");
-
-        // L2VetoReceiver set on plugin
         assertEq(plugin.l2VetoReceiver(), address(l2VetoReceiver), "L2 receiver not set");
-
-        // Trusted aggregator set on receiver
         assertEq(l2VetoReceiver.trustedL2Aggregator(), trustedL2Aggregator, "Aggregator not set");
 
-        // Factory has no ROOT
         assertFalse(
             dao.hasPermission(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID(), bytes("")),
             "Factory should not have ROOT"
         );
-
-        // Factory has no SET_TRUSTED_L2_AGGREGATOR
         assertFalse(
             dao.hasPermission(
                 address(l2VetoReceiver),
@@ -434,8 +263,6 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
             ),
             "Factory should not have SET_TRUSTED_L2_AGGREGATOR"
         );
-
-        // Factory has no UPDATE_L2_VETO_RECEIVER
         assertFalse(
             dao.hasPermission(
                 address(plugin),
@@ -445,14 +272,11 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
             ),
             "Factory should not have UPDATE_L2_VETO_RECEIVER"
         );
-
-        // PSP has no ROOT
         assertFalse(
             dao.hasPermission(address(dao), address(psp), dao.ROOT_PERMISSION_ID(), bytes("")),
             "PSP should not have ROOT"
         );
 
-        // Plugin still works
         vm.warp(block.timestamp + 1);
         vm.roll(block.number + 1);
 
@@ -469,33 +293,16 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
     // =========================================================================
 
     function test_FullDeployment_L2VetosReachPlugin() public {
-        // Phase 1: upgrade + finalize
         _runUpgrade();
         _runFinalize();
 
-        // Mint tokens to the ERC20Vault so L2 is enabled at proposal creation
-        votingToken.mintAndDelegate(taikoERC20Vault, 5 ether);
+        (uint256 proposalId, uint64 vetoEndDate) = _mintVaultTokensAndCreateProposal();
 
-        // Advance so token checkpoints are available
-        vm.warp(block.timestamp + 1);
-        vm.roll(block.number + 1);
-
-        // Phase 2: create a proposal on the real plugin
-        vm.prank(alice);
-        IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://e2e", actions, 0, 4 days);
-
-        // Extract vetoEndDate from the proposal
         (,, OptimisticTokenVotingPlugin.ProposalParameters memory params,,,,) = plugin.getProposal(proposalId);
-        uint64 vetoEndDate = params.vetoEndDate;
-
-        // Verify L2 is enabled for this proposal
         assertFalse(params.unavailableL2, "L2 should be available for this proposal");
 
-        // Phase 3: warp into the L2 aggregation grace period (past vetoEndDate, within grace)
         vm.warp(vetoEndDate + 1);
 
-        // Phase 4: simulate bridge delivery of L2 vetoes
         uint256 vetoTally = 2 ether;
         uint256 dispatchedAt = block.timestamp;
         bytes memory vetoData = abi.encode(proposalId, vetoTally, dispatchedAt);
@@ -517,12 +324,12 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
         (IBridge.Status status,) = taikoBridge.processMessage(message, "");
         assertEq(uint256(status), uint256(IBridge.Status.DONE), "Bridge message should succeed");
 
-        // Phase 5: assert receiver state
         assertEq(l2VetoReceiver.getL2VetoTally(proposalId), vetoTally, "Receiver should store L2 veto tally");
-        assertEq(l2VetoReceiver.getL2DispatchTimestamp(proposalId), dispatchedAt, "Receiver should store dispatch timestamp");
+        assertEq(
+            l2VetoReceiver.getL2DispatchTimestamp(proposalId), dispatchedAt, "Receiver should store dispatch timestamp"
+        );
         assertTrue(l2VetoReceiver.hasReceivedL2Vetoes(proposalId), "Receiver should mark L2 vetoes received");
 
-        // Phase 6: assert plugin state — vetoTally should include L2 contribution
         (,,, uint256 pluginVetoTally,,,) = plugin.getProposal(proposalId);
         assertEq(pluginVetoTally, vetoTally, "Plugin vetoTally should reflect L2 vetoes");
     }
