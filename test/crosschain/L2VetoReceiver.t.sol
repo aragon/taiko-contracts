@@ -2,16 +2,21 @@
 pragma solidity ^0.8.17;
 
 import {Test} from "forge-std/Test.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {L2VetoReceiver} from "../../src/crosschain/L2VetoReceiver.sol";
 import {IL2VetoReceiver} from "../../src/interfaces/IL2VetoReceiver.sol";
 import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
 import {OptimisticTokenVotingPluginMock} from "../mocks/OptimisticTokenVotingPluginMock.sol";
+import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 
 contract L2VetoReceiverTest is Test {
     L2VetoReceiver public receiver;
     TaikoBridgeMock public bridge;
     OptimisticTokenVotingPluginMock public plugin;
+    DAO public dao;
 
     address public trustedAggregator = address(0xA66e6A702);
     uint64 public l2ChainId = 167000;
@@ -28,9 +33,23 @@ contract L2VetoReceiverTest is Test {
     event TrustedL2AggregatorUpdated(address oldAggregator, address newAggregator);
 
     function setUp() public {
+        dao = DAO(
+            payable(
+                createProxyAndCall(address(new DAO()), abi.encodeCall(DAO.initialize, ("", address(this), address(0), "")))
+            )
+        );
+
         bridge = new TaikoBridgeMock();
         plugin = new OptimisticTokenVotingPluginMock();
-        receiver = new L2VetoReceiver(address(bridge), l2ChainId, address(plugin));
+        receiver = new L2VetoReceiver(IDAO(address(dao)), address(bridge), l2ChainId, address(plugin));
+
+        // Grant SET_TRUSTED_L2_AGGREGATOR_PERMISSION to this test contract
+        dao.grant(
+            address(receiver),
+            address(this),
+            receiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID()
+        );
+
         receiver.setTrustedL2Aggregator(trustedAggregator);
     }
 
@@ -54,22 +73,22 @@ contract L2VetoReceiverTest is Test {
         assertEq(receiver.bridge(), address(bridge));
         assertEq(receiver.l2ChainId(), l2ChainId);
         assertEq(receiver.votingPlugin(), address(plugin));
-        assertEq(receiver.owner(), address(this));
+        assertEq(address(receiver.dao()), address(dao));
     }
 
     function test_constructor_revert_zeroBridge() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(0), l2ChainId, address(plugin));
+        new L2VetoReceiver(IDAO(address(dao)), address(0), l2ChainId, address(plugin));
     }
 
     function test_constructor_revert_zeroChainId() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(bridge), 0, address(plugin));
+        new L2VetoReceiver(IDAO(address(dao)), address(bridge), 0, address(plugin));
     }
 
     function test_constructor_revert_zeroPlugin() public {
         vm.expectRevert(IL2VetoReceiver.InvalidAddress.selector);
-        new L2VetoReceiver(address(bridge), l2ChainId, address(0));
+        new L2VetoReceiver(IDAO(address(dao)), address(bridge), l2ChainId, address(0));
     }
 
     // =========================================================================
@@ -77,7 +96,14 @@ contract L2VetoReceiverTest is Test {
     // =========================================================================
 
     function test_setTrustedL2Aggregator_success() public {
-        L2VetoReceiver newReceiver = new L2VetoReceiver(address(bridge), l2ChainId, address(plugin));
+        L2VetoReceiver newReceiver =
+            new L2VetoReceiver(IDAO(address(dao)), address(bridge), l2ChainId, address(plugin));
+
+        dao.grant(
+            address(newReceiver),
+            address(this),
+            newReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID()
+        );
 
         address newAggregator = address(0x1234567890);
 
@@ -94,11 +120,19 @@ contract L2VetoReceiverTest is Test {
         receiver.setTrustedL2Aggregator(address(0));
     }
 
-    function test_setTrustedL2Aggregator_revert_notOwner() public {
-        address notOwner = address(0xBAD);
+    function test_setTrustedL2Aggregator_revert_unauthorized() public {
+        address notAuthorized = address(0xBAD);
 
-        vm.prank(notOwner);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector,
+                address(dao),
+                address(receiver),
+                notAuthorized,
+                receiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID()
+            )
+        );
+        vm.prank(notAuthorized);
         receiver.setTrustedL2Aggregator(address(0x123));
     }
 
@@ -111,13 +145,6 @@ contract L2VetoReceiverTest is Test {
         receiver.setTrustedL2Aggregator(newAggregator);
 
         assertEq(receiver.trustedL2Aggregator(), newAggregator);
-    }
-
-    function test_renounceOwnership_locksConfig() public {
-        receiver.renounceOwnership();
-
-        vm.expectRevert();
-        receiver.setTrustedL2Aggregator(address(0x123));
     }
 
     // =========================================================================
@@ -332,12 +359,12 @@ contract L2VetoReceiverTest is Test {
         vm.assume(_chainId > 0);
         vm.assume(_plugin != address(0));
 
-        L2VetoReceiver newReceiver = new L2VetoReceiver(_bridge, _chainId, _plugin);
+        L2VetoReceiver newReceiver = new L2VetoReceiver(IDAO(address(dao)), _bridge, _chainId, _plugin);
 
         assertEq(newReceiver.bridge(), _bridge);
         assertEq(newReceiver.l2ChainId(), _chainId);
         assertEq(newReceiver.votingPlugin(), _plugin);
-        assertEq(newReceiver.owner(), address(this));
+        assertEq(address(newReceiver.dao()), address(dao));
     }
 
     // =========================================================================

@@ -11,15 +11,18 @@ import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC2
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPluginSetup.sol";
+import {L2VetoReceiver} from "../crosschain/L2VetoReceiver.sol";
 
 /// @title UpgradeOptimisticTokenVotingPluginFactory
 /// @notice Encapsulates the full PSP-based upgrade flow for OptimisticTokenVotingPlugin
 ///         from Build 1 to Build 2, enabling end-to-end testing in Foundry.
-/// @dev Prerequisites before calling `upgrade()`:
-///      1. This contract must have ROOT_PERMISSION on the DAO.
-///      2. This contract must have MAINTAINER_PERMISSION on the PluginRepo.
-///      The factory revokes its own ROOT at the end, making it single-use.
-///      The caller must revoke MAINTAINER_PERMISSION from this contract on the PluginRepo afterwards.
+/// @dev Two-phase usage:
+///      Phase 1 — `upgrade()`: Plugin upgrade + L2VetoReceiver configuration.
+///        Prerequisites: ROOT_PERMISSION on DAO + MAINTAINER_PERMISSION on PluginRepo.
+///        Revokes its own ROOT at the end. Caller must revoke MAINTAINER on the PluginRepo.
+///      Phase 2 — `finalize()`: Sets the trusted L2 aggregator on the receiver.
+///        Prerequisites: ROOT_PERMISSION on DAO (re-granted by a new DAO proposal).
+///        Revokes its own ROOT at the end.
 contract UpgradeOptimisticTokenVotingPluginFactory {
     struct UpgradeParams {
         DAO dao;
@@ -55,6 +58,20 @@ contract UpgradeOptimisticTokenVotingPluginFactory {
         _revokeAllPermissions(_params);
     }
 
+    /// @notice Sets the trusted L2 aggregator on the receiver and revokes own ROOT.
+    /// @dev Final step — call after `upgrade()`, either in the same or a later DAO proposal.
+    ///      Revokes its own ROOT at the end, making the factory fully spent.
+    function finalize(DAO _dao, address _l2VetoReceiver, address _trustedL2Aggregator) external {
+        bytes32 aggregatorPermission = L2VetoReceiver(_l2VetoReceiver).SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID();
+
+        _dao.grant(_l2VetoReceiver, address(this), aggregatorPermission);
+        L2VetoReceiver(_l2VetoReceiver).setTrustedL2Aggregator(_trustedL2Aggregator);
+        _dao.revoke(_l2VetoReceiver, address(this), aggregatorPermission);
+
+        // Revoke own ROOT (single-use)
+        _dao.revoke(address(_dao), address(this), _dao.ROOT_PERMISSION_ID());
+    }
+
     function _grantPspPermissions(UpgradeParams calldata _params) internal {
         _params.dao.grant(address(_params.dao), address(_params.psp), _params.dao.ROOT_PERMISSION_ID());
         _params.dao.grant(address(_params.psp), address(this), _params.psp.APPLY_UPDATE_PERMISSION_ID());
@@ -65,30 +82,30 @@ contract UpgradeOptimisticTokenVotingPluginFactory {
         address[] memory currentHelpers = new address[](1);
         currentHelpers[0] = _params.votingToken;
 
-        (bytes memory initData, IPluginSetup.PreparedSetupData memory preparedSetupData) = _params.psp.prepareUpdate(
-            address(_params.dao),
-            PluginSetupProcessor.PrepareUpdateParams({
-                currentVersionTag: PluginRepo.Tag(1, 1),
-                newVersionTag: PluginRepo.Tag(1, 2),
-                pluginSetupRepo: _params.pluginRepo,
-                setupPayload: IPluginSetup.SetupPayload({
-                    plugin: address(_params.plugin),
-                    currentHelpers: currentHelpers,
-                    data: hex""
+        (bytes memory initData, IPluginSetup.PreparedSetupData memory preparedSetupData) = _params.psp
+            .prepareUpdate(
+                address(_params.dao),
+                PluginSetupProcessor.PrepareUpdateParams({
+                    currentVersionTag: PluginRepo.Tag(1, 1),
+                    newVersionTag: PluginRepo.Tag(1, 2),
+                    pluginSetupRepo: _params.pluginRepo,
+                    setupPayload: IPluginSetup.SetupPayload({
+                        plugin: address(_params.plugin), currentHelpers: currentHelpers, data: hex""
+                    })
                 })
-            })
-        );
+            );
 
-        _params.psp.applyUpdate(
-            address(_params.dao),
-            PluginSetupProcessor.ApplyUpdateParams({
-                plugin: address(_params.plugin),
-                pluginSetupRef: PluginSetupRef(PluginRepo.Tag(1, 2), _params.pluginRepo),
-                initData: initData,
-                permissions: preparedSetupData.permissions,
-                helpersHash: hashHelpers(preparedSetupData.helpers)
-            })
-        );
+        _params.psp
+            .applyUpdate(
+                address(_params.dao),
+                PluginSetupProcessor.ApplyUpdateParams({
+                    plugin: address(_params.plugin),
+                    pluginSetupRef: PluginSetupRef(PluginRepo.Tag(1, 2), _params.pluginRepo),
+                    initData: initData,
+                    permissions: preparedSetupData.permissions,
+                    helpersHash: hashHelpers(preparedSetupData.helpers)
+                })
+            );
     }
 
     function _configureL2VetoReceiver(UpgradeParams calldata _params) internal {
@@ -99,13 +116,11 @@ contract UpgradeOptimisticTokenVotingPluginFactory {
     }
 
     function _revokeAllPermissions(UpgradeParams calldata _params) internal {
-        _params.dao.revoke(
-            address(_params.plugin), address(_params.psp), _params.plugin.UPGRADE_PLUGIN_PERMISSION_ID()
-        );
+        _params.dao.revoke(address(_params.plugin), address(_params.psp), _params.plugin.UPGRADE_PLUGIN_PERMISSION_ID());
         _params.dao.revoke(address(_params.psp), address(this), _params.psp.APPLY_UPDATE_PERMISSION_ID());
         _params.dao.revoke(address(_params.dao), address(_params.psp), _params.dao.ROOT_PERMISSION_ID());
 
-        // Revoke own ROOT (single-use)
+        // Revoke own ROOT
         _params.dao.revoke(address(_params.dao), address(this), _params.dao.ROOT_PERMISSION_ID());
     }
 }

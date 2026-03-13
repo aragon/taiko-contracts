@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.17;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {DaoAuthorizable} from "@aragon/osx/core/plugin/dao-authorizable/DaoAuthorizable.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {IBridge} from "../interfaces/IBridge.sol";
 import {IMessageInvocable} from "../interfaces/IMessageInvocable.sol";
 import {IL2VetoReceiver} from "../interfaces/IL2VetoReceiver.sol";
@@ -11,7 +12,7 @@ import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 /// @title L2VetoReceiver
 /// @notice L1 contract that receives aggregated L2 veto tallies via Taiko Bridge
 /// @dev Implements IMessageInvocable for bridge callbacks.
-contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
+contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, DaoAuthorizable {
     // =========================================================================
     // IMMUTABLES
     // =========================================================================
@@ -24,6 +25,10 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
 
     /// @notice The voting plugin address
     address public immutable override votingPlugin;
+
+    /// @notice Permission ID for setting the trusted L2 aggregator
+    bytes32 public constant SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID =
+        keccak256("SET_TRUSTED_L2_AGGREGATOR_PERMISSION");
 
     // =========================================================================
     // STORAGE
@@ -53,12 +58,11 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
     // =========================================================================
 
     /// @notice Constructs the L2VetoReceiver
-    /// @dev The deployer becomes the owner. After configuring trustedL2Aggregator,
-    ///      call renounceOwnership() to lock the configuration.
+    /// @param _dao The DAO that governs this contract
     /// @param _bridge The Taiko Bridge address on L1
     /// @param _l2ChainId The expected L2 chain ID
     /// @param _votingPlugin The OptimisticTokenVotingPlugin address
-    constructor(address _bridge, uint64 _l2ChainId, address _votingPlugin) {
+    constructor(IDAO _dao, address _bridge, uint64 _l2ChainId, address _votingPlugin) DaoAuthorizable(_dao) {
         if (_bridge == address(0)) revert InvalidAddress();
         if (_l2ChainId == 0) revert InvalidAddress();
         if (_votingPlugin == address(0)) revert InvalidAddress();
@@ -172,7 +176,11 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, Ownable {
     // =========================================================================
 
     /// @inheritdoc IL2VetoReceiver
-    function setTrustedL2Aggregator(address _trustedL2Aggregator) external override onlyOwner {
+    function setTrustedL2Aggregator(address _trustedL2Aggregator)
+        external
+        override
+        auth(SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID)
+    {
         if (_trustedL2Aggregator == address(0)) revert InvalidAddress();
 
         address oldAggregator = trustedL2Aggregator;

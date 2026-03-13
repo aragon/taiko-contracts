@@ -2,9 +2,12 @@
 pragma solidity ^0.8.17;
 
 import {Test} from "forge-std/Test.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {L2VetoReceiver} from "../../src/crosschain/L2VetoReceiver.sol";
 import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {TaikoHelper} from "../helpers/TaikoHelper.sol";
+import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 
 /// @notice Fork tests using TaikoHelper to simulate cross-chain messages
 /// @dev These tests require environment variables to be set:
@@ -54,7 +57,14 @@ contract L2VetoReceiverForkTest is Test {
         address mockVotingPlugin = makeAddr("mockVotingPlugin");
 
         vm.selectFork(l1Fork);
-        receiver = new L2VetoReceiver(l1Bridge, l2ChainId, mockVotingPlugin);
+
+        DAO dao = DAO(
+            payable(
+                createProxyAndCall(address(new DAO()), abi.encodeCall(DAO.initialize, ("", address(this), address(0), "")))
+            )
+        );
+        receiver = new L2VetoReceiver(IDAO(address(dao)), l1Bridge, l2ChainId, mockVotingPlugin);
+        dao.grant(address(receiver), address(this), receiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID());
         receiver.setTrustedL2Aggregator(trustedAggregator);
 
         taikoHelper = new TaikoHelper();

@@ -24,6 +24,9 @@ import {MockPluginSetupProcessor} from "../mocks/osx/MockPSP.sol";
 import {MockPluginRepoRegistry} from "../mocks/osx/MockPluginRepoRegistry.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
 import {TaikoL1Mock} from "../mocks/TaikoL1Mock.sol";
+import {L2VetoReceiver} from "../../src/crosschain/L2VetoReceiver.sol";
+import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
+import {IBridge} from "../../src/interfaces/IBridge.sol";
 
 contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
     DAO dao;
@@ -34,11 +37,23 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
     OptimisticTokenVotingPluginSetup initialSetup;
     UpgradeOptimisticTokenVotingPluginFactory upgradeFactory;
 
-    address l2VetoReceiver = address(0xBEEF);
+    L2VetoReceiver l2VetoReceiver;
+    TaikoBridgeMock taikoBridge;
+    address trustedL2Aggregator = address(0xCAFE);
+    uint64 l2ChainId = 167000;
     address implBefore;
 
     function setUp() public {
         _install();
+
+        // Deploy TaikoBridgeMock and L2VetoReceiver
+        taikoBridge = new TaikoBridgeMock();
+        l2VetoReceiver = new L2VetoReceiver(
+            IDAO(address(dao)),
+            address(taikoBridge),
+            l2ChainId,
+            address(plugin)
+        );
 
         implBefore = plugin.implementation();
 
@@ -148,12 +163,23 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
                 plugin: plugin,
                 pluginRepo: pluginRepo,
                 votingToken: address(votingToken),
-                l2VetoReceiver: l2VetoReceiver
+                l2VetoReceiver: address(l2VetoReceiver)
             })
         );
 
         // Revoke MAINTAINER on repo from factory
         pluginRepo.revoke(address(pluginRepo), address(upgradeFactory), pluginRepo.MAINTAINER_PERMISSION_ID());
+    }
+
+    function _runFinalize() internal {
+        // Re-grant ROOT (upgrade revoked it)
+        dao.grant(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID());
+
+        upgradeFactory.finalize(
+            dao,
+            address(l2VetoReceiver),
+            trustedL2Aggregator
+        );
     }
 
     // =========================================================================
@@ -195,7 +221,43 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
     function test_UpgradeSetsL2VetoReceiver() public {
         _runUpgrade();
 
-        assertEq(plugin.l2VetoReceiver(), l2VetoReceiver, "L2 receiver not set");
+        assertEq(plugin.l2VetoReceiver(), address(l2VetoReceiver), "L2 receiver not set");
+    }
+
+    // =========================================================================
+    // Finalize (L2 trusted aggregator + ROOT revocation)
+    // =========================================================================
+
+    function test_FinalizeSetsTrustedL2Aggregator() public {
+        _runUpgrade();
+        _runFinalize();
+
+        assertEq(l2VetoReceiver.trustedL2Aggregator(), trustedL2Aggregator, "Trusted L2 aggregator not set");
+    }
+
+    function test_FinalizeRevokesFactoryPermission() public {
+        _runUpgrade();
+        _runFinalize();
+
+        assertFalse(
+            dao.hasPermission(
+                address(l2VetoReceiver),
+                address(upgradeFactory),
+                l2VetoReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID(),
+                bytes("")
+            ),
+            "Factory should not have SET_TRUSTED_L2_AGGREGATOR after configure"
+        );
+    }
+
+    function test_FinalizeRevokesFactoryRoot() public {
+        _runUpgrade();
+        _runFinalize();
+
+        assertFalse(
+            dao.hasPermission(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID(), bytes("")),
+            "Factory should not have ROOT after configure"
+        );
     }
 
     // =========================================================================
@@ -337,5 +399,131 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is AragonTest {
         plugin.veto(proposalId);
 
         assertTrue(plugin.hasVetoed(proposalId, alice), "Veto should be recorded");
+    }
+
+    // =========================================================================
+    // Full deployment: upgrade() + finalize()
+    // =========================================================================
+
+    function test_FullDeployment() public {
+        _runUpgrade();
+        _runFinalize();
+
+        // Plugin upgraded
+        assertTrue(plugin.implementation() != implBefore, "Implementation should have changed");
+
+        // L2VetoReceiver set on plugin
+        assertEq(plugin.l2VetoReceiver(), address(l2VetoReceiver), "L2 receiver not set");
+
+        // Trusted aggregator set on receiver
+        assertEq(l2VetoReceiver.trustedL2Aggregator(), trustedL2Aggregator, "Aggregator not set");
+
+        // Factory has no ROOT
+        assertFalse(
+            dao.hasPermission(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID(), bytes("")),
+            "Factory should not have ROOT"
+        );
+
+        // Factory has no SET_TRUSTED_L2_AGGREGATOR
+        assertFalse(
+            dao.hasPermission(
+                address(l2VetoReceiver),
+                address(upgradeFactory),
+                l2VetoReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID(),
+                bytes("")
+            ),
+            "Factory should not have SET_TRUSTED_L2_AGGREGATOR"
+        );
+
+        // Factory has no UPDATE_L2_VETO_RECEIVER
+        assertFalse(
+            dao.hasPermission(
+                address(plugin),
+                address(upgradeFactory),
+                plugin.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID(),
+                bytes("")
+            ),
+            "Factory should not have UPDATE_L2_VETO_RECEIVER"
+        );
+
+        // PSP has no ROOT
+        assertFalse(
+            dao.hasPermission(address(dao), address(psp), dao.ROOT_PERMISSION_ID(), bytes("")),
+            "PSP should not have ROOT"
+        );
+
+        // Plugin still works
+        vm.warp(block.timestamp + 1);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        (bool open,,,,,,) = plugin.getProposal(proposalId);
+        assertTrue(open, "Proposal should be open after full deployment");
+    }
+
+    // =========================================================================
+    // E2E: Full deployment + crosschain L2 veto delivery
+    // =========================================================================
+
+    function test_FullDeployment_L2VetosReachPlugin() public {
+        // Phase 1: upgrade + finalize
+        _runUpgrade();
+        _runFinalize();
+
+        // Mint tokens to the ERC20Vault so L2 is enabled at proposal creation
+        votingToken.mintAndDelegate(taikoERC20Vault, 5 ether);
+
+        // Advance so token checkpoints are available
+        vm.warp(block.timestamp + 1);
+        vm.roll(block.number + 1);
+
+        // Phase 2: create a proposal on the real plugin
+        vm.prank(alice);
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = plugin.createProposal("ipfs://e2e", actions, 0, 4 days);
+
+        // Extract vetoEndDate from the proposal
+        (,, OptimisticTokenVotingPlugin.ProposalParameters memory params,,,,) = plugin.getProposal(proposalId);
+        uint64 vetoEndDate = params.vetoEndDate;
+
+        // Verify L2 is enabled for this proposal
+        assertFalse(params.unavailableL2, "L2 should be available for this proposal");
+
+        // Phase 3: warp into the L2 aggregation grace period (past vetoEndDate, within grace)
+        vm.warp(vetoEndDate + 1);
+
+        // Phase 4: simulate bridge delivery of L2 vetoes
+        uint256 vetoTally = 2 ether;
+        uint256 dispatchedAt = block.timestamp;
+        bytes memory vetoData = abi.encode(proposalId, vetoTally, dispatchedAt);
+
+        IBridge.Message memory message = IBridge.Message({
+            id: 0,
+            fee: 0,
+            gasLimit: 200_000,
+            from: trustedL2Aggregator,
+            srcChainId: l2ChainId,
+            srcOwner: trustedL2Aggregator,
+            destChainId: uint64(block.chainid),
+            destOwner: address(l2VetoReceiver),
+            to: address(l2VetoReceiver),
+            value: 0,
+            data: abi.encodeCall(l2VetoReceiver.onMessageInvocation, (vetoData))
+        });
+
+        (IBridge.Status status,) = taikoBridge.processMessage(message, "");
+        assertEq(uint256(status), uint256(IBridge.Status.DONE), "Bridge message should succeed");
+
+        // Phase 5: assert receiver state
+        assertEq(l2VetoReceiver.getL2VetoTally(proposalId), vetoTally, "Receiver should store L2 veto tally");
+        assertEq(l2VetoReceiver.getL2DispatchTimestamp(proposalId), dispatchedAt, "Receiver should store dispatch timestamp");
+        assertTrue(l2VetoReceiver.hasReceivedL2Vetoes(proposalId), "Receiver should mark L2 vetoes received");
+
+        // Phase 6: assert plugin state — vetoTally should include L2 contribution
+        (,,, uint256 pluginVetoTally,,,) = plugin.getProposal(proposalId);
+        assertEq(pluginVetoTally, vetoTally, "Plugin vetoTally should reflect L2 vetoes");
     }
 }

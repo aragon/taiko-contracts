@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 /// @title IL2VetoReceiver
 /// @notice Interface for the L1 contract that receives L2 veto tallies via Taiko Bridge
-/// @dev Bridge and L2 chain ID are immutable. Trusted aggregator can be updated by owner.
+/// @dev Bridge and L2 chain ID are immutable. Trusted aggregator requires SET_TRUSTED_L2_AGGREGATOR_PERMISSION.
 ///
 /// Push Model:
 /// 1. Receiver stores the L2 veto tally for staleness protection
@@ -95,6 +95,7 @@ interface IL2VetoReceiver {
     // =========================================================================
 
     /// @notice Sets the trusted L2 aggregator address
+    /// @dev Requires SET_TRUSTED_L2_AGGREGATOR_PERMISSION
     /// @param newAggregator The new L2VetoAggregator address on L2
     function setTrustedL2Aggregator(address newAggregator) external;
 }
