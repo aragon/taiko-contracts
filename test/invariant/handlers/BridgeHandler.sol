@@ -13,6 +13,7 @@ contract BridgeHandler is HandlerBase {
     L2VetoAggregator internal aggregator;
     L2VetoReceiver internal receiver;
     TaikoBridgeMock internal bridgeMock;
+    uint64 internal constant L2_CHAIN_ID = 167000;
 
     uint256 public dispatchCount;
     uint256 public dispatchFailCount;
@@ -33,12 +34,18 @@ contract BridgeHandler is HandlerBase {
 
         uint256 proposalId = base.ghost_activeProposalIds(proposalSeed % proposalCount);
 
+        // Simulate L2 chain ID so bridge mock records correct srcChainId
+        vm.chainId(L2_CHAIN_ID);
+
         try aggregator.dispatch(proposalId) {
             dispatchCount++;
             base.incrementDispatchCount();
         } catch {
             dispatchFailCount++;
         }
+
+        // Restore to default chain ID
+        vm.chainId(31337);
     }
 
     function deliverToL1(uint256 messageSeed) external {
@@ -69,6 +76,13 @@ contract BridgeHandler is HandlerBase {
         IBridge.Message[] memory allMessages = bridgeMock.getSentMessages();
         IBridge.Message memory message = allMessages[idx];
 
+        // Decode the inner data to extract proposalId BEFORE delivery
+        bytes memory innerData = abi.decode(_stripSelector(message.data), (bytes));
+        (uint256 proposalId,, uint256 dispatchedAt) = abi.decode(innerData, (uint256, uint256, uint256));
+
+        // Read plugin vetoTally BEFORE delivery
+        (,,, uint256 prevPluginVetoTally,,,) = base.plugin().getProposal(proposalId);
+
         // processMessage sets context and calls the target
         try bridgeMock.processMessage(message, "") returns (IBridge.Status status, IBridge.StatusReason) {
             base.setDeliveredMessageIndex(idx);
@@ -77,20 +91,19 @@ contract BridgeHandler is HandlerBase {
                 deliveryCount++;
                 base.incrementDeliveryCount();
 
-                // Decode the inner data to extract proposalId
-                // message.data = abi.encodeCall(IMessageInvocable.onMessageInvocation, (innerData))
-                // innerData = abi.encode(proposalId, vetoTally, dispatchedAt)
-                bytes memory innerData = abi.decode(_stripSelector(message.data), (bytes));
-                (uint256 proposalId,, uint256 dispatchedAt) =
-                    abi.decode(innerData, (uint256, uint256, uint256));
-
-                // Update ghosts based on what the receiver actually stored
+                // Update receiver-related ghosts
                 uint256 receiverTimestamp = receiver.getL2DispatchTimestamp(proposalId);
-
                 if (receiverTimestamp == dispatchedAt) {
-                    uint256 receiverTally = receiver.getL2VetoTally(proposalId);
-                    base.setL2VetoTally(proposalId, receiverTally);
                     base.setLastDispatchTimestamp(proposalId, dispatchedAt);
+                }
+
+                // Only update ghost_l2VetoTally if plugin actually accepted the L2 vetoes
+                // (detect by comparing plugin's vetoTally before and after)
+                (,,, uint256 newPluginVetoTally,,,) = base.plugin().getProposal(proposalId);
+                if (newPluginVetoTally != prevPluginVetoTally) {
+                    // Plugin accepted: aggregatedL2Balance = newVetoTally - ghost_l1VetoTally
+                    uint256 l2Balance = newPluginVetoTally - base.ghost_l1VetoTally(proposalId);
+                    base.setL2VetoTally(proposalId, l2Balance);
                 }
             } else {
                 deliveryFailCount++;

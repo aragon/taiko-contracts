@@ -22,3 +22,8 @@ sepolia = { key = "${ETHERSCAN_API_KEY}" }
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
 taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", url = "https://api.taikoscan.io/api" }
 taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", url = "https://blockscoutapi.hoodi.taiko.xyz/api" }
+
+[invariant]
+runs = 256
+depth = 64
+fail_on_revert = false
