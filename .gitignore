@@ -24,5 +24,11 @@ report/
 *.tree
 logs/*
 
+# Temp folders
+tmp/
+
 # Draw.io backup files
 *.drawio.bkp
+
+# Generated proposal actions
+proposals/

@@ -71,7 +71,7 @@ contract Deploy is Script {
 
         settings = TaikoDaoFactory.DeploymentSettings({
             // Taiko contract settings
-            tokenAddress: IVotesUpgradeable(vm.envAddress("TOKEN_ADDRESS")),
+            tokenAddress: IVotesUpgradeable(vm.envAddress("L1_VOTING_TOKEN")),
             taikoL1ContractAddress: vm.envAddress("TAIKO_L1_ADDRESS"),
             taikoERC20VaultAddress: vm.envAddress("TAIKO_ERC20_VAULT_ADDRESS"),
             timelockPeriod: uint32(vm.envUint("TIME_LOCK_PERIOD")),
@@ -84,9 +84,9 @@ contract Deploy is Script {
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
-            osxDaoFactory: vm.envAddress("DAO_FACTORY"),
-            pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR")),
-            pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY")),
+            osxDaoFactory: vm.envAddress("DAO_FACTORY_ADDRESS"),
+            pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR_ADDRESS")),
+            pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY_ADDRESS")),
             // Plugin setup's
             multisigPluginSetup: MultisigPluginSetup(multisigPluginSetup),
             emergencyMultisigPluginSetup: EmergencyMultisigPluginSetup(emergencyMultisigPluginSetup),
@@ -123,9 +123,9 @@ contract Deploy is Script {
             minStdApprovals: uint16(vm.envUint("MIN_STD_APPROVALS")),
             minEmergencyApprovals: uint16(vm.envUint("MIN_EMERGENCY_APPROVALS")),
             // OSx contracts
-            osxDaoFactory: vm.envAddress("DAO_FACTORY"),
-            pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR")),
-            pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY")),
+            osxDaoFactory: vm.envAddress("DAO_FACTORY_ADDRESS"),
+            pluginSetupProcessor: PluginSetupProcessor(vm.envAddress("PLUGIN_SETUP_PROCESSOR_ADDRESS")),
+            pluginRepoFactory: PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY_ADDRESS")),
             // Plugin setup's
             multisigPluginSetup: MultisigPluginSetup(multisigPluginSetup),
             emergencyMultisigPluginSetup: EmergencyMultisigPluginSetup(emergencyMultisigPluginSetup),

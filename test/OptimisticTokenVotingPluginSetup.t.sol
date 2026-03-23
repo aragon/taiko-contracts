@@ -484,7 +484,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         // proposer 1
         assertEq(
             uint256(_preparedSetupData.permissions[3].operation),
-            uint256(PermissionLib.Operation.Grant),
+            uint256(PermissionLib.Operation.GrantWithCondition),
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
@@ -592,7 +592,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         // proposer 1
         assertEq(
             uint256(_preparedSetupData.permissions[3].operation),
-            uint256(PermissionLib.Operation.Grant),
+            uint256(PermissionLib.Operation.GrantWithCondition),
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[3].where, _plugin);
@@ -707,7 +707,7 @@ contract OptimisticTokenVotingPluginSetupTest is Test {
         // proposer 1
         assertEq(
             uint256(_preparedSetupData.permissions[3].operation),
-            uint256(PermissionLib.Operation.Grant),
+            uint256(PermissionLib.Operation.GrantWithCondition),
             "Incorrect operation"
         );
         assertEq(_preparedSetupData.permissions[3].where, _plugin);

@@ -216,7 +216,7 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
 
         vm.prank(alice);
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 4 days);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 10 days);
 
         (bool open,,,,,,) = plugin.getProposal(proposalId);
         assertTrue(open, "Proposal should be open");
@@ -230,7 +230,7 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
 
         vm.prank(alice);
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 4 days);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 10 days);
 
         vm.prank(alice);
         plugin.veto(proposalId);
@@ -282,7 +282,7 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
 
         vm.prank(alice);
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 4 days);
+        uint256 proposalId = plugin.createProposal("ipfs://", actions, 0, 10 days);
 
         (bool open,,,,,,) = plugin.getProposal(proposalId);
         assertTrue(open, "Proposal should be open after full deployment");

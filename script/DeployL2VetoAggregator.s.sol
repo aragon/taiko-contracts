@@ -26,5 +26,13 @@ contract DeployL2VetoAggregator is Script {
         console.log("  l1ChainId:", l1ChainId);
         console.log("  votingToken:", votingToken);
         console.log("  l1Receiver (immutable):", l1Receiver);
+
+        string memory key = "l2-deployments";
+        string memory json = vm.serializeAddress(key, "l2VetoAggregator", address(aggregator));
+
+        string memory dir = string.concat(vm.projectRoot(), "/proposals");
+        vm.createDir(dir, true);
+        vm.writeFile(string.concat(dir, "/l2-deployments.json"), json);
+        console.log("Wrote proposals/l2-deployments.json");
     }
 }

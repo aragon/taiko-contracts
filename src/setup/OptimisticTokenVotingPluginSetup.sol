@@ -190,7 +190,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
 
             // Proposer plugins can create proposals
             permissions[3] = PermissionLib.MultiTargetPermission({
-                operation: PermissionLib.Operation.Grant,
+                operation: PermissionLib.Operation.GrantWithCondition,
                 where: plugin,
                 who: installationParams.stdProposer,
                 condition: address(stdProposalCondition),

@@ -13,8 +13,12 @@ via_ir = false
 holesky = "https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 sepolia = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+taiko-mainnet = "https://rpc.mainnet.taiko.xyz"
+taiko-hoodi = "https://rpc.hoodi.taiko.xyz"
 
 [etherscan]
-holesly = { key = "${ETHERSCAN_API_KEY}" }
+holesky = { key = "${ETHERSCAN_API_KEY}" }
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
+taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", url = "https://api.taikoscan.io/api" }
+taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", url = "https://blockscoutapi.hoodi.taiko.xyz/api" }

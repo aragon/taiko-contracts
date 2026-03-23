@@ -160,7 +160,7 @@ abstract contract UpgradeTestBase is AragonTest {
 
         vm.prank(alice);
         IDAO.Action[] memory actions = new IDAO.Action[](0);
-        proposalId = plugin.createProposal("ipfs://e2e", actions, 0, 4 days);
+        proposalId = plugin.createProposal("ipfs://e2e", actions, 0, 10 days);
 
         (,, OptimisticTokenVotingPlugin.ProposalParameters memory params,,,,) = plugin.getProposal(proposalId);
         vetoEndDate = params.vetoEndDate;
