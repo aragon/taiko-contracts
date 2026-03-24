@@ -108,6 +108,7 @@ contract L2VetoAggregator is IL2VetoAggregator {
     /// @inheritdoc IL2VetoAggregator
     function dispatch(uint256 proposalId) external payable override {
         uint256 vetoTally = _tallies[proposalId];
+        if (vetoTally == 0) revert NothingToDispatch();
 
         // Encode the veto data for L1
         bytes memory vetoData = abi.encode(proposalId, vetoTally, block.timestamp);

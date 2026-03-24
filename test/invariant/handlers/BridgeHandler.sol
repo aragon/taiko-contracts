@@ -5,6 +5,7 @@ import {HandlerBase} from "../base/HandlerBase.sol";
 import {InvariantTestBase} from "../base/InvariantTestBase.sol";
 import {L2VetoAggregator} from "../../../src/crosschain/L2VetoAggregator.sol";
 import {L2VetoReceiver} from "../../../src/crosschain/L2VetoReceiver.sol";
+import {OptimisticTokenVotingPlugin} from "../../../src/OptimisticTokenVotingPlugin.sol";
 import {TaikoBridgeMock} from "../../mocks/TaikoBridgeMock.sol";
 import {IBridge} from "../../../src/interfaces/IBridge.sol";
 
@@ -12,6 +13,7 @@ contract BridgeHandler is HandlerBase {
     InvariantTestBase internal base;
     L2VetoAggregator internal aggregator;
     L2VetoReceiver internal receiver;
+    OptimisticTokenVotingPlugin internal plugin;
     TaikoBridgeMock internal bridgeMock;
     uint64 internal constant L2_CHAIN_ID = 167000;
 
@@ -20,11 +22,14 @@ contract BridgeHandler is HandlerBase {
     uint256 public deliveryCount;
     uint256 public deliveryFailCount;
     uint256 public deliverySkipCount;
+    uint256 public submitCount;
+    uint256 public submitFailCount;
 
     constructor(address _testBase) HandlerBase(_testBase) {
         base = InvariantTestBase(_testBase);
         aggregator = base.aggregator();
         receiver = base.receiver();
+        plugin = base.plugin();
         bridgeMock = base.bridgeMock();
     }
 
@@ -46,6 +51,34 @@ contract BridgeHandler is HandlerBase {
 
         // Restore to default chain ID
         vm.chainId(31337);
+    }
+
+    /// @notice Retry manual submission of stored L2 vetoes to the plugin
+    /// @dev Tests the recovery path when automatic submission in onMessageInvocation fails
+    function retrySubmitL2Vetoes(uint256 proposalSeed) external {
+        uint256 proposalCount = base.getActiveProposalCount();
+        if (proposalCount == 0) return;
+
+        uint256 proposalId = base.ghost_activeProposalIds(proposalSeed % proposalCount);
+
+        // Only try if receiver has stored vetoes for this proposal
+        if (!receiver.hasReceivedL2Vetoes(proposalId)) return;
+
+        // Read plugin vetoTally before
+        (,,, uint256 prevVetoTally,,,) = plugin.getProposal(proposalId);
+
+        try receiver.submitL2Vetoes(proposalId) {
+            submitCount++;
+
+            // Update ghost if plugin accepted
+            (,,, uint256 newVetoTally,,,) = plugin.getProposal(proposalId);
+            if (newVetoTally != prevVetoTally) {
+                uint256 l2Balance = newVetoTally - base.ghost_l1VetoTally(proposalId);
+                base.setL2VetoTally(proposalId, l2Balance);
+            }
+        } catch {
+            submitFailCount++;
+        }
     }
 
     function deliverToL1(uint256 messageSeed) external {
@@ -129,6 +162,8 @@ contract BridgeHandler is HandlerBase {
         _printStat("Deliveries", deliveryCount);
         _printStat("Delivery failures", deliveryFailCount);
         _printStat("Delivery skips", deliverySkipCount);
+        _printStat("Manual submits", submitCount);
+        _printStat("Submit failures", submitFailCount);
         _printStat("Pending messages", _pendingCount());
     }
 

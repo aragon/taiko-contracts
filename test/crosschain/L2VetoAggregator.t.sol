@@ -233,14 +233,12 @@ contract L2VetoAggregatorTest is Test {
         aggregator.dispatch(proposalId);
     }
 
-    function test_dispatch_zeroTally() public {
+    function test_dispatch_revertsWithZeroTally() public {
         uint256 proposalId = _makeProposalId();
 
-        // Dispatch with no votes — still valid, sends zero tally
+        // Dispatch with no votes — reverts
+        vm.expectRevert(IL2VetoAggregator.NothingToDispatch.selector);
         aggregator.dispatch(proposalId);
-
-        IBridge.Message[] memory messages = bridge.getSentMessages();
-        assertEq(messages.length, 1);
     }
 
     function test_dispatch_encodesDataCorrectly() public {

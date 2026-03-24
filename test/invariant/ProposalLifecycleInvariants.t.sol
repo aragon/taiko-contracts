@@ -75,6 +75,27 @@ contract ProposalLifecycleInvariants is InvariantTestBase {
         }
     }
 
+    /// @notice Proposals with unavailableL2 should never have L2 veto contributions
+    function invariant_UnavailableL2ProposalsHaveNoL2Vetoes() public view {
+        for (uint256 i = 0; i < ghost_activeProposalIds.length; i++) {
+            uint256 id = ghost_activeProposalIds[i];
+
+            (,, OptimisticTokenVotingPlugin.ProposalParameters memory params, uint256 vetoTally,,,) =
+                plugin.getProposal(id);
+
+            if (params.snapshotTimestamp == 0) continue;
+
+            if (params.unavailableL2) {
+                // vetoTally should equal only L1 contributions (no L2 component)
+                assertEq(
+                    vetoTally,
+                    ghost_l1VetoTally[id],
+                    string.concat("UnavailableL2 proposal has L2 vetoes for ", vm.toString(id))
+                );
+            }
+        }
+    }
+
     /// @notice After veto period ends, canVeto must be false for all voters
     function invariant_CannotVetoAfterEnd() public view {
         for (uint256 i = 0; i < ghost_activeProposalIds.length; i++) {

@@ -33,6 +33,9 @@ interface IL2VetoAggregator {
     /// @notice Thrown when setting a zero address where one is not allowed
     error InvalidAddress();
 
+    /// @notice Thrown when dispatching with zero veto tally (nothing to send)
+    error NothingToDispatch();
+
     // =========================================================================
     // CORE FUNCTIONS
     // =========================================================================

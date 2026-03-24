@@ -13,6 +13,7 @@ contract ProposalHandler is HandlerBase {
 
     uint256 public createCount;
     uint256 public createFailCount;
+    uint256 public emergencyCount;
 
     constructor(address _testBase) HandlerBase(_testBase) {
         base = InvariantTestBase(_testBase);
@@ -23,7 +24,11 @@ contract ProposalHandler is HandlerBase {
     function createProposal(uint256 seed) external {
         // governanceSettings returns (minVetoRatio, minDuration, timelockPeriod, l2InactivityPeriod, l2AggregationGracePeriod, skipL2)
         (, uint32 minDuration,,,,) = plugin.governanceSettings();
-        uint64 duration = uint64(bound(seed, minDuration, uint256(minDuration) + 10 days));
+
+        // 5% chance of emergency proposal (duration=0, auto-executed)
+        bool emergency = seed % 20 == 0;
+        uint64 duration =
+            emergency ? 0 : uint64(bound(seed, minDuration, uint256(minDuration) + 10 days));
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
 
@@ -32,6 +37,13 @@ contract ProposalHandler is HandlerBase {
             createCount++;
             base.pushActiveProposalId(proposalId);
             base.setProposalCreatedAt(proposalId, block.timestamp);
+
+            if (emergency) {
+                // Emergency proposals are auto-executed by the plugin
+                emergencyCount++;
+                base.setProposalExecuted(proposalId);
+                base.incrementExecutionCount();
+            }
         } catch {
             createFailCount++;
         }
@@ -40,6 +52,7 @@ contract ProposalHandler is HandlerBase {
     function printHandlerStatistics() public view override {
         _printSection("PROPOSAL HANDLER");
         _printStat("Proposals created", createCount);
+        _printStat("Emergency proposals", emergencyCount);
         _printStat("Create failures", createFailCount);
     }
 }
