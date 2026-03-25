@@ -294,6 +294,62 @@ contract L2VetoAggregatorTest is Test {
         assertEq(messages.length, 1);
     }
 
+    function test_dispatch_revert_afterEndDate() public {
+        uint256 proposalId = _makeProposalId();
+        vm.warp(START);
+
+        vm.prank(alice);
+        aggregator.veto(proposalId);
+
+        // Warp past the veto end date
+        vm.warp(END);
+
+        vm.expectRevert(IL2VetoAggregator.DispatchTooLate.selector);
+        aggregator.dispatch(proposalId);
+    }
+
+    function test_dispatch_revert_wellPastEndDate() public {
+        uint256 proposalId = _makeProposalId();
+        vm.warp(START);
+
+        vm.prank(alice);
+        aggregator.veto(proposalId);
+
+        vm.warp(END + 10_000);
+
+        vm.expectRevert(IL2VetoAggregator.DispatchTooLate.selector);
+        aggregator.dispatch(proposalId);
+    }
+
+    function test_dispatch_justBeforeEndDate() public {
+        uint256 proposalId = _makeProposalId();
+        vm.warp(START);
+
+        vm.prank(alice);
+        aggregator.veto(proposalId);
+
+        // One second before endDate — should succeed
+        vm.warp(END - 1);
+        aggregator.dispatch(proposalId);
+
+        IBridge.Message[] memory messages = bridge.getSentMessages();
+        assertEq(messages.length, 1);
+    }
+
+    function test_dispatch_revert_feeTooLarge() public {
+        uint256 proposalId = _makeProposalId();
+        vm.warp(START);
+
+        vm.prank(alice);
+        aggregator.veto(proposalId);
+
+        uint256 tooMuch = uint256(type(uint64).max) + 1;
+        vm.deal(address(this), tooMuch);
+
+        vm.expectRevert(IL2VetoAggregator.FeeTooLarge.selector);
+        aggregator.dispatch{value: tooMuch}(proposalId);
+    }
+
     // =========================================================================
     // PARSE PROPOSAL ID TESTS
     // =========================================================================
