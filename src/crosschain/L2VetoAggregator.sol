@@ -110,10 +110,6 @@ contract L2VetoAggregator is IL2VetoAggregator {
         uint256 vetoTally = _tallies[proposalId];
         if (vetoTally == 0) revert NothingToDispatch();
 
-        // Reject dispatch after the proposal's veto period has ended (saves bridge fees)
-        (,, uint64 endDate) = _decodeTimestamps(proposalId);
-        if (block.timestamp >= endDate) revert DispatchTooLate();
-
         // Prevent silent fee truncation
         if (msg.value > type(uint64).max) revert FeeTooLarge();
 

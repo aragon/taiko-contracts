@@ -36,9 +36,6 @@ interface IL2VetoAggregator {
     /// @notice Thrown when dispatching with zero veto tally (nothing to send)
     error NothingToDispatch();
 
-    /// @notice Thrown when dispatching after the proposal's veto period has ended
-    error DispatchTooLate();
-
     /// @notice Thrown when msg.value exceeds the maximum fee (type(uint64).max)
     error FeeTooLarge();
 
