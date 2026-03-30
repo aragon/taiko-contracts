@@ -247,9 +247,11 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        try taikoL1.getLastVerifiedBlock() returns (uint64, bytes32, bytes32, uint64 verifiedAt) {
-            // verifiedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-            if ((verifiedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
+        try taikoL1.getCoreState() returns (ITaikoL1.CoreState memory coreState) {
+            // lastFinalizedTimestamp < (block.timestamp - l2InactivityPeriod), written as a sum
+            if ((coreState.lastFinalizedTimestamp + governanceSettings.l2InactivityPeriod) < block.timestamp) {
+                return false;
+            }
         } catch {
             // Assume that L2 is not available if we can't read properly
             return false;
