@@ -144,8 +144,10 @@ abstract contract UpgradeTestBase is AragonTest {
     }
 
     function _runFinalize() internal {
-        dao.grant(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID());
-        upgradeFactory.finalize(dao, address(l2VetoReceiver), trustedL2Aggregator);
+        // After upgrade, the DAO has SET_TRUSTED_L2_AGGREGATOR_PERMISSION on the receiver (via PSP).
+        // In production this would be a dao.execute() action. In tests we prank as the DAO.
+        vm.prank(address(dao));
+        l2VetoReceiver.setTrustedL2Aggregator(trustedL2Aggregator);
     }
 
     /// @dev Mints to vault so L2 is enabled, advances time, creates proposal as alice.

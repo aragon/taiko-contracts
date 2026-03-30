@@ -300,6 +300,8 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
     }
 
     /// @inheritdoc IPluginSetup
+    /// @dev When updating from Build 1, pass the L2VetoReceiver address as `abi.encode(l2VetoReceiver)` in `_payload.data`.
+    ///      If data is empty, only the plugin permission is granted (backwards-compatible).
     function prepareUpdate(address _dao, uint16 _currentBuild, SetupPayload calldata _payload)
         external
         view
@@ -307,7 +309,11 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         returns (bytes memory initData, PreparedSetupData memory preparedSetupData)
     {
         if (_currentBuild == 1) {
-            PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](1);
+            bool hasReceiver = _payload.data.length > 0;
+            uint256 permCount = hasReceiver ? 2 : 1;
+
+            PermissionLib.MultiTargetPermission[] memory permissions =
+                new PermissionLib.MultiTargetPermission[](permCount);
 
             permissions[0] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
@@ -316,6 +322,18 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 condition: PermissionLib.NO_CONDITION,
                 permissionId: optimisticTokenVotingPluginBase.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID()
             });
+
+            if (hasReceiver) {
+                address l2VetoReceiver = abi.decode(_payload.data, (address));
+
+                permissions[1] = PermissionLib.MultiTargetPermission({
+                    operation: PermissionLib.Operation.Grant,
+                    where: l2VetoReceiver,
+                    who: _dao,
+                    condition: PermissionLib.NO_CONDITION,
+                    permissionId: keccak256("SET_TRUSTED_L2_AGGREGATOR_PERMISSION")
+                });
+            }
 
             preparedSetupData.permissions = permissions;
         }

@@ -16,13 +16,12 @@ import {L2VetoReceiver} from "../crosschain/L2VetoReceiver.sol";
 /// @title UpgradeOptimisticTokenVotingPluginFactory
 /// @notice Encapsulates the full PSP-based upgrade flow for OptimisticTokenVotingPlugin
 ///         from Build 1 to Build 2, enabling end-to-end testing in Foundry.
-/// @dev Two-phase usage:
-///      Phase 1 — `upgrade()`: Plugin upgrade + L2VetoReceiver configuration.
+/// @dev Usage:
+///      `upgrade()`: Plugin upgrade + L2VetoReceiver configuration.
 ///        Prerequisites: ROOT_PERMISSION on DAO + MAINTAINER_PERMISSION on PluginRepo.
 ///        Revokes its own ROOT at the end. Caller must revoke MAINTAINER on the PluginRepo.
-///      Phase 2 — `finalize()`: Sets the trusted L2 aggregator on the receiver.
-///        Prerequisites: ROOT_PERMISSION on DAO (re-granted by a new DAO proposal).
-///        Revokes its own ROOT at the end.
+///        The PSP grants SET_TRUSTED_L2_AGGREGATOR_PERMISSION to the DAO on the receiver,
+///        so the DAO can later set the trusted aggregator via a direct proposal action.
 contract UpgradeOptimisticTokenVotingPluginFactory {
     struct UpgradeParams {
         DAO dao;
@@ -58,20 +57,6 @@ contract UpgradeOptimisticTokenVotingPluginFactory {
         _revokeAllPermissions(_params);
     }
 
-    /// @notice Sets the trusted L2 aggregator on the receiver and revokes own ROOT.
-    /// @dev Final step — call after `upgrade()`, either in the same or a later DAO proposal.
-    ///      Revokes its own ROOT at the end, making the factory fully spent.
-    function finalize(DAO _dao, address _l2VetoReceiver, address _trustedL2Aggregator) external {
-        bytes32 aggregatorPermission = L2VetoReceiver(_l2VetoReceiver).SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID();
-
-        _dao.grant(_l2VetoReceiver, address(this), aggregatorPermission);
-        L2VetoReceiver(_l2VetoReceiver).setTrustedL2Aggregator(_trustedL2Aggregator);
-        _dao.revoke(_l2VetoReceiver, address(this), aggregatorPermission);
-
-        // Revoke own ROOT (single-use)
-        _dao.revoke(address(_dao), address(this), _dao.ROOT_PERMISSION_ID());
-    }
-
     function _grantPspPermissions(UpgradeParams calldata _params) internal {
         _params.dao.grant(address(_params.dao), address(_params.psp), _params.dao.ROOT_PERMISSION_ID());
         _params.dao.grant(address(_params.psp), address(this), _params.psp.APPLY_UPDATE_PERMISSION_ID());
@@ -90,7 +75,9 @@ contract UpgradeOptimisticTokenVotingPluginFactory {
                     newVersionTag: PluginRepo.Tag(1, 2),
                     pluginSetupRepo: _params.pluginRepo,
                     setupPayload: IPluginSetup.SetupPayload({
-                        plugin: address(_params.plugin), currentHelpers: currentHelpers, data: hex""
+                        plugin: address(_params.plugin),
+                        currentHelpers: currentHelpers,
+                        data: abi.encode(_params.l2VetoReceiver)
                     })
                 })
             );

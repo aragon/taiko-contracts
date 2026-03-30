@@ -64,39 +64,28 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
     }
 
     // =========================================================================
-    // Finalize (L2 trusted aggregator + ROOT revocation)
+    // Finalize (DAO sets trusted aggregator directly)
     // =========================================================================
+
+    function test_UpgradeGrantsDaoAggregatorPermission() public {
+        _runUpgrade();
+
+        assertTrue(
+            dao.hasPermission(
+                address(l2VetoReceiver),
+                address(dao),
+                l2VetoReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID(),
+                bytes("")
+            ),
+            "DAO should have SET_TRUSTED_L2_AGGREGATOR after upgrade"
+        );
+    }
 
     function test_FinalizeSetsTrustedL2Aggregator() public {
         _runUpgrade();
         _runFinalize();
 
         assertEq(l2VetoReceiver.trustedL2Aggregator(), trustedL2Aggregator, "Trusted L2 aggregator not set");
-    }
-
-    function test_FinalizeRevokesFactoryPermission() public {
-        _runUpgrade();
-        _runFinalize();
-
-        assertFalse(
-            dao.hasPermission(
-                address(l2VetoReceiver),
-                address(upgradeFactory),
-                l2VetoReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID(),
-                bytes("")
-            ),
-            "Factory should not have SET_TRUSTED_L2_AGGREGATOR after configure"
-        );
-    }
-
-    function test_FinalizeRevokesFactoryRoot() public {
-        _runUpgrade();
-        _runFinalize();
-
-        assertFalse(
-            dao.hasPermission(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID(), bytes("")),
-            "Factory should not have ROOT after configure"
-        );
     }
 
     // =========================================================================
@@ -250,18 +239,10 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
         assertEq(plugin.l2VetoReceiver(), address(l2VetoReceiver), "L2 receiver not set");
         assertEq(l2VetoReceiver.trustedL2Aggregator(), trustedL2Aggregator, "Aggregator not set");
 
+        // Factory permissions cleaned up
         assertFalse(
             dao.hasPermission(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID(), bytes("")),
             "Factory should not have ROOT"
-        );
-        assertFalse(
-            dao.hasPermission(
-                address(l2VetoReceiver),
-                address(upgradeFactory),
-                l2VetoReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID(),
-                bytes("")
-            ),
-            "Factory should not have SET_TRUSTED_L2_AGGREGATOR"
         );
         assertFalse(
             dao.hasPermission(
@@ -275,6 +256,17 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
         assertFalse(
             dao.hasPermission(address(dao), address(psp), dao.ROOT_PERMISSION_ID(), bytes("")),
             "PSP should not have ROOT"
+        );
+
+        // DAO retains aggregator permission
+        assertTrue(
+            dao.hasPermission(
+                address(l2VetoReceiver),
+                address(dao),
+                l2VetoReceiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID(),
+                bytes("")
+            ),
+            "DAO should have SET_TRUSTED_L2_AGGREGATOR"
         );
 
         vm.warp(block.timestamp + 1);
