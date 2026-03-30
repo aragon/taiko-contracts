@@ -66,12 +66,12 @@ contract CrosschainVetoLocalTest is UpgradeTestBase {
         uint256 expectedVotingPower = l2VotingToken.getVotes(bob);
         assertEq(aggregator.getVetoTally(proposalId), expectedVotingPower, "Aggregator tally mismatch");
 
-        // Phase 4: warp into grace period, dispatch, capture MessageSent event
-        vm.warp(vetoEndDate + 1);
-
+        // Phase 4: dispatch before vetoEndDate, then warp into grace period
         vm.recordLogs();
         aggregator.dispatch(proposalId);
         Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        vm.warp(vetoEndDate + 1);
 
         // Phase 5: extract message from logs and relay to receiver via TaikoHelper
         IBridge.Message memory message;

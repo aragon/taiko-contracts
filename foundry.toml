@@ -2,7 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "./script" }]
+fs_permissions = [{ access = "read", path = "./script" }, { access = "read-write", path = "./proposals" }]
 evm_version = "cancun"
 optimizer = true
 optimizer-runs = 200
@@ -14,12 +14,14 @@ holesky = "https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 sepolia = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 taiko-mainnet = "https://rpc.mainnet.taiko.xyz"
+hoodi = "https://eth-hoodi.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 taiko-hoodi = "https://rpc.hoodi.taiko.xyz"
 
 [etherscan]
 holesky = { key = "${ETHERSCAN_API_KEY}" }
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
+hoodi = { key = "${ETHERSCAN_API_KEY}" }
 taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", url = "https://api.taikoscan.io/api" }
 taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", url = "https://blockscoutapi.hoodi.taiko.xyz/api" }
 

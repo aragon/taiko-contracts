@@ -104,7 +104,7 @@ contract Deploy is Script {
     function getTestTokenSettings() internal returns (TaikoDaoFactory.DeploymentSettings memory settings) {
         console.log("Using test token settings");
 
-        address taikoERC20VaultAddress = address(0x1234567890);
+        address taikoERC20VaultAddress = vm.envAddress("TAIKO_ERC20_VAULT_ADDRESS");
         address[] memory multisigMembers = readMultisigMembers();
         address votingToken = createTestToken(multisigMembers, taikoERC20VaultAddress);
 
