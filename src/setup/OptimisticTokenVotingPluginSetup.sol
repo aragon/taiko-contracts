@@ -364,7 +364,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         installationParams = abi.decode(_data, (InstallationParameters));
     }
 
-    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @notice Attempts to determine if the contract is an ERC20 token.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsErc20(address token) private view returns (bool) {
@@ -381,7 +381,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         return true;
     }
 
-    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @notice Attempts to determine if the contract supports IVotes.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsIVotes(address token) private view returns (bool) {
@@ -401,7 +401,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         return true;
     }
 
-    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @notice Attempts to determine if the contract supports IGovernanceWrappedERC20.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsIGovernanceWrappedERC20(address token) private view returns (bool) {

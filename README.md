@@ -124,6 +124,24 @@ Given that smart contracts cannot possibly sign or decrypt data, the encryption 
 
 Refer to the [UI repository](https://github.com/aragon/taiko-ui?tab=readme-ov-file#encryption-steps) to read more about the encryption architecture.
 
+### L2 Veto System
+
+The DAO's governance token is bridged to Taiko L2, meaning a portion of voting power lives on L2. The L2 veto system allows L2 token holders to participate in the optimistic veto process without bridging back to L1.
+
+Two contracts coordinate this:
+
+- **L2VetoAggregator** (deployed on L2): L2 token holders call `veto(proposalId)` to cast their veto using their L2 voting power (snapshotted at proposal creation). Anyone can then call `dispatch(proposalId)` to bridge the aggregated tally to L1 via the Taiko Bridge.
+- **L2VetoReceiver** (deployed on L1): Receives bridge messages from the trusted L2VetoAggregator, validates the proposalId against the plugin's proposal data, and pushes the L2 veto tally to the OptimisticTokenVotingPlugin.
+
+The `proposalId` encodes timestamps (snapshot, start, end, counter) so the L2 contract can validate veto timing without querying L1.
+
+The OptimisticTokenVotingPlugin has a `skipL2` governance setting that, when enabled, ignores L2 voting power entirely (both for token supply calculations and L2 veto acceptance). An `l2AggregationGracePeriod` setting adds extra time after `vetoEndDate` to allow L2 tallies to be bridged.
+
+#### Permissions
+
+- The DAO can set the trusted L2 aggregator address on the receiver (`SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID`)
+- The DAO can set the L2VetoReceiver on the plugin (`UPDATE_L2_VETO_RECEIVER_PERMISSION_ID`)
+
 ### Delegation Wall
 
 A simple helper contract that serves the purpose of storing the IPFS URI's pointing to the delegation profile posted by all candidates. Profiles can be updated by the owner and read by everyone.
@@ -163,34 +181,42 @@ The `Makefile` is the target launcher of the project. It's the recommended way t
 
 ```
 $ make
-Available targets:
+Available recipes:
 
-- make init       Check the dependencies and prompt to install if needed
-- make clean      Clean the build artifacts
+  make init                 Prepare the project dependencies            [network="..."]
+  make switch               Starts using the given network              [network="..."]
+  make clean                Clean the compiler artifacts
 
-- make test            Run unit tests, locally
-- make test-coverage   Generate an HTML coverage report under ./report
+Testing:
 
-- make sync-tests       Scaffold or sync tree files into solidity tests
-- make check-tests      Checks if solidity files are out of sync
-- make markdown-tests   Generates a markdown file with the test definitions rendered as a tree
+  make test                 Run all tests (local)
+  make fork-test            Run all fork tests (exporting RPC_URL env)
+  make test-coverage        Generate an HTML coverage report under ./report
 
-- make pre-deploy-mint-testnet   Simulate a deployment to the testnet, minting test token(s)
-- make pre-deploy-testnet        Simulate a deployment to the testnet
-- make pre-deploy-prodnet        Simulate a deployment to the production network
+Deployment:
 
-- make deploy-testnet        Deploy to the testnet and verify
-- make deploy-prodnet        Deploy to the production network and verify
+  make predeploy            Simulate a plugin deployment
+  make deploy               Deploy the plugin, verify the code and write to ./artifacts
+  make resume               Continue a pending deployment, verify the code and write to ./artifacts
 
-- make refund   Refund the remaining balance left on the deployment account
+General:
+
+  make anvil                Starts a forked EVM, using RPC_URL
+  make refund               Transfer the balance left on the deployment account
+
+Test tree management (bulloak):
+
+  make sync-tests           Scaffold or sync tree files into solidity tests
+  make check-tests          Check if solidity test files are out of sync
+  make markdown-tests       Generate markdown file with test tree definitions
 ```
 
-Run `make init`:
+Run `make init network=<name>` (e.g. `hoodi`, `mainnet`, `taiko-hoodi`, `taiko-mainnet`):
+- It selects the network configuration from the `networks/` folder
 - It ensures that Foundry is installed
 - It runs a first compilation of the project
-- It copies `.env.example` into `.env` and `.env.test.example` into `.env.test`
 
-Next, customize the values of `.env` and optionally `.env.test`.
+Next, customize the values of `.env.example` for project-wide settings. Network-specific settings live under `networks/<name>/.env`.
 
 ### Understanding `.env.example`
 
@@ -198,21 +224,47 @@ The env.example file contains descriptions for all the initial settings. You don
 
 ## Deployment
 
-Deployments are done using the [TaikoDaoFactory](./src/factory/TaikoDaoFactory.sol). This is a singleton contract that will:
+### Fresh DAO deployment
 
-- Deploy all contracts
-- Set permissions
-- Transfer ownership to a freshly deployed multisig
-- Store the addresses of the deployment in a single source of truth that can be queried at any time.
+Initial deployments are done using [Deploy.s.sol](script/Deploy.s.sol), which deploys the [TaikoDaoFactory](./src/factory/TaikoDaoFactory.sol) and calls it. The factory will:
 
-Check the available make targets to simulate and deploy the smart contracts:
+- Deploy the DAO and all three plugins (Multisig, EmergencyMultisig, OptimisticTokenVotingPlugin)
+- Deploy helper contracts (SignerList, EncryptionRegistry)
+- Set all permissions and then revoke its own ROOT access, making the DAO self-governing
+
+The script also deploys the **L2VetoReceiver** on L1. After that, the L2 side needs to be deployed and wired:
+
+1. **Deploy on L1**: `make deploy` (runs `Deploy.s.sol`)
+2. **Deploy L2VetoAggregator on L2**: Run `DeployL2VetoAggregator.s.sol` against the L2 RPC
+   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `L2_VETO_RECEIVER_ADDRESS`
+3. **Generate the configuration proposal**: Run `ConfigureL2Veto.s.sol` to produce `proposals/proposal-configure-l2-veto.json`
+   - Requires: `DAO_ADDRESS`, `PLUGIN_ADDRESS`, `L2_VETO_RECEIVER_ADDRESS`, `L2_VETO_AGGREGATOR_ADDRESS`
+4. **Submit the proposal** to the DAO (grants permissions, sets receiver on plugin, sets trusted aggregator on receiver)
+
+Check the available make targets to simulate and deploy:
 
 ```
-- make pre-deploy-testnet    Simulate a deployment to the defined testnet
-- make pre-deploy-prodnet    Simulate a deployment to the defined production network
-- make deploy-testnet        Deploy to the defined testnet network and verify
-- make deploy-prodnet        Deploy to the production network and verify
+make predeploy    Simulate a deployment
+make deploy       Deploy, verify the code and write to ./artifacts
+make resume       Continue a pending deployment
 ```
+
+### Upgrading the OptimisticTokenVotingPlugin
+
+For an existing DAO that needs the L2 veto system, the upgrade follows a multi-step process across two chains and two DAO proposals:
+
+1. **Run `UpgradeOptimisticTokenVotingPlugin.s.sol` on L1**
+   - Deploys a new L2VetoReceiver and an UpgradeFactory (which contains the new PluginSetup)
+   - Outputs `proposals/proposal-1-upgrade.json` and `proposals/l1-deployments.json`
+2. **Submit and execute DAO Proposal 1** (`proposal-1-upgrade.json`)
+   - Grants temporary ROOT to the factory, publishes the new plugin version, runs the upgrade, and revokes ROOT
+3. **Deploy L2VetoAggregator on L2**: Run `DeployL2VetoAggregator.s.sol` against the L2 RPC
+   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `L2_VETO_RECEIVER_ADDRESS`
+   - Outputs `proposals/l2-deployments.json`
+4. **Run `FinalizeUpgrade.s.sol`** to generate `proposals/proposal-2-finalize.json`
+   - Requires: `L2_VETO_RECEIVER_ADDRESS`, `L2_VETO_AGGREGATOR_ADDRESS`
+5. **Submit and execute DAO Proposal 2** (`proposal-2-finalize.json`)
+   - Sets the trusted L2 aggregator address on the receiver
 
 ### Deployment Checklist
 
@@ -223,8 +275,7 @@ Check the available make targets to simulate and deploy the smart contracts:
   - [ ] I have run `curl -L https://foundry.paradigm.xyz | bash`
   - [ ] I have run `source /root/.bashrc && foundryup`
   - [ ] I have run `cd /deployment`
-  - [ ] I have run `make init`
-  - [ ] I have printed the contents of `.env` and `.env.test` on the screen
+  - [ ] I have run `make init network=<name>`
 - [ ] I am opening an editor on the `/deployment` folder, within the Docker container
 - [ ] The `.env` file contains the correct parameters for the deployment
   - [ ] I have created a brand new burner wallet with `cast wallet new` and copied the private key to `DEPLOYMENT_PRIVATE_KEY` within `.env`
@@ -232,8 +283,9 @@ Check the available make targets to simulate and deploy the smart contracts:
   - [ ] I have checked that the JSON file under `MULTISIG_MEMBERS_JSON_FILE_NAME` contains the correct list of signers
   - [ ] I have ensured all multisig members have undergone a proper security review and are aware of the security implications of being on said multisig
   - [ ] I have checked that `MIN_STD_APPROVALS`, `MIN_EMERGENCY_APPROVALS` and `MULTISIG_PROPOSAL_EXPIRATION_PERIOD` are correct
-  - [ ] I have verified that `TOKEN_ADDRESS` corresponds to the intended ERC20 contract on the test chain
-  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_ERC20_VAULT_ADDRESS` belong to the test chain
+  - [ ] I have verified that `L1_VOTING_TOKEN` corresponds to the intended ERC20 contract on the target chain
+  - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_ERC20_VAULT_ADDRESS` belong to the target chain
+  - [ ] I have checked that `L1_TAIKO_BRIDGE` and `L2_CHAIN_ID` are correct for the cross-chain setup
   - The plugin ENS subdomain
     - [ ] Contains a meaningful and unique value
   - The given OSx addresses:
@@ -242,79 +294,48 @@ Check the available make targets to simulate and deploy the smart contracts:
     - [ ] I have verified the values on https://www.npmjs.com/package/@aragon/osx-commons-configs?activeTab=code > `/@aragon/osx-commons-configs/dist/deployments/json/`
 - [ ] All the unit tests pass (`make test`)
 - **Target test network**
-  - [ ] I have run a preview deployment on the testnet
-    - `make pre-deploy-testnet`
-  - [ ] I have deployed my contracts successfully to the target testnet
-    - `make deploy-testnet`
+  - [ ] I have switched to the testnet: `make switch network=<testnet-name>`
+  - [ ] I have run a preview deployment: `make predeploy`
+  - [ ] I have deployed my contracts successfully: `make deploy`
   - [ ] I have tested that these contracts work successfully
 - **Target production network**
-    - [ ] I have updated `TOKEN_ADDRESS` to have the address of the prodnet
-    - [ ] I have checked that `TAIKO_L1_ADDRESS` and `TAIKO_ERC20_VAULT_ADDRESS` target the correct network
+    - [ ] I have switched to the production network: `make switch network=<prodnet-name>`
+    - [ ] I have verified that `L1_VOTING_TOKEN`, `TAIKO_L1_ADDRESS` and `TAIKO_ERC20_VAULT_ADDRESS` target the correct network
 - [ ] My deployment wallet is a newly created account, ready for safe production deploys.
 - My computer:
   - [ ] Is running in a safe physical location and a trusted network
   - [ ] It exposes no services or ports
-  - [ ] The wifi or wired network used does does not have open ports to a WAN
+  - [ ] The wifi or wired network used does not have open ports to a WAN
 - [ ] I have previewed my deploy without any errors
-  - `make pre-deploy-prodnet`
+  - `make predeploy`
 - [ ] The deployment wallet has sufficient native token for gas
   - At least, 15% more than the estimated simulation
 - [ ] Unit tests still run clean
 - [ ] I have run `git status` and it reports no local changes
 - [ ] The current local git branch (`main`) corresponds to its counterpart on `origin`
   - [ ] I confirm that the rest of members of the ceremony pulled the last commit of my branch and reported the same commit hash as my output for `git log -n 1`
-- [ ] I have initiated the production deployment with `make deploy-prodnet`
+- [ ] I have initiated the production deployment with `make deploy`
 
 ### Post deployment checklist
 
 - [ ] The deployment process completed with no errors
 - [ ] The deployed factory was deployed by the deployment address
-- [ ] The reported contracts have been created created by the newly deployed factory
+- [ ] The reported contracts have been created by the newly deployed factory
+- [ ] The L2VetoReceiver was deployed correctly
 - [ ] The smart contracts are correctly verified on Etherscan or the corresponding block explorer
 - [ ] The output of the latest `deployment-*.log` file corresponds to the console output
 - [ ] I have transferred the remaining funds of the deployment wallet to the address that originally funded it
   - `make refund`
 
-## Manual deployment (CLI)
+### Scripts reference
 
-You can of course run all commands from the command line:
-
-```sh
-# Load the env vars
-source .env
-```
-
-```sh
-# run unit tests
-forge test --no-match-path "test/fork/**/*.sol"
-```
-
-```sh
-# Set the right RPC URL
-RPC_URL="https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-```
-
-```sh
-# Run the deployment script
-
-# If using Etherscan
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify
-
-# If using BlockScout
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --verifier blockscout --verifier-url "https://sepolia.explorer.mode.network/api\?"
-```
-
-If you get the error Failed to get EIP-1559 fees, add `--legacy` to the command:
-
-```sh
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --broadcast --verify --legacy
-```
-
-If some contracts fail to verify on Etherscan, retry with this command:
-
-```sh
-forge script --chain "$NETWORK" script/Deploy.s.sol:Deploy --rpc-url "$RPC_URL" --verify --legacy --private-key "$DEPLOYMENT_PRIVATE_KEY" --resume
-```
+| Script | Chain | Purpose |
+|--------|-------|---------|
+| [Deploy.s.sol](script/Deploy.s.sol) | L1 | Full DAO deployment (factory + plugins + L2VetoReceiver) |
+| [DeployL2VetoAggregator.s.sol](script/DeployL2VetoAggregator.s.sol) | L2 | Deploy L2VetoAggregator |
+| [ConfigureL2Veto.s.sol](script/ConfigureL2Veto.s.sol) | L1 | Generate proposal to wire L2 veto into the plugin |
+| [UpgradeOptimisticTokenVotingPlugin.s.sol](script/UpgradeOptimisticTokenVotingPlugin.s.sol) | L1 | Deploy upgrade factory + L2VetoReceiver, generate upgrade proposal |
+| [FinalizeUpgrade.s.sol](script/FinalizeUpgrade.s.sol) | L1 | Generate proposal to set trusted L2 aggregator after upgrade |
 
 
 ## OSx protocol overview
@@ -379,6 +400,10 @@ Below are all the permissions that a [PluginSetup](#plugin-setup-contracts) cont
 - `PROPOSER_PERMISSION` is required to be able to create optimistic proposals on the governance plugin
 - `UPDATE_MULTISIG_SETTINGS_PERMISSION_ID` is used by the DAO to update the settings of a multisig plugin, if the community approves
 - `UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID` is used by the DAO to update the settings of the optimistic voting plugin, if the community approves
+- `UPDATE_L2_VETO_RECEIVER_PERMISSION_ID` is used by the DAO to set the L2VetoReceiver address on the optimistic voting plugin
+- `SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID` is used by the DAO to set the trusted L2VetoAggregator address on the L2VetoReceiver
+- `UPDATE_SIGNER_LIST_PERMISSION_ID` is used to manage the list of signers on the SignerList contract
+- `UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID` is used by the DAO to update the SignerList settings (e.g. minimum signer count)
 
 Other DAO specific permissions:
 

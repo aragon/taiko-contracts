@@ -20,7 +20,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
     /// @notice Allows to enumerate the addresses on the registry
     address[] public accountList;
 
-    /// @notice The public key and (optional) appointed agent or each registered account
+    /// @notice The public key and (optional) appointed agent of each registered account
     mapping(address => RegisteredAccount) public accounts;
 
     /// @notice A reference to the account that appointed each agent
@@ -95,7 +95,7 @@ contract EncryptionRegistry is IEncryptionRegistry, ERC165 {
         if (!addresslist.isListed(msg.sender)) {
             revert MustBeListed();
         }
-        // If someone else if appointed, the public key cannot be overriden.
+        // If someone else is appointed, the public key cannot be overridden.
         // The appointed value should be set to address(0) or msg.sender first.
         else if (accounts[msg.sender].appointedAgent != address(0) && accounts[msg.sender].appointedAgent != msg.sender)
         {

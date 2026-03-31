@@ -204,7 +204,7 @@ contract TaikoDaoFactory {
 
             signerList.updateSettings(SignerList.Settings(encryptionRegistry, uint16(settings.multisigMembers.length)));
 
-            // Revoke the remporary permission
+            // Revoke the temporary permission
             dao.revoke(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         }
 

@@ -661,7 +661,7 @@ contract OptimisticTokenVotingPlugin is
             block.timestamp.toUint64() < proposal_.parameters.vetoEndDate + governanceSettings.l2AggregationGracePeriod;
     }
 
-    /// @notice Internal function to check if a passed proposal is on the exit window perios.
+    /// @notice Internal function to check if a passed proposal is on the exit window period.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal cannot be executed because the exit window hasn't elapsed yet
     function _proposalInExitWindow(Proposal storage proposal_) internal view virtual returns (bool) {

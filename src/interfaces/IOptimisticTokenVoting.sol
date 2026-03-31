@@ -11,7 +11,7 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 interface IOptimisticTokenVoting {
     /// @notice A container for the proposal parameters at the time of proposal creation.
     /// @param vetoStartDate The start date of the proposal veto.
-    /// @param vetoEndDate The end date of the proposal vote
+    /// @param vetoEndDate The end date of the proposal veto period
     /// @param snapshotTimestamp The timestamp prior to the proposal creation.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal.
     /// @param unavailableL2 True if the L2 was unavailable when the proposal was created.

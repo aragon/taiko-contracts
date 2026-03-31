@@ -25,8 +25,8 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
     /// @param executed Whether the proposal is executed or not.
     /// @param approvals The number of approvals casted.
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
-    /// @param approvers The approves casted by the approvers.
-    /// @param metadataURI The URI on which human readable data ca ben retrieved
+    /// @param approvers The approvals casted by the approvers.
+    /// @param metadataURI The URI on which human readable data can be retrieved
     /// @param destinationActions The actions to be executed by the destination plugin when the proposal passes.
     /// @param destinationPlugin The address of the plugin where the proposal will be created if it passes.
     struct Proposal {
@@ -236,7 +236,7 @@ contract Multisig is IMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
 
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // As the list can never become more than type(uint16).max(due to addAddresses check)
+        // As the list can never become more than type(uint16).max (due to addAddresses check)
         // It's safe to use unchecked as it would never overflow.
         unchecked {
             proposal_.approvals += 1;
