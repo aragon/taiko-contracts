@@ -15,7 +15,7 @@ on:
       - "foundry.toml"
 
 env:
-  FOUNDRY_PROFILE: ci
+  FOUNDRY_PROFILE: default
 
 jobs:
   check:
