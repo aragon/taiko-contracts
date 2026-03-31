@@ -15,6 +15,8 @@ import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFac
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {GovernanceERC20Mock} from "../test/mocks/GovernanceERC20Mock.sol";
 import {TaikoL1Mock} from "../test/mocks/TaikoL1Mock.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {L2VetoReceiver} from "../src/crosschain/L2VetoReceiver.sol";
 
 contract Deploy is Script {
     MultisigPluginSetup multisigPluginSetup;
@@ -62,8 +64,17 @@ contract Deploy is Script {
 
         address delegationWall = address(new DelegationWall());
 
+        // Deploy L2VetoReceiver
+        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+        L2VetoReceiver l2VetoReceiver = new L2VetoReceiver(
+            IDAO(address(deployment.dao)),
+            vm.envAddress("L1_TAIKO_BRIDGE"),
+            uint64(vm.envUint("L2_CHAIN_ID")),
+            address(deployment.optimisticTokenVotingPlugin)
+        );
+
         // Done
-        printDeploymentSummary(factory, delegationWall);
+        printDeploymentSummary(factory, delegationWall, address(l2VetoReceiver));
     }
 
     function getProductionSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
@@ -140,7 +151,7 @@ contract Deploy is Script {
         });
     }
 
-    function printDeploymentSummary(TaikoDaoFactory factory, address delegationWall) internal view {
+    function printDeploymentSummary(TaikoDaoFactory factory, address delegationWall, address l2VetoReceiver) internal view {
         TaikoDaoFactory.DeploymentSettings memory settings = factory.getSettings();
         TaikoDaoFactory.Deployment memory daoDeployment = factory.getDeployment();
 
@@ -161,6 +172,7 @@ contract Deploy is Script {
         console.log("- Signer list", address(daoDeployment.signerList));
         console.log("- Encryption registry", address(daoDeployment.encryptionRegistry));
         console.log("- Delegation wall", address(delegationWall));
+        console.log("- L2 veto receiver", l2VetoReceiver);
 
         console.log("");
 

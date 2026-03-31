@@ -104,7 +104,7 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, DaoAuthorizable {
         _l2VetoTallies[proposalId] = vetoTally;
         _l2DispatchTimestamps[proposalId] = dispatchedAt;
 
-        emit L2VetosReceived(proposalId, vetoTally, dispatchedAt);
+        emit L2VetoTallyBridged(proposalId, vetoTally, dispatchedAt);
 
         // Push to the plugin - if this fails, submitL2Vetoes() can be called later
         try this.submitL2Vetoes(proposalId) {}

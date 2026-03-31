@@ -27,7 +27,7 @@ contract L2VetoReceiverTest is Test {
     uint64 public constant PROPOSAL_END = 2000;
     uint64 public constant PROPOSAL_SNAPSHOT = 999;
 
-    event L2VetosReceived(uint256 indexed proposalId, uint256 vetoTally, uint256 dispatchedAt);
+    event L2VetoTallyBridged(uint256 indexed proposalId, uint256 vetoTally, uint256 dispatchedAt);
     event SubmitVetoSuccess(uint256 indexed proposalId, uint256 vetoTally);
     event SubmitVetoFailed(uint256 indexed proposalId, uint256 vetoTally, bytes revertData);
     event TrustedL2AggregatorUpdated(address oldAggregator, address newAggregator);
@@ -161,7 +161,7 @@ contract L2VetoReceiverTest is Test {
         bytes memory data = abi.encode(proposalId, vetoTally, dispatchedAt);
 
         vm.expectEmit(true, false, false, true);
-        emit L2VetosReceived(proposalId, vetoTally, dispatchedAt);
+        emit L2VetoTallyBridged(proposalId, vetoTally, dispatchedAt);
 
         vm.expectEmit(true, false, false, true);
         emit SubmitVetoSuccess(proposalId, vetoTally);

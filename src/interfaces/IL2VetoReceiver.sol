@@ -18,7 +18,7 @@ interface IL2VetoReceiver {
     /// @param proposalId The proposal ID on L1
     /// @param vetoTally The total L2 veto voting power
     /// @param dispatchedAt The timestamp when vetoes were dispatched from L2
-    event L2VetosReceived(uint256 indexed proposalId, uint256 vetoTally, uint256 dispatchedAt);
+    event L2VetoTallyBridged(uint256 indexed proposalId, uint256 vetoTally, uint256 dispatchedAt);
 
     /// @notice Emitted when L2 vetoes are successfully submitted to the voting plugin
     /// @param proposalId The proposal ID
