@@ -13,6 +13,7 @@
 [submodule "lib/ens-contracts"]
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts.git
-[submodule "lib/foundry-env"]
-	path = lib/foundry-env
-	url = https://github.com/aragon/foundry-env
+[submodule "lib/just-foundry"]
+	path = lib/just-foundry
+	url = https://github.com/aragon/just-foundry.git
+	branch = feat/project-network-overrides
