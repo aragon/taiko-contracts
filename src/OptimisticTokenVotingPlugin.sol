@@ -171,6 +171,9 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Thrown if the new L2 veto tally is not greater than the previous one.
     error L2VetoTallyNotIncreased();
 
+    /// @notice Thrown if the L2 veto tally exceeds the bridged voting power held in the vault.
+    error L2VetoTallyExceedsVaultBalance();
+
     /// @notice Disables the initializers on the implementation contract to prevent it from being left uninitialized.
     constructor() {
         _disableInitializers();
@@ -503,6 +506,11 @@ contract OptimisticTokenVotingPlugin is
 
         // New tally must be strictly greater (prevents replays and tally reduction)
         if (_l2VetoTally <= proposal_.aggregatedL2Balance) revert L2VetoTallyNotIncreased();
+
+        // L2 tally cannot exceed the bridged voting power held in the vault at snapshot
+        if (_l2VetoTally > bridgedVotingPower(proposal_.parameters.snapshotTimestamp)) {
+            revert L2VetoTallyExceedsVaultBalance();
+        }
 
         // Update the total veto tally: remove old L2 contribution, add new one
         proposal_.vetoTally = proposal_.vetoTally - proposal_.aggregatedL2Balance + _l2VetoTally;

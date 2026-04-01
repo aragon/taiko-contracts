@@ -25,9 +25,9 @@ import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
 import {TaikoL1Mock} from "../mocks/TaikoL1Mock.sol";
 import {L2VetoReceiver} from "../../src/crosschain/L2VetoReceiver.sol";
 
-/// @notice Shared setup for tests that need a fully installed + upgraded plugin with L2VetoReceiver.
+/// @notice Shared E2E fixture: fully installed + upgraded plugin with L2VetoReceiver.
 /// @dev Child contracts must call _install(), _deployL2VetoReceiver(), and _initUpgradeFactory() in setUp().
-abstract contract UpgradeTestBase is AragonTest {
+abstract contract E2ETestBase is AragonTest {
     DAO dao;
     OptimisticTokenVotingPlugin plugin;
     PluginRepo pluginRepo;
