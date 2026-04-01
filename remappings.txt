@@ -3,3 +3,4 @@
 @aragon/osx/=lib/osx/packages/contracts/src/
 @ensdomains/ens-contracts/=lib/ens-contracts/
 forge-std/=lib/forge-std/src/
+@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/
