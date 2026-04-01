@@ -18,11 +18,11 @@ contract OptimisticTokenVotingPluginMock is IOptimisticTokenVoting {
         external
     {
         proposalParams[_proposalId] = ProposalParameters({
-            vetoStartDate: _vetoStartDate,
             vetoEndDate: _vetoEndDate,
             snapshotTimestamp: _snapshotTimestamp,
             minVetoRatio: 100000, // 10%
-            unavailableL2: false
+            unavailableL2: false,
+            vetoStartDate: _vetoStartDate
         });
     }
 
