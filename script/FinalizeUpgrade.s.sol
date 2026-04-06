@@ -10,11 +10,11 @@ import {L2VetoReceiver} from "../src/crosschain/L2VetoReceiver.sol";
 /// @dev Run after deploying L2VetoAggregator on L2.
 ///      After upgrade(), the DAO has SET_TRUSTED_L2_AGGREGATOR_PERMISSION on the receiver,
 ///      so the DAO can set the aggregator directly — no factory or ROOT re-grant needed.
-///      Requires: L2_VETO_RECEIVER_ADDRESS, L2_VETO_AGGREGATOR_ADDRESS
+///      Requires: VETO_RECEIVER_ADDRESS, VETO_AGGREGATOR_ADDRESS
 contract FinalizeUpgrade is Script {
     function run() external {
-        address l2VetoReceiver = vm.envAddress("L2_VETO_RECEIVER_ADDRESS");
-        address aggregator = vm.envAddress("L2_VETO_AGGREGATOR_ADDRESS");
+        address l2VetoReceiver = vm.envAddress("VETO_RECEIVER_ADDRESS");
+        address aggregator = vm.envAddress("VETO_AGGREGATOR_ADDRESS");
 
         IDAO.Action[] memory actions = new IDAO.Action[](1);
         actions[0] = IDAO.Action({

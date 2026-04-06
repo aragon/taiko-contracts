@@ -12,8 +12,8 @@ contract ConfigureL2Veto is Script {
     function run() external {
         address dao = vm.envAddress("DAO_ADDRESS");
         address plugin = vm.envAddress("PLUGIN_ADDRESS");
-        address l2VetoReceiver = vm.envAddress("L2_VETO_RECEIVER_ADDRESS");
-        address aggregator = vm.envAddress("L2_VETO_AGGREGATOR_ADDRESS");
+        address l2VetoReceiver = vm.envAddress("VETO_RECEIVER_ADDRESS");
+        address aggregator = vm.envAddress("VETO_AGGREGATOR_ADDRESS");
 
         console.log("Generating L2 veto configuration proposal");
         console.log("  DAO:", dao);

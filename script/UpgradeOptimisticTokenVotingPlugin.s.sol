@@ -75,10 +75,10 @@ contract UpgradeOptimisticTokenVotingPlugin is Script {
         console.log("Next steps:");
         console.log("  1. Submit proposals/proposal-1-upgrade.json");
         console.log("  2. Deploy L2VetoAggregator on L2 (DeployL2VetoAggregator.s.sol)");
-        console.log("     Set L2_VETO_RECEIVER_ADDRESS=", address(l2VetoReceiver));
+        console.log("     Set VETO_RECEIVER_ADDRESS=", address(l2VetoReceiver));
         console.log("  3. Run FinalizeUpgrade.s.sol to generate proposal-2-finalize.json");
         console.log("     Set FACTORY_ADDRESS=", address(factory));
-        console.log("     Set L2_VETO_RECEIVER_ADDRESS=", address(l2VetoReceiver));
+        console.log("     Set VETO_RECEIVER_ADDRESS=", address(l2VetoReceiver));
     }
 
     function _writeDeployments(

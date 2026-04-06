@@ -236,9 +236,9 @@ The script also deploys the **L2VetoReceiver** on L1. After that, the L2 side ne
 
 1. **Deploy on L1**: `make deploy` (runs `Deploy.s.sol`)
 2. **Deploy L2VetoAggregator on L2**: Run `DeployL2VetoAggregator.s.sol` against the L2 RPC
-   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `L2_VETO_RECEIVER_ADDRESS`
+   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `VETO_RECEIVER_ADDRESS`
 3. **Generate the configuration proposal**: Run `ConfigureL2Veto.s.sol` to produce `proposals/proposal-configure-l2-veto.json`
-   - Requires: `DAO_ADDRESS`, `PLUGIN_ADDRESS`, `L2_VETO_RECEIVER_ADDRESS`, `L2_VETO_AGGREGATOR_ADDRESS`
+   - Requires: `DAO_ADDRESS`, `PLUGIN_ADDRESS`, `VETO_RECEIVER_ADDRESS`, `VETO_AGGREGATOR_ADDRESS`
 4. **Submit the proposal** to the DAO (grants permissions, sets receiver on plugin, sets trusted aggregator on receiver)
 
 Check the available make targets to simulate and deploy:
@@ -259,10 +259,10 @@ For an existing DAO that needs the L2 veto system, the upgrade follows a multi-s
 2. **Submit and execute DAO Proposal 1** (`proposal-1-upgrade.json`)
    - Grants temporary ROOT to the factory, publishes the new plugin version, runs the upgrade, and revokes ROOT
 3. **Deploy L2VetoAggregator on L2**: Run `DeployL2VetoAggregator.s.sol` against the L2 RPC
-   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `L2_VETO_RECEIVER_ADDRESS`
+   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `VETO_RECEIVER_ADDRESS`
    - Outputs `proposals/l2-deployments.json`
 4. **Run `FinalizeUpgrade.s.sol`** to generate `proposals/proposal-2-finalize.json`
-   - Requires: `L2_VETO_RECEIVER_ADDRESS`, `L2_VETO_AGGREGATOR_ADDRESS`
+   - Requires: `VETO_RECEIVER_ADDRESS`, `VETO_AGGREGATOR_ADDRESS`
 5. **Submit and execute DAO Proposal 2** (`proposal-2-finalize.json`)
    - Sets the trusted L2 aggregator address on the receiver
 
