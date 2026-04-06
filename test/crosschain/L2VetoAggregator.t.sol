@@ -8,6 +8,7 @@ import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {IMessageInvocable} from "../../src/interfaces/IMessageInvocable.sol";
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
+import {ProposalIdCodec} from "../../src/libs/ProposalIdCodec.sol";
 
 contract L2VetoAggregatorTest is Test {
     L2VetoAggregator public aggregator;
@@ -53,7 +54,7 @@ contract L2VetoAggregatorTest is Test {
     // =========================================================================
 
     function _makeProposalId() internal pure returns (uint256) {
-        return uint256(SNAPSHOT) << 192 | uint256(START) << 128 | uint256(END) << 64 | uint256(COUNTER);
+        return ProposalIdCodec.encode(SNAPSHOT, START, END, COUNTER);
     }
 
     function _makeProposalId(
@@ -62,7 +63,7 @@ contract L2VetoAggregatorTest is Test {
         uint64 endDate,
         uint64 counter
     ) internal pure returns (uint256) {
-        return uint256(snapshot) << 192 | uint256(startDate) << 128 | uint256(endDate) << 64 | uint256(counter);
+        return ProposalIdCodec.encode(snapshot, startDate, endDate, counter);
     }
 
     // =========================================================================

@@ -7,7 +7,7 @@ import {IBridge} from "../interfaces/IBridge.sol";
 import {IMessageInvocable} from "../interfaces/IMessageInvocable.sol";
 import {IL2VetoReceiver} from "../interfaces/IL2VetoReceiver.sol";
 import {IOptimisticTokenVoting} from "../interfaces/IOptimisticTokenVoting.sol";
-import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
+import {ProposalIdCodec} from "../libs/ProposalIdCodec.sol";
 
 /// @title L2VetoReceiver
 /// @notice L1 contract that receives aggregated L2 veto tallies via Taiko Bridge
@@ -142,7 +142,7 @@ contract L2VetoReceiver is IL2VetoReceiver, IMessageInvocable, DaoAuthorizable {
     function isProposalIdValid(uint256 _proposalId) public view returns (bool) {
         // Parse the encoded timestamps from the proposalId
         (, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) =
-            OptimisticTokenVotingPlugin(votingPlugin).parseProposalId(_proposalId);
+            ProposalIdCodec.decode(_proposalId);
 
         // Get the actual proposal parameters from the plugin
         (,, IOptimisticTokenVoting.ProposalParameters memory params,,,,) =

@@ -13,6 +13,7 @@ import {IOptimisticTokenVoting} from "./interfaces/IOptimisticTokenVoting.sol";
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
+import {ProposalIdCodec} from "./libs/ProposalIdCodec.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {ITaikoL1} from "./adapted-dependencies/ITaikoL1.sol";
 
@@ -546,19 +547,7 @@ contract OptimisticTokenVotingPlugin is
         pure
         returns (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp)
     {
-        counter = uint64(_proposalId & type(uint64).max);
-        endDate = uint64(_proposalId >> 64) & type(uint64).max;
-        startDate = uint64(_proposalId >> 128) & type(uint64).max;
-        snapshotTimestamp = uint64(_proposalId >> 192);
-    }
-
-    /// @dev Creates a new proposal ID, containing the snapshot, start and end timestamps
-    function _makeProposalId(uint64 _snapshotTimestamp, uint64 _startDate, uint64 _endDate)
-        internal
-        returns (uint256 proposalId)
-    {
-        proposalId = uint256(_snapshotTimestamp) << 192 | uint256(_startDate) << 128 | uint256(_endDate) << 64;
-        proposalId |= _createProposalId();
+        return ProposalIdCodec.decode(_proposalId);
     }
 
     /// @notice Internal function to create a proposal.
@@ -579,7 +568,7 @@ contract OptimisticTokenVotingPlugin is
         uint64 endDate = startDate + _duration;
 
         // Returns an autoincremental number with the snapshot, start and end dates
-        proposalId = _makeProposalId(_snapshotTimestamp, startDate, endDate);
+        proposalId = ProposalIdCodec.encode(_snapshotTimestamp, startDate, endDate, uint64(_createProposalId()));
 
         emit ProposalCreated({
             proposalId: proposalId,

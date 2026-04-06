@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {IOptimisticTokenVoting} from "../../src/interfaces/IOptimisticTokenVoting.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {ProposalIdCodec} from "../../src/libs/ProposalIdCodec.sol";
 
 /// @notice Mock voting plugin for testing L2VetoReceiver
 contract OptimisticTokenVotingPluginMock is IOptimisticTokenVoting {
@@ -32,10 +33,7 @@ contract OptimisticTokenVotingPluginMock is IOptimisticTokenVoting {
         pure
         returns (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp)
     {
-        counter = uint64(_proposalId & type(uint64).max);
-        endDate = uint64(_proposalId >> 64) & type(uint64).max;
-        startDate = uint64(_proposalId >> 128) & type(uint64).max;
-        snapshotTimestamp = uint64(_proposalId >> 192);
+        return ProposalIdCodec.decode(_proposalId);
     }
 
     /// @notice Create a proposalId with encoded timestamps
@@ -44,8 +42,7 @@ contract OptimisticTokenVotingPluginMock is IOptimisticTokenVoting {
         pure
         returns (uint256)
     {
-        return uint256(_snapshotTimestamp) << 192 | uint256(_startDate) << 128 | uint256(_endDate) << 64
-            | uint256(_counter);
+        return ProposalIdCodec.encode(_snapshotTimestamp, _startDate, _endDate, _counter);
     }
 
     // =========================================================================

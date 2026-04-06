@@ -18,6 +18,7 @@ import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intr
 import {IERC1822ProxiableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
 import {createProxyAndCall} from "../src/helpers/proxy.sol";
+import {ProposalIdCodec} from "../src/libs/ProposalIdCodec.sol";
 
 contract OptimisticTokenVotingPluginTest is AragonTest {
     DaoBuilder builder;
@@ -998,17 +999,17 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         vm.warp(2 days);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
-        uint256 expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 10 days), 0);
         assertEq(proposalId, expectedPid, "Should have created proposal 0");
 
         vm.warp(5 days);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 5 days);
-        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64 | 1;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 5 days), 1);
         assertEq(proposalId, expectedPid, "Should have created proposal 1");
 
         vm.warp(500 days);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 5 days);
-        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64 | 2;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 5 days), 2);
         assertEq(proposalId, expectedPid, "Should have created proposal 2");
     }
 
@@ -1030,7 +1031,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalIndexesThePid() public {
-        uint256 expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 10 days), 0);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         // 1
@@ -1039,20 +1040,20 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.proposalIds(0), expectedPid);
 
         // 2
-        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 100 days) << 64 | 1;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 100 days), 1);
         assertEq(optimisticPlugin.proposalIds(1), 0);
         optimisticPlugin.createProposal("ipfs://meta", actions, 0, 100 days);
         assertEq(optimisticPlugin.proposalIds(1), expectedPid);
 
         // 3
-        expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64 | 2;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 50 days), 2);
         assertEq(optimisticPlugin.proposalIds(2), 0);
         optimisticPlugin.createProposal("", actions, 0, 50 days);
         assertEq(optimisticPlugin.proposalIds(2), expectedPid);
     }
 
     function test_CreateProposalEmitsAnEvent() public {
-        uint256 expectedPid = uint256(block.timestamp - 1) << 192 | uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - 1), uint64(block.timestamp), uint64(block.timestamp + 10 days), 0);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         vm.expectEmit();

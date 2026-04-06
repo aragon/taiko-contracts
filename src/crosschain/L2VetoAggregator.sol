@@ -5,6 +5,7 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {IBridge} from "../interfaces/IBridge.sol";
 import {IMessageInvocable} from "../interfaces/IMessageInvocable.sol";
 import {IL2VetoAggregator} from "../interfaces/IL2VetoAggregator.sol";
+import {ProposalIdCodec} from "../libs/ProposalIdCodec.sol";
 
 /// @title L2VetoAggregator
 /// @notice L2 contract that allows L2 token holders to veto L1 proposals.
@@ -74,7 +75,7 @@ contract L2VetoAggregator is IL2VetoAggregator {
             revert ProposalVetoingForbidden(proposalId, _voter);
         }
 
-        (uint64 snapshotTimestamp,,) = _decodeTimestamps(proposalId);
+        (, , , uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
         uint256 votingPower = votingToken.getPastVotes(_voter, snapshotTimestamp);
 
         // Update state
@@ -86,7 +87,7 @@ contract L2VetoAggregator is IL2VetoAggregator {
 
     function canVeto(uint256 proposalId, address voter) public view returns (bool) {
         // Decode proposal timing from the proposalId
-        (uint64 snapshotTimestamp, uint64 startDate, uint64 endDate) = _decodeTimestamps(proposalId);
+        (, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
 
         // Check veto period is open
         if (snapshotTimestamp == 0 || block.timestamp < startDate || block.timestamp >= endDate) {
@@ -156,7 +157,7 @@ contract L2VetoAggregator is IL2VetoAggregator {
 
     /// @inheritdoc IL2VetoAggregator
     function isProposalOpen(uint256 proposalId) external view override returns (bool) {
-        (, uint64 startDate, uint64 endDate) = _decodeTimestamps(proposalId);
+        (, uint64 startDate, uint64 endDate,) = ProposalIdCodec.decode(proposalId);
         return block.timestamp >= startDate && block.timestamp < endDate;
     }
 
@@ -171,24 +172,6 @@ contract L2VetoAggregator is IL2VetoAggregator {
         pure
         returns (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp)
     {
-        counter = uint64(proposalId & type(uint64).max);
-        endDate = uint64(proposalId >> 64) & type(uint64).max;
-        startDate = uint64(proposalId >> 128) & type(uint64).max;
-        snapshotTimestamp = uint64(proposalId >> 192);
-    }
-
-    // =========================================================================
-    // INTERNAL
-    // =========================================================================
-
-    /// @dev Extracts snapshotTimestamp, startDate, and endDate from the encoded proposalId
-    function _decodeTimestamps(uint256 proposalId)
-        internal
-        pure
-        returns (uint64 snapshotTimestamp, uint64 startDate, uint64 endDate)
-    {
-        snapshotTimestamp = uint64(proposalId >> 192);
-        startDate = uint64(proposalId >> 128) & type(uint64).max;
-        endDate = uint64(proposalId >> 64) & type(uint64).max;
+        return ProposalIdCodec.decode(proposalId);
     }
 }

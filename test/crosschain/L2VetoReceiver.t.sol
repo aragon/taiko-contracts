@@ -11,6 +11,7 @@ import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
 import {OptimisticTokenVotingPluginMock} from "../mocks/OptimisticTokenVotingPluginMock.sol";
 import {createProxyAndCall} from "../../src/helpers/proxy.sol";
+import {ProposalIdCodec} from "../../src/libs/ProposalIdCodec.sol";
 
 contract L2VetoReceiverTest is Test {
     L2VetoReceiver public receiver;
@@ -55,8 +56,7 @@ contract L2VetoReceiverTest is Test {
 
     /// @notice Helper to create a valid proposalId with encoded timestamps
     function _makeProposalId() internal pure returns (uint256) {
-        return uint256(PROPOSAL_SNAPSHOT) << 192 | uint256(PROPOSAL_START) << 128 | uint256(PROPOSAL_END) << 64
-            | uint256(PROPOSAL_COUNTER);
+        return ProposalIdCodec.encode(PROPOSAL_SNAPSHOT, PROPOSAL_START, PROPOSAL_END, PROPOSAL_COUNTER);
     }
 
     /// @notice Helper to set up a valid proposal in the mock plugin
