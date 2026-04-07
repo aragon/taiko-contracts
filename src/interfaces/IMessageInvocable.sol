@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Source: https://github.com/taikoxyz/taiko-mono/blob/main/packages/protocol/contracts/shared/bridge/IBridge.sol
+// Source: https://github.com/taikoxyz/taiko-mono/blob/df9a386a0b1e/packages/protocol/contracts/shared/bridge/IBridge.sol
+// Pragma lowered from ^0.8.24 to ^0.8.17 for compatibility with Aragon OSx (=0.8.17)
 pragma solidity ^0.8.17;
 
 /// @title IMessageInvocable
