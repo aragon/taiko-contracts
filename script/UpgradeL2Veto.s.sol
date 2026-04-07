@@ -6,6 +6,7 @@ import {ScriptBase} from "./lib/ScriptBase.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {PermissionManager} from "@aragon/osx/core/permission/PermissionManager.sol";
+import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondition.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC20.sol";
@@ -107,8 +108,13 @@ contract UpgradeL2Veto is ScriptBase {
 
         bytes32 rootPermission = DAO(payable(dao)).ROOT_PERMISSION_ID();
         bytes32 maintainerPermission = PluginRepo(pluginRepo).MAINTAINER_PERMISSION_ID();
+        bytes32 proposerPermission = keccak256("PROPOSER_PERMISSION");
 
-        IDAO.Action[] memory actions = new IDAO.Action[](5);
+        address stdProposer = vm.envAddress("MULTISIG_PLUGIN_ADDRESS");
+        address stdProposalCondition = vm.envAddress("STANDARD_PROPOSAL_CONDITION");
+        address plugin = vm.envAddress("PLUGIN_ADDRESS");
+
+        IDAO.Action[] memory actions = new IDAO.Action[](7);
         actions[0] = IDAO.Action({
             to: dao,
             value: 0,
@@ -133,6 +139,20 @@ contract UpgradeL2Veto is ScriptBase {
             to: address(_receiver),
             value: 0,
             data: abi.encodeCall(L2VetoReceiver.setTrustedL2Aggregator, (address(_aggregator)))
+        });
+        // Fix: revoke unconditional PROPOSER_PERMISSION and re-grant with condition
+        actions[5] = IDAO.Action({
+            to: dao,
+            value: 0,
+            data: abi.encodeCall(PermissionManager.revoke, (plugin, stdProposer, proposerPermission))
+        });
+        actions[6] = IDAO.Action({
+            to: dao,
+            value: 0,
+            data: abi.encodeCall(
+                PermissionManager.grantWithCondition,
+                (plugin, stdProposer, proposerPermission, IPermissionCondition(stdProposalCondition))
+            )
         });
 
         _writeProposal("proposal-upgrade-l2-veto.json", actions);
