@@ -34,9 +34,32 @@ abstract contract ScriptBase is Script {
     }
 
     function _writeProposal(string memory _filename, IDAO.Action[] memory _actions) internal {
-        string memory dir = string.concat(vm.projectRoot(), "/proposals");
+        _writeJson("proposals", _filename, _serializeActions(_actions));
+    }
+
+    function _writeDeployment(string memory _filename, string memory _json) internal {
+        _writeJson("deployments", _filename, _json);
+    }
+
+    function _envLastPath() internal view returns (string memory) {
+        return string.concat(vm.projectRoot(), "/deployments/.env.last");
+    }
+
+    function _resetEnvLast() internal {
+        string memory dir = string.concat(vm.projectRoot(), "/deployments");
         vm.createDir(dir, true);
-        vm.writeFile(string.concat(dir, "/", _filename), _serializeActions(_actions));
-        console.log("Wrote proposals/%s", _filename);
+        vm.writeFile(_envLastPath(), "");
+    }
+
+    function _exportEnv(string memory _key, address _value) internal {
+        vm.writeLine(_envLastPath(), string.concat(_key, "=", vm.toString(_value)));
+    }
+
+    function _writeJson(string memory _folder, string memory _name, string memory _content) internal {
+        string memory dir = string.concat(vm.projectRoot(), "/", _folder);
+        vm.createDir(dir, true);
+        string memory filename = string.concat(_name, "-", vm.toString(block.timestamp), ".json");
+        vm.writeFile(string.concat(dir, "/", filename), _content);
+        console.log("Wrote %s/%s", _folder, filename);
     }
 }

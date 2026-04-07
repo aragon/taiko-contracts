@@ -5,7 +5,7 @@ libs = ["lib"]
 ffi = true
 build_info = true
 extra_output = ["storageLayout"]
-fs_permissions = [{ access = "read", path = "./script" }, { access = "read-write", path = "./proposals" }, { access = "read", path = "./out" }]
+fs_permissions = [{ access = "read", path = "./script" }, { access = "read-write", path = "./proposals" }, { access = "read-write", path = "./deployments" }, { access = "read", path = "./out" }]
 evm_version = "cancun"
 optimizer = true
 optimizer-runs = 200
