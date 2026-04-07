@@ -251,20 +251,18 @@ make resume       Continue a pending deployment
 
 ### Upgrading the OptimisticTokenVotingPlugin
 
-For an existing DAO that needs the L2 veto system, the upgrade follows a multi-step process across two chains and two DAO proposals:
+For an existing DAO that needs the L2 veto system:
 
-1. **Run `UpgradeOptimisticTokenVotingPlugin.s.sol` on L1**
-   - Deploys a new L2VetoReceiver and an UpgradeFactory (which contains the new PluginSetup)
-   - Outputs `proposals/proposal-1-upgrade.json` and `proposals/l1-deployments.json`
-2. **Submit and execute DAO Proposal 1** (`proposal-1-upgrade.json`)
-   - Grants temporary ROOT to the factory, publishes the new plugin version, runs the upgrade, and revokes ROOT
-3. **Deploy L2VetoAggregator on L2**: Run `DeployL2VetoAggregator.s.sol` against the L2 RPC
-   - Requires: `L2_TAIKO_BRIDGE`, `L1_CHAIN_ID`, `L2_VOTING_TOKEN`, `VETO_RECEIVER_ADDRESS`
-   - Outputs `proposals/l2-deployments.json`
-4. **Run `FinalizeUpgrade.s.sol`** to generate `proposals/proposal-2-finalize.json`
-   - Requires: `VETO_RECEIVER_ADDRESS`, `VETO_AGGREGATOR_ADDRESS`
-5. **Submit and execute DAO Proposal 2** (`proposal-2-finalize.json`)
-   - Sets the trusted L2 aggregator address on the receiver
+1. **Run `UpgradeL2Veto.s.sol`** — deploys to both L1 and L2 in a single run
+   ```bash
+   forge script script/UpgradeL2Veto.s.sol --broadcast --verify
+   ```
+   - Deploys L2VetoReceiver + UpgradeFactory on L1
+   - Deploys L2VetoAggregator on L2
+   - Outputs `proposals/proposal-upgrade-l2-veto.json` and `proposals/deployments.json`
+   - Requires `L1_CHAIN` and `L2_CHAIN` env vars matching `foundry.toml` `[rpc_endpoints]` keys
+2. **Submit and execute the DAO proposal** (`proposal-upgrade-l2-veto.json`)
+   - Grants temporary ROOT to the factory, upgrades the plugin, configures the L2 veto receiver, and sets the trusted aggregator
 
 ### Deployment Checklist
 

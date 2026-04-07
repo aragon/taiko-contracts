@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {Script, console} from "forge-std/Script.sol";
+import {console} from "forge-std/Script.sol";
+import {ScriptBase} from "./lib/ScriptBase.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {TaikoDaoFactory} from "../src/factory/TaikoDaoFactory.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
@@ -16,9 +17,12 @@ import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSet
 import {GovernanceERC20Mock} from "../test/mocks/GovernanceERC20Mock.sol";
 import {TaikoL1Mock} from "../test/mocks/TaikoL1Mock.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {PermissionManager} from "@aragon/osx/core/permission/PermissionManager.sol";
 import {L2VetoReceiver} from "../src/crosschain/L2VetoReceiver.sol";
+import {L2VetoAggregator} from "../src/crosschain/L2VetoAggregator.sol";
+import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
 
-contract Deploy is Script {
+contract Deploy is ScriptBase {
     MultisigPluginSetup multisigPluginSetup;
     EmergencyMultisigPluginSetup emergencyMultisigPluginSetup;
     OptimisticTokenVotingPluginSetup optimisticTokenVotingPluginSetup;
@@ -26,21 +30,47 @@ contract Deploy is Script {
     /// @dev Thrown when attempting to deploy a multisig with no members
     error EmptyMultisig();
 
-    modifier broadcast() {
+    function run() public {
         uint256 privKey = vm.envUint("DEPLOYMENT_PRIVATE_KEY");
-        vm.startBroadcast(privKey);
-        console.log("Deploying from:", vm.addr(privKey));
+        bool skipL2 = vm.envOr("SKIP_L2", false);
 
-        _;
+        // ── DEPLOY ON L1 ────────────────────────────────────────
+        vm.createSelectFork(vm.envString("L1_CHAIN"));
 
-        vm.stopBroadcast();
+        (TaikoDaoFactory factory, address delegationWall, L2VetoReceiver receiver) = _deployL1(privKey);
+        TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
+
+        printDeploymentSummary(factory, delegationWall, address(receiver));
+
+        if (skipL2) {
+            console.log("");
+            console.log("SKIP_L2=true - skipping L2 deployment and proposal generation");
+            return;
+        }
+
+        // ── DEPLOY ON L2 ────────────────────────────────────────
+        vm.createSelectFork(vm.envString("L2_CHAIN"));
+
+        L2VetoAggregator aggregator = _deployL2(privKey, address(receiver));
+
+        // ── GENERATE CONFIGURE PROPOSAL ─────────────────────────
+        // Switch back to L1 to read on-chain permission constants
+        vm.createSelectFork(vm.envString("L1_CHAIN"));
+
+        _writeConfigureProposal(deployment, receiver, aggregator);
+
+        console.log("");
+        console.log("Next step: submit proposals/proposal-configure-l2-veto.json to the DAO");
     }
 
-    function run() public broadcast {
+    function _deployL1(uint256 _privKey)
+        internal
+        returns (TaikoDaoFactory factory, address delegationWall, L2VetoReceiver receiver)
+    {
+        vm.startBroadcast(_privKey);
+
         // NOTE: Deploying the plugin setup's separately because of the code size limit
         //       EncryptionRegistry and DelegationWall are deployed by the TaikoDaoFactory
-
-        // Deploy the plugin setup's
         multisigPluginSetup = new MultisigPluginSetup();
         emergencyMultisigPluginSetup = new EmergencyMultisigPluginSetup();
         optimisticTokenVotingPluginSetup = new OptimisticTokenVotingPluginSetup(
@@ -59,23 +89,68 @@ contract Deploy is Script {
 
         console.log("");
 
-        TaikoDaoFactory factory = new TaikoDaoFactory(settings);
+        factory = new TaikoDaoFactory(settings);
         factory.deployOnce();
 
-        address delegationWall = address(new DelegationWall());
+        delegationWall = address(new DelegationWall());
 
         // Deploy L2VetoReceiver
         TaikoDaoFactory.Deployment memory deployment = factory.getDeployment();
-        L2VetoReceiver l2VetoReceiver = new L2VetoReceiver(
+        receiver = new L2VetoReceiver(
             IDAO(address(deployment.dao)),
             vm.envAddress("L1_TAIKO_BRIDGE"),
             uint64(vm.envUint("L2_CHAIN_ID")),
             address(deployment.optimisticTokenVotingPlugin)
         );
 
-        // Done
-        printDeploymentSummary(factory, delegationWall, address(l2VetoReceiver));
+        vm.stopBroadcast();
     }
+
+    function _deployL2(uint256 _privKey, address _receiver) internal returns (L2VetoAggregator aggregator) {
+        vm.startBroadcast(_privKey);
+
+        aggregator = new L2VetoAggregator(
+            vm.envAddress("L2_TAIKO_BRIDGE"),
+            uint64(vm.envUint("L1_CHAIN_ID")),
+            vm.envAddress("L2_VOTING_TOKEN"),
+            _receiver
+        );
+        console.log("L2VetoAggregator (L2):", address(aggregator));
+
+        vm.stopBroadcast();
+    }
+
+    function _writeConfigureProposal(
+        TaikoDaoFactory.Deployment memory _deployment,
+        L2VetoReceiver _receiver,
+        L2VetoAggregator _aggregator
+    ) internal {
+        address dao = address(_deployment.dao);
+        address plugin = address(_deployment.optimisticTokenVotingPlugin);
+
+        bytes32 setAggregatorPermission = _receiver.SET_TRUSTED_L2_AGGREGATOR_PERMISSION_ID();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](3);
+        actions[0] = IDAO.Action({
+            to: dao,
+            value: 0,
+            data: abi.encodeCall(PermissionManager.grant, (address(_receiver), dao, setAggregatorPermission))
+        });
+        actions[1] = IDAO.Action({
+            to: plugin,
+            value: 0,
+            data: abi.encodeCall(OptimisticTokenVotingPlugin.setL2VetoReceiver, (address(_receiver)))
+        });
+        actions[2] = IDAO.Action({
+            to: address(_receiver),
+            value: 0,
+            data: abi.encodeCall(L2VetoReceiver.setTrustedL2Aggregator, (address(_aggregator)))
+        });
+
+        _writeProposal("proposal-configure-l2-veto.json", actions);
+        _logActions(actions);
+    }
+
 
     function getProductionSettings() internal view returns (TaikoDaoFactory.DeploymentSettings memory settings) {
         console.log("Using production settings");
