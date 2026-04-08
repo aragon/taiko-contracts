@@ -2956,6 +2956,44 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(vetoTally, 5 ether, "Tally should be replaced, not added");
     }
 
+    function test_ReceiveL2VetoesRevertsWhenTallyExceedsVaultBalance() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // Vault has 10 ether — tally exceeding it should revert
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyExceedsVaultBalance.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 10 ether + 1);
+    }
+
+    function test_ReceiveL2VetoesSucceedsAtExactVaultBalance() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // Tally exactly equal to vault balance should succeed
+        optimisticPlugin.receiveL2Vetoes(proposalId, 10 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 10 ether, "Tally should match vault balance");
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenIncrementedTallyExceedsVaultBalance() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // First tally within bounds
+        optimisticPlugin.receiveL2Vetoes(proposalId, 5 ether);
+
+        // Second tally exceeds vault balance
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyExceedsVaultBalance.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 10 ether + 1);
+    }
+
     function test_ReceiveL2VetoesAddsToL1Vetoes() public {
         uint256 proposalId = _createProposalWithL2(4 days);
         _setupL2VetoReceiver(address(this));

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {Vm, Test} from "forge-std/Test.sol";
-import {UpgradeTestBase} from "../base/UpgradeTestBase.sol";
+import {E2ETestBase} from "../base/E2ETestBase.sol";
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
 import {L2VetoAggregator} from "../../src/crosschain/L2VetoAggregator.sol";
@@ -14,7 +14,7 @@ import {TaikoHelper} from "../helpers/TaikoHelper.sol";
 /// @notice Local E2E test — full aggregator->dispatch->relay->receiver->plugin path
 /// @dev No RPC needed. Uses TaikoBridgeMock for both "L2" and "L1" bridges.
 ///      Uses uint64(block.chainid) as the chain ID for both sides so bridge context matches.
-contract CrosschainVetoLocalTest is UpgradeTestBase {
+contract CrosschainVetoLocalTest is E2ETestBase {
     TaikoBridgeMock l1Bridge;
     TaikoBridgeMock l2Bridge;
     GovernanceERC20Mock l2VotingToken;
@@ -106,7 +106,7 @@ contract CrosschainVetoLocalTest is UpgradeTestBase {
 ///      - FORK_USE_REAL_TOKEN=true: use real on-chain L2 token instead of mock
 ///      - L2_VOTING_TOKEN: real bridged token address (required if FORK_USE_REAL_TOKEN)
 ///      - L2_VOTER_ADDRESS: address with delegated voting power (required if FORK_USE_REAL_TOKEN)
-contract CrosschainVetoForkTest is UpgradeTestBase {
+contract CrosschainVetoForkTest is E2ETestBase {
     uint256 l1ForkId;
     uint256 l2ForkId;
 

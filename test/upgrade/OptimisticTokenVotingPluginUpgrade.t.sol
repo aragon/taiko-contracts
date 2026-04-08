@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {AragonTest} from "./base/AragonTest.sol";
-import {DaoBuilder} from "./helpers/DaoBuilder.sol";
-import {OptimisticTokenVotingPlugin} from "../src/OptimisticTokenVotingPlugin.sol";
+import {AragonTest} from "../base/AragonTest.sol";
+import {DaoBuilder} from "../helpers/DaoBuilder.sol";
+import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
-import {GovernanceERC20Mock} from "./mocks/GovernanceERC20Mock.sol";
-import {ITaikoL1} from "../src/adapted-dependencies/ITaikoL1.sol";
+import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
+import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
 
 contract OptimisticTokenVotingPluginUpgradeTest is AragonTest {
     DaoBuilder builder;

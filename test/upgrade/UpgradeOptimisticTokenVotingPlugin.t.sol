@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {UpgradeTestBase} from "../base/UpgradeTestBase.sol";
+import {E2ETestBase} from "../base/E2ETestBase.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
@@ -9,7 +9,7 @@ import {OptimisticTokenVotingPlugin} from "../../src/OptimisticTokenVotingPlugin
 import {TaikoBridgeMock} from "../mocks/TaikoBridgeMock.sol";
 import {IBridge} from "../../src/interfaces/IBridge.sol";
 
-contract UpgradeOptimisticTokenVotingPluginFactoryTest is UpgradeTestBase {
+contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
     TaikoBridgeMock taikoBridge;
     uint64 l2ChainId = 167000;
 
