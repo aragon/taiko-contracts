@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
-import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {PluginSetupProcessor} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
@@ -11,103 +10,117 @@ import {GovernanceERC20} from "@aragon/osx/token/ERC20/governance/GovernanceERC2
 import {GovernanceWrappedERC20} from "@aragon/osx/token/ERC20/governance/GovernanceWrappedERC20.sol";
 import {OptimisticTokenVotingPlugin} from "../OptimisticTokenVotingPlugin.sol";
 import {OptimisticTokenVotingPluginSetup} from "../setup/OptimisticTokenVotingPluginSetup.sol";
-import {L2VetoReceiver} from "../crosschain/L2VetoReceiver.sol";
 
 /// @title UpgradeOptimisticTokenVotingPluginFactory
 /// @notice Encapsulates the full PSP-based upgrade flow for OptimisticTokenVotingPlugin
 ///         from Build 1 to Build 2, enabling end-to-end testing in Foundry.
-/// @dev Usage:
-///      `upgrade()`: Plugin upgrade + L2VetoReceiver configuration.
-///        Prerequisites: ROOT_PERMISSION on DAO + MAINTAINER_PERMISSION on PluginRepo.
-///        Revokes its own ROOT at the end. Caller must revoke MAINTAINER on the PluginRepo.
-///        The PSP grants SET_TRUSTED_L2_AGGREGATOR_PERMISSION to the DAO on the receiver,
-///        so the DAO can later set the trusted aggregator via a direct proposal action.
+/// @dev All upgrade params are fixed at construction time to prevent parameter manipulation.
+///      Usage:
+///      1. Deploy this factory with all params.
+///      2. Create a DAO proposal that:
+///         a. Grants ROOT + MAINTAINER to this factory
+///         b. Calls `upgrade()`
+///         c. Revokes MAINTAINER from this factory
+///         d. Calls `plugin.setL2VetoReceiver(receiver)` (DAO gets this permission from applyUpdate)
+///         e. Calls `vetoReceiver.setTrustedL2Aggregator(aggregator)` (DAO gets this permission from applyUpdate)
+///      The factory revokes its own ROOT at the end of `upgrade()`.
 contract UpgradeOptimisticTokenVotingPluginFactory {
-    struct UpgradeParams {
-        DAO dao;
-        PluginSetupProcessor psp;
-        OptimisticTokenVotingPlugin plugin;
-        PluginRepo pluginRepo;
-        address votingToken;
-        address l2VetoReceiver;
-    }
-
     /// @notice The new PluginSetup deployed by this factory.
     OptimisticTokenVotingPluginSetup public immutable newSetup;
 
-    constructor(GovernanceERC20 _governanceERC20Base, GovernanceWrappedERC20 _governanceWrappedERC20Base) {
+    DAO public immutable dao;
+    PluginSetupProcessor public immutable psp;
+    OptimisticTokenVotingPlugin public immutable plugin;
+    PluginRepo public immutable pluginRepo;
+    address public immutable votingToken;
+    address public immutable l2VetoReceiver;
+
+    /// @notice Thrown when upgrade() has already been called.
+    error AlreadyUpgraded();
+
+    /// @notice Whether upgrade() has been called.
+    bool public upgraded;
+
+    constructor(
+        GovernanceERC20 _governanceERC20Base,
+        GovernanceWrappedERC20 _governanceWrappedERC20Base,
+        DAO _dao,
+        PluginSetupProcessor _psp,
+        OptimisticTokenVotingPlugin _plugin,
+        PluginRepo _pluginRepo,
+        address _votingToken,
+        address _l2VetoReceiver
+    ) {
         newSetup = new OptimisticTokenVotingPluginSetup(_governanceERC20Base, _governanceWrappedERC20Base);
+        dao = _dao;
+        psp = _psp;
+        plugin = _plugin;
+        pluginRepo = _pluginRepo;
+        votingToken = _votingToken;
+        l2VetoReceiver = _l2VetoReceiver;
     }
 
     /// @notice Executes the full plugin upgrade from Build 1 to Build 2.
-    function upgrade(UpgradeParams calldata _params) external {
+    /// @dev Can only be called once. Revokes its own ROOT at the end.
+    function upgrade() external {
+        if (upgraded) revert AlreadyUpgraded();
+        upgraded = true;
+
         // 1. Register Build 2 in the plugin repo
-        _params.pluginRepo.createVersion(1, address(newSetup), bytes(""), bytes(""));
+        pluginRepo.createVersion(1, address(newSetup), bytes(""), bytes(""));
 
         // 2. Grant temporary permissions for PSP
-        _grantPspPermissions(_params);
+        _grantPspPermissions();
 
-        // 3-4. Prepare and apply update
-        _prepareAndApplyUpdate(_params);
+        // 3. Prepare and apply update
+        _prepareAndApplyUpdate();
 
-        // 5. Configure L2 veto receiver
-        _configureL2VetoReceiver(_params);
-
-        // 6-7. Revoke temporary permissions + own ROOT
-        _revokeAllPermissions(_params);
+        // 4. Revoke temporary permissions + own ROOT
+        _revokeAllPermissions();
     }
 
-    function _grantPspPermissions(UpgradeParams calldata _params) internal {
-        _params.dao.grant(address(_params.dao), address(_params.psp), _params.dao.ROOT_PERMISSION_ID());
-        _params.dao.grant(address(_params.psp), address(this), _params.psp.APPLY_UPDATE_PERMISSION_ID());
-        _params.dao.grant(address(_params.plugin), address(_params.psp), _params.plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+    function _grantPspPermissions() internal {
+        dao.grant(address(dao), address(psp), dao.ROOT_PERMISSION_ID());
+        dao.grant(address(psp), address(this), psp.APPLY_UPDATE_PERMISSION_ID());
+        dao.grant(address(plugin), address(psp), plugin.UPGRADE_PLUGIN_PERMISSION_ID());
     }
 
-    function _prepareAndApplyUpdate(UpgradeParams calldata _params) internal {
+    function _prepareAndApplyUpdate() internal {
         address[] memory currentHelpers = new address[](1);
-        currentHelpers[0] = _params.votingToken;
+        currentHelpers[0] = votingToken;
 
-        (bytes memory initData, IPluginSetup.PreparedSetupData memory preparedSetupData) = _params.psp
-            .prepareUpdate(
-                address(_params.dao),
-                PluginSetupProcessor.PrepareUpdateParams({
-                    currentVersionTag: PluginRepo.Tag(1, 1),
-                    newVersionTag: PluginRepo.Tag(1, 2),
-                    pluginSetupRepo: _params.pluginRepo,
-                    setupPayload: IPluginSetup.SetupPayload({
-                        plugin: address(_params.plugin),
-                        currentHelpers: currentHelpers,
-                        data: abi.encode(_params.l2VetoReceiver)
-                    })
+        (bytes memory initData, IPluginSetup.PreparedSetupData memory preparedSetupData) = psp.prepareUpdate(
+            address(dao),
+            PluginSetupProcessor.PrepareUpdateParams({
+                currentVersionTag: PluginRepo.Tag(1, 1),
+                newVersionTag: PluginRepo.Tag(1, 2),
+                pluginSetupRepo: pluginRepo,
+                setupPayload: IPluginSetup.SetupPayload({
+                    plugin: address(plugin),
+                    currentHelpers: currentHelpers,
+                    data: abi.encode(l2VetoReceiver)
                 })
-            );
+            })
+        );
 
-        _params.psp
-            .applyUpdate(
-                address(_params.dao),
-                PluginSetupProcessor.ApplyUpdateParams({
-                    plugin: address(_params.plugin),
-                    pluginSetupRef: PluginSetupRef(PluginRepo.Tag(1, 2), _params.pluginRepo),
-                    initData: initData,
-                    permissions: preparedSetupData.permissions,
-                    helpersHash: hashHelpers(preparedSetupData.helpers)
-                })
-            );
+        psp.applyUpdate(
+            address(dao),
+            PluginSetupProcessor.ApplyUpdateParams({
+                plugin: address(plugin),
+                pluginSetupRef: PluginSetupRef(PluginRepo.Tag(1, 2), pluginRepo),
+                initData: initData,
+                permissions: preparedSetupData.permissions,
+                helpersHash: hashHelpers(preparedSetupData.helpers)
+            })
+        );
     }
 
-    function _configureL2VetoReceiver(UpgradeParams calldata _params) internal {
-        bytes32 l2VetoPermission = _params.plugin.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID();
-        _params.dao.grant(address(_params.plugin), address(this), l2VetoPermission);
-        _params.plugin.setL2VetoReceiver(_params.l2VetoReceiver);
-        _params.dao.revoke(address(_params.plugin), address(this), l2VetoPermission);
-    }
-
-    function _revokeAllPermissions(UpgradeParams calldata _params) internal {
-        _params.dao.revoke(address(_params.plugin), address(_params.psp), _params.plugin.UPGRADE_PLUGIN_PERMISSION_ID());
-        _params.dao.revoke(address(_params.psp), address(this), _params.psp.APPLY_UPDATE_PERMISSION_ID());
-        _params.dao.revoke(address(_params.dao), address(_params.psp), _params.dao.ROOT_PERMISSION_ID());
+    function _revokeAllPermissions() internal {
+        dao.revoke(address(plugin), address(psp), plugin.UPGRADE_PLUGIN_PERMISSION_ID());
+        dao.revoke(address(psp), address(this), psp.APPLY_UPDATE_PERMISSION_ID());
+        dao.revoke(address(dao), address(psp), dao.ROOT_PERMISSION_ID());
 
         // Revoke own ROOT
-        _params.dao.revoke(address(_params.dao), address(this), _params.dao.ROOT_PERMISSION_ID());
+        dao.revoke(address(dao), address(this), dao.ROOT_PERMISSION_ID());
     }
 }

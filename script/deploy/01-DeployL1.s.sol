@@ -67,8 +67,20 @@ contract DeployL1 is ScriptBase {
 
         _printSummary(factory, delegationWall, address(receiver));
 
-        _resetEnvLast();
-        _exportEnv("VETO_RECEIVER_ADDRESS", address(receiver));
+        string memory key = "l1";
+        vm.serializeAddress(key, "factory", address(factory));
+        vm.serializeAddress(key, "dao", address(deployment.dao));
+        vm.serializeAddress(key, "multisigPlugin", address(deployment.multisigPlugin));
+        vm.serializeAddress(key, "emergencyMultisigPlugin", address(deployment.emergencyMultisigPlugin));
+        vm.serializeAddress(key, "optimisticTokenVotingPlugin", address(deployment.optimisticTokenVotingPlugin));
+        vm.serializeAddress(key, "signerList", address(deployment.signerList));
+        vm.serializeAddress(key, "encryptionRegistry", address(deployment.encryptionRegistry));
+        vm.serializeAddress(key, "multisigPluginRepo", address(deployment.multisigPluginRepo));
+        vm.serializeAddress(key, "emergencyMultisigPluginRepo", address(deployment.emergencyMultisigPluginRepo));
+        vm.serializeAddress(key, "optimisticTokenVotingPluginRepo", address(deployment.optimisticTokenVotingPluginRepo));
+        vm.serializeAddress(key, "delegationWall", delegationWall);
+        string memory json = vm.serializeAddress(key, "vetoReceiver", address(receiver));
+        _writeDeployment("deploy/01-DeployL1.s.sol", json);
 
         console.log("");
         console.log("Next: run 02-DeployL2.s.sol against L2 RPC");

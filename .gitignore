@@ -15,7 +15,7 @@ docs/
 # Dotenv file
 .env
 .env.test
-!networks/*.env
+.just/
 
 lcov.info*
 report/
@@ -32,3 +32,4 @@ tmp/
 
 # Generated proposal actions
 proposals/
+deployments/

@@ -12,21 +12,9 @@ optimizer-runs = 200
 solc = "0.8.17"
 via_ir = false
 
-[rpc_endpoints]
-holesky = "https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-sepolia = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-taiko-mainnet = "https://rpc.mainnet.taiko.xyz"
-hoodi = "https://eth-hoodi.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-taiko-hoodi = "https://rpc.hoodi.taiko.xyz"
-
 [etherscan]
-holesky = { key = "${ETHERSCAN_API_KEY}" }
-sepolia = { key = "${ETHERSCAN_API_KEY}" }
-mainnet = { key = "${ETHERSCAN_API_KEY}" }
-hoodi = { key = "${ETHERSCAN_API_KEY}" }
-taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", url = "https://api.taikoscan.io/api" }
-taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", url = "https://blockscoutapi.hoodi.taiko.xyz/api" }
+taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", chain = 167013, url = "https://api.etherscan.io/v2/api?chainid=167013" }
+taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 167000, url = "https://api.etherscan.io/v2/api?chainid=167000" }
 
 [invariant]
 runs = 256

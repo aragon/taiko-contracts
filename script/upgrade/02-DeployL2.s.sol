@@ -37,9 +37,7 @@ contract DeployL2 is ScriptBase {
         string memory key = "l2";
         string memory json = vm.serializeAddress(key, "l2VetoAggregator", address(aggregator));
 
-        _writeDeployment("upgrade-l2", json);
-
-        _exportEnv("VETO_AGGREGATOR_ADDRESS", address(aggregator));
+        _writeDeployment("upgrade/02-DeployL2.s.sol", json);
 
         console.log("");
         console.log("Next: run 03-EncodeProposal.s.sol against L1 RPC");

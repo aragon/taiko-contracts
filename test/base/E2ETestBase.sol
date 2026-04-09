@@ -120,7 +120,14 @@ abstract contract E2ETestBase is AragonTest {
     function _initUpgradeFactory() internal {
         implBefore = plugin.implementation();
         upgradeFactory = new UpgradeOptimisticTokenVotingPluginFactory(
-            GovernanceERC20(address(1)), GovernanceWrappedERC20(address(1))
+            GovernanceERC20(address(1)),
+            GovernanceWrappedERC20(address(1)),
+            dao,
+            PluginSetupProcessor(address(psp)),
+            plugin,
+            pluginRepo,
+            address(votingToken),
+            address(l2VetoReceiver)
         );
         vm.roll(block.number + 1);
     }
@@ -129,23 +136,18 @@ abstract contract E2ETestBase is AragonTest {
         dao.grant(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID());
         pluginRepo.grant(address(pluginRepo), address(upgradeFactory), pluginRepo.MAINTAINER_PERMISSION_ID());
 
-        upgradeFactory.upgrade(
-            UpgradeOptimisticTokenVotingPluginFactory.UpgradeParams({
-                dao: dao,
-                psp: PluginSetupProcessor(address(psp)),
-                plugin: plugin,
-                pluginRepo: pluginRepo,
-                votingToken: address(votingToken),
-                l2VetoReceiver: address(l2VetoReceiver)
-            })
-        );
+        upgradeFactory.upgrade();
 
         pluginRepo.revoke(address(pluginRepo), address(upgradeFactory), pluginRepo.MAINTAINER_PERMISSION_ID());
     }
 
     function _runFinalize() internal {
-        // After upgrade, the DAO has SET_TRUSTED_L2_AGGREGATOR_PERMISSION on the receiver (via PSP).
-        // In production this would be a dao.execute() action. In tests we prank as the DAO.
+        // After upgrade, the DAO has UPDATE_L2_VETO_RECEIVER_PERMISSION and
+        // SET_TRUSTED_L2_AGGREGATOR_PERMISSION (both granted via applyUpdate).
+        // In production these would be dao.execute() actions.
+        vm.prank(address(dao));
+        plugin.setL2VetoReceiver(address(l2VetoReceiver));
+
         vm.prank(address(dao));
         l2VetoReceiver.setTrustedL2Aggregator(trustedL2Aggregator);
     }

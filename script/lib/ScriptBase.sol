@@ -37,22 +37,20 @@ abstract contract ScriptBase is Script {
         _writeJson("proposals", _filename, _serializeActions(_actions));
     }
 
-    function _writeDeployment(string memory _filename, string memory _json) internal {
-        _writeJson("deployments", _filename, _json);
-    }
-
-    function _envLastPath() internal view returns (string memory) {
-        return string.concat(vm.projectRoot(), "/deployments/.env.last");
-    }
-
-    function _resetEnvLast() internal {
-        string memory dir = string.concat(vm.projectRoot(), "/deployments");
+    function _writeDeployment(string memory _scriptName, string memory _json) internal {
+        string memory dir = string.concat(
+            vm.projectRoot(), "/deployments/", _scriptName, "/", vm.toString(block.chainid)
+        );
         vm.createDir(dir, true);
-        vm.writeFile(_envLastPath(), "");
-    }
 
-    function _exportEnv(string memory _key, address _value) internal {
-        vm.writeLine(_envLastPath(), string.concat(_key, "=", vm.toString(_value)));
+        string memory timestamped =
+            string.concat(dir, "/deployment-", vm.toString(block.timestamp), ".json");
+        vm.writeFile(timestamped, _json);
+
+        string memory latest = string.concat(dir, "/deployment-latest.json");
+        vm.writeFile(latest, _json);
+
+        console.log("Wrote deployments/%s/%s/deployment-latest.json", _scriptName, vm.toString(block.chainid));
     }
 
     function _writeJson(string memory _folder, string memory _name, string memory _content) internal {

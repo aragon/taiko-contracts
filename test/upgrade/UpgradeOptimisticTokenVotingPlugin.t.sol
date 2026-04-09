@@ -57,8 +57,9 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
     // L2 veto receiver configuration
     // =========================================================================
 
-    function test_UpgradeSetsL2VetoReceiver() public {
+    function test_FinalizeSetsL2VetoReceiver() public {
         _runUpgrade();
+        _runFinalize();
 
         assertEq(plugin.l2VetoReceiver(), address(l2VetoReceiver), "L2 receiver not set");
     }
@@ -182,17 +183,6 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
         );
     }
 
-    function test_UpgradeRevokesFactoryL2VetoReceiverPermission() public {
-        _runUpgrade();
-
-        assertFalse(
-            dao.hasPermission(
-                address(plugin), address(upgradeFactory), plugin.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID(), bytes("")
-            ),
-            "Factory should not have UPDATE_L2_VETO_RECEIVER after upgrade"
-        );
-    }
-
     // =========================================================================
     // Post-upgrade plugin functionality
     // =========================================================================
@@ -243,15 +233,6 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
         assertFalse(
             dao.hasPermission(address(dao), address(upgradeFactory), dao.ROOT_PERMISSION_ID(), bytes("")),
             "Factory should not have ROOT"
-        );
-        assertFalse(
-            dao.hasPermission(
-                address(plugin),
-                address(upgradeFactory),
-                plugin.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID(),
-                bytes("")
-            ),
-            "Factory should not have UPDATE_L2_VETO_RECEIVER"
         );
         assertFalse(
             dao.hasPermission(address(dao), address(psp), dao.ROOT_PERMISSION_ID(), bytes("")),
