@@ -233,6 +233,8 @@ contract CrosschainVetoForkTest is E2ETestBase {
         vm.prank(voter);
         aggregator.veto(proposalId);
 
+        uint256 expectedVotingPower = aggregator.getVetoTally(proposalId);
+
         // Warp into grace period for dispatch + relay
         vm.warp(vetoEndDate + 1);
 
@@ -250,9 +252,9 @@ contract CrosschainVetoForkTest is E2ETestBase {
         vm.warp(vetoEndDate + 1);
 
         assertTrue(l2VetoReceiver.hasReceivedL2Vetoes(proposalId), "Receiver should mark vetoes received");
-        assertGt(l2VetoReceiver.getL2VetoTally(proposalId), 0, "Receiver should have non-zero tally");
+        assertEq(l2VetoReceiver.getL2VetoTally(proposalId), expectedVotingPower, "Receiver tally mismatch");
 
         (,,, uint256 pluginVetoTally,,,) = plugin.getProposal(proposalId);
-        assertGt(pluginVetoTally, 0, "Plugin vetoTally should reflect L2 vetoes");
+        assertEq(pluginVetoTally, expectedVotingPower, "Plugin vetoTally should reflect L2 vetoes");
     }
 }

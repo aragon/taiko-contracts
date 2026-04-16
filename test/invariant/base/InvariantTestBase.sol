@@ -37,6 +37,7 @@ abstract contract InvariantTestBase is InvariantTestSetup {
     mapping(uint256 => mapping(address => bool)) public ghost_hasVetoedL1;
     mapping(uint256 => mapping(address => bool)) public ghost_hasVetoedL2;
     mapping(uint256 => uint256) public ghost_l2AggregatorTally;
+    mapping(uint256 => uint256) public ghost_previousL2VetoTally;
 
     // =========================================================================
     // GHOST VARIABLES — Proposal Tracking
@@ -96,6 +97,7 @@ abstract contract InvariantTestBase is InvariantTestSetup {
     }
 
     function setL2VetoTally(uint256 id, uint256 tally) external {
+        ghost_previousL2VetoTally[id] = ghost_l2VetoTally[id];
         ghost_l2VetoTally[id] = tally;
     }
 

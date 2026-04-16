@@ -71,12 +71,8 @@ contract L2VetoAggregator is IL2VetoAggregator {
     function veto(uint256 proposalId) external override {
         address _voter = msg.sender;
 
-        if (!canVeto(proposalId, _voter)) {
-            revert ProposalVetoingForbidden(proposalId, _voter);
-        }
-
-        (, , , uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
-        uint256 votingPower = votingToken.getPastVotes(_voter, snapshotTimestamp);
+        uint256 votingPower = _getVetoVotingPower(proposalId, _voter);
+        if (votingPower == 0) revert ProposalVetoingForbidden(proposalId, _voter);
 
         // Update state
         _tallies[proposalId] += votingPower;
@@ -86,24 +82,7 @@ contract L2VetoAggregator is IL2VetoAggregator {
     }
 
     function canVeto(uint256 proposalId, address voter) public view returns (bool) {
-        // Decode proposal timing from the proposalId
-        (, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
-
-        // Check veto period is open
-        if (snapshotTimestamp == 0 || block.timestamp < startDate || block.timestamp >= endDate) {
-            return false;
-        }
-
-        // Check voter hasn't already vetoed
-        if (_hasVetoed[proposalId][voter]) {
-            return false;
-        }
-
-        // Read voting power at the snapshot timestamp
-        uint256 votingPower = votingToken.getPastVotes(voter, snapshotTimestamp);
-        if (votingPower == 0) return false;
-
-        return true;
+        return _getVetoVotingPower(proposalId, voter) > 0;
     }
 
     /// @inheritdoc IL2VetoAggregator
@@ -157,21 +136,32 @@ contract L2VetoAggregator is IL2VetoAggregator {
 
     /// @inheritdoc IL2VetoAggregator
     function isProposalOpen(uint256 proposalId) external view override returns (bool) {
-        (, uint64 startDate, uint64 endDate,) = ProposalIdCodec.decode(proposalId);
-        return block.timestamp >= startDate && block.timestamp < endDate;
+        (, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
+        return _isProposalOpen(startDate, endDate, snapshotTimestamp);
     }
 
-    /// @notice Splits the components behind the given proposal ID
-    /// @param proposalId The ID to split
-    /// @return counter The autoincremented counter
-    /// @return startDate The proposal veto start timestamp
-    /// @return endDate The proposal veto end timestamp
-    /// @return snapshotTimestamp The voting power snapshot timestamp
-    function parseProposalId(uint256 proposalId)
-        public
-        pure
-        returns (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp)
-    {
-        return ProposalIdCodec.decode(proposalId);
+    // =========================================================================
+    // INTERNAL FUNCTIONS
+    // =========================================================================
+
+    function _isProposalOpen(uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) internal view returns (bool) {
+        return snapshotTimestamp != 0 && block.timestamp >= startDate && block.timestamp < endDate;
+    }
+
+    function _getVetoVotingPower(uint256 proposalId, address voter) internal view returns (uint256) {
+        // Decode proposal timing from the proposalId
+        (, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
+
+        if (!_isProposalOpen(startDate, endDate, snapshotTimestamp)) {
+            return 0;
+        }
+
+        // Check voter hasn't already vetoed
+        if (_hasVetoed[proposalId][voter]) {
+            return 0;
+        }
+
+        // Return voting power at the snapshot timestamp
+        return votingToken.getPastVotes(voter, snapshotTimestamp);
     }
 }

@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {HandlerBase} from "../base/HandlerBase.sol";
 import {InvariantTestBase} from "../base/InvariantTestBase.sol";
 import {L2VetoAggregator} from "../../../src/crosschain/L2VetoAggregator.sol";
+import {ProposalIdCodec} from "../../../src/libs/ProposalIdCodec.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 contract L2VetoHandler is HandlerBase {
@@ -32,8 +33,7 @@ contract L2VetoHandler is HandlerBase {
             return;
         }
 
-        // parseProposalId returns (counter, startDate, endDate, snapshotTimestamp)
-        (,,, uint64 snapshotTimestamp) = aggregator.parseProposalId(proposalId);
+        (,,, uint64 snapshotTimestamp) = ProposalIdCodec.decode(proposalId);
         uint256 votingPower = votingToken.getPastVotes(voter, snapshotTimestamp);
 
         vm.prank(voter);

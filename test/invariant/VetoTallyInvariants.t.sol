@@ -33,12 +33,11 @@ contract VetoTallyInvariants is InvariantTestBase {
 
             if (params.snapshotTimestamp == 0) continue;
 
-            // aggregatedL2Balance = vetoTally - ghost_l1VetoTally[id]
             uint256 actualL2Balance = vetoTally - ghost_l1VetoTally[id];
 
             assertGe(
                 actualL2Balance,
-                ghost_l2VetoTally[id],
+                ghost_previousL2VetoTally[id],
                 string.concat("L2TallyMonotonicity failed for proposal ", vm.toString(id))
             );
         }

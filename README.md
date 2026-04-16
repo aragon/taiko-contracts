@@ -226,7 +226,7 @@ Available recipes:
     verify verifier="" script=DEPLOY_SCRIPT # Verify all contracts from the latest broadcast
 ```
 
-Run `just init network=<name>` (e.g. `hoodi`, `mainnet`, `taiko-hoodi`, `taiko-mainnet`):
+Run `just init <network>` (e.g. `just init hoodi`, `just init mainnet`):
 - It ensures that Foundry is installed
 - It selects the network configuration
 - It runs a first compilation of the project
@@ -281,7 +281,7 @@ Then **submit and execute the DAO proposal** (`proposal-upgrade-l2-veto.json`):
   - [ ] I have run `curl -L https://foundry.paradigm.xyz | bash`
   - [ ] I have run `source /root/.bashrc && foundryup`
   - [ ] I have run `cd /deployment`
-  - [ ] I have run `just init network=<name>`
+  - [ ] I have run `just init <network>`
 - [ ] I am opening an editor on the `/deployment` folder, within the Docker container
 - [ ] The `.env` file contains the correct parameters for the deployment
   - [ ] I have created a brand new burner wallet with `cast wallet new` and copied the private key to `DEPLOYMENT_PRIVATE_KEY` within `.env`

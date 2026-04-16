@@ -17,6 +17,6 @@ taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", chain = 167013, url = "https://api
 taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 167000, url = "https://api.etherscan.io/v2/api?chainid=167000" }
 
 [invariant]
-runs = 256
-depth = 64
+runs = 1024
+depth = 128
 fail_on_revert = false

@@ -325,38 +325,6 @@ contract L2VetoAggregatorTest is Test {
     }
 
     // =========================================================================
-    // PARSE PROPOSAL ID TESTS
-    // =========================================================================
-
-    function test_parseProposalId_correctness() public view {
-        uint256 proposalId = _makeProposalId();
-
-        (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) =
-            aggregator.parseProposalId(proposalId);
-
-        assertEq(counter, COUNTER);
-        assertEq(startDate, START);
-        assertEq(endDate, END);
-        assertEq(snapshotTimestamp, SNAPSHOT);
-    }
-
-    function testFuzz_parseProposalId_roundtrip(
-        uint64 snapshot,
-        uint64 startDate,
-        uint64 endDate,
-        uint64 counter
-    ) public view {
-        uint256 proposalId = _makeProposalId(snapshot, startDate, endDate, counter);
-
-        (uint64 c, uint64 s, uint64 e, uint64 snap) = aggregator.parseProposalId(proposalId);
-
-        assertEq(c, counter);
-        assertEq(s, startDate);
-        assertEq(e, endDate);
-        assertEq(snap, snapshot);
-    }
-
-    // =========================================================================
     // IS PROPOSAL OPEN TESTS
     // =========================================================================
 
