@@ -78,6 +78,14 @@ contract OptimisticTokenVotingPlugin is
     /// @notice The ID of the permission required to call the `setL2VetoReceiver` function.
     bytes32 public constant UPDATE_L2_VETO_RECEIVER_PERMISSION_ID = keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION");
 
+    /// @notice Lookback (in seconds) applied at proposal creation to derive the snapshot timestamp.
+    /// @dev Equals Taiko's `TIMESTAMP_MAX_OFFSET` (6144s = 12 * 512), the inclusive maximum drift
+    /// between an L2 block's timestamp and the L1 proposal timestamp that anchors it, plus one extra
+    /// second so the snapshot is strictly less than the worst-case L2 `block.timestamp` at proposal
+    /// creation (OZ `Votes.getPastVotes` requires `timepoint < clock()`). See:
+    /// https://github.com/taikoxyz/taiko-mono/blob/main/packages/protocol/docs/Derivation.md#constants
+    uint64 public constant SNAPSHOT_OFFSET = 6145;
+
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
@@ -225,6 +233,13 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
+    /// @dev TODO: TaikoToken must be upgraded so `getPastVotes(taikoERC20Vault, ts)` returns the
+    /// vault's real historical voting power. The current TaikoToken overrides `getPastVotes` to
+    /// return 0 for non-voting accounts (the vault is in that list and self-delegates), which
+    /// makes this function always return 0. Consequences while unfixed: in `createProposal`,
+    /// `_enableL2` is always false, so L2 vetoes are never aggregated; and `effectiveVotingPower`
+    /// (when called with `_includeL2VotingPower = false`) does not subtract the vault balance.
+    /// See docs/CROSSCHAIN_VETO_DESIGN.md and docs/FIX_VAULT_VP.md.
     function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
         return votingToken.getPastVotes(taikoERC20Vault, _timestamp);
     }
@@ -390,7 +405,7 @@ contract OptimisticTokenVotingPlugin is
         uint64 snapshotTimestamp;
 
         unchecked {
-            snapshotTimestamp = (block.timestamp - 1).toUint64(); // The snapshot timestamp must in the past to protect the transaction against backrunning transactions causing census changes.
+            snapshotTimestamp = (block.timestamp - SNAPSHOT_OFFSET).toUint64();
         }
 
         // Checks

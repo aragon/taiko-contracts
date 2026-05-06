@@ -1501,7 +1501,7 @@ contract MultisigTest is AragonTest {
         assertEq(multisig.canApprove(0, david), true, "David should be able to approve");
 
         // It execute recreates the proposal on the destination plugin
-        uint256 targetPid = ((block.timestamp - 1) << 192) | (block.timestamp << 128) | ((block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64);
+        uint256 targetPid = ((block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()) << 192) | (block.timestamp << 128) | ((block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64);
         IDAO.Action[] memory actions = new IDAO.Action[](2);
         actions[0].value = 0.25 ether;
         actions[0].to = address(alice);
@@ -1973,7 +1973,7 @@ contract MultisigTest is AragonTest {
         actions[0].data = hex"";
 
         // It execute recreates the proposal on the destination plugin
-        uint256 targetPid = ((block.timestamp - 1) << 192) | (block.timestamp << 128) | ((block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64);
+        uint256 targetPid = ((block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()) << 192) | (block.timestamp << 128) | ((block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64);
         vm.expectEmit();
         emit ProposalCreated(
             targetPid,
@@ -2049,7 +2049,7 @@ contract MultisigTest is AragonTest {
 
         vm.expectEmit();
         emit ProposalCreated(
-            ((uint256(block.timestamp - 1) << 192) | (uint256(block.timestamp) << 128) | (uint256(block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64)),
+            ((uint256(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()) << 192) | (uint256(block.timestamp) << 128) | (uint256(block.timestamp + DESTINATION_PROPOSAL_DURATION) << 64)),
             address(multisig),
             uint64(block.timestamp),
             uint64(block.timestamp + DESTINATION_PROPOSAL_DURATION),

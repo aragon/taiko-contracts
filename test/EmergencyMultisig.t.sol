@@ -1897,7 +1897,7 @@ contract EmergencyMultisigTest is AragonTest {
         emit Executed(0);
 
         // It A ProposalCreated event is emitted on the destination plugin
-        uint256 targetPid = ((block.timestamp - 1) << 192) | (block.timestamp << 128) | (block.timestamp << 64);
+        uint256 targetPid = ((block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()) << 192) | (block.timestamp << 128) | (block.timestamp << 64);
         vm.expectEmit();
         emit ProposalCreated(
             targetPid,

@@ -190,7 +190,7 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
     function test_CanCreateProposalAfterUpgrade() public {
         _runUpgrade();
 
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + plugin.SNAPSHOT_OFFSET());
         vm.roll(block.number + 1);
 
         vm.prank(alice);
@@ -204,7 +204,7 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
     function test_CanVetoAfterUpgrade() public {
         _runUpgrade();
 
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + plugin.SNAPSHOT_OFFSET());
         vm.roll(block.number + 1);
 
         vm.prank(alice);
@@ -250,7 +250,7 @@ contract UpgradeOptimisticTokenVotingPluginFactoryTest is E2ETestBase {
             "DAO should have SET_TRUSTED_L2_AGGREGATOR"
         );
 
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + plugin.SNAPSHOT_OFFSET());
         vm.roll(block.number + 1);
 
         vm.prank(alice);

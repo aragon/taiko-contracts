@@ -41,6 +41,13 @@ abstract contract E2ETestBase is AragonTest {
     address implBefore;
 
     function _install() internal {
+        // Ensure block.timestamp is past the snapshot offset so createProposal's
+        // `block.timestamp - SNAPSHOT_OFFSET` does not underflow uint64 via SafeCast.
+        // Skip when on a real fork (timestamp already > 1 days) to avoid warping backward.
+        if (block.timestamp < 1 days) {
+            vm.warp(1 days);
+        }
+
         dao = DAO(
             payable(
                 createProxyAndCall(
@@ -159,7 +166,8 @@ abstract contract E2ETestBase is AragonTest {
     {
         votingToken.mintAndDelegate(taikoERC20Vault, 5 ether);
 
-        vm.warp(block.timestamp + 1);
+        // Warp past the snapshot offset so the mint is visible at `block.timestamp - SNAPSHOT_OFFSET`.
+        vm.warp(block.timestamp + plugin.SNAPSHOT_OFFSET());
         vm.roll(block.number + 1);
 
         vm.prank(alice);

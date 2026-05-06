@@ -313,8 +313,10 @@ contract DaoBuilder is Test {
         vm.label(address(taikoL1), "TaikoL1");
         vm.label(address(taikoERC20Vault), "TaikoERC20Vault");
 
-        // Moving forward to avoid proposal creations failing or getVotes() giving inconsistent values
+        // Moving forward to avoid proposal creations failing or getVotes() giving inconsistent values.
+        // Must match the snapshot offset used by OptimisticTokenVotingPlugin.createProposal so the
+        // just-minted token checkpoints are visible at `block.timestamp - SNAPSHOT_OFFSET`.
         vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + OptimisticTokenVotingPlugin(OPTIMISTIC_BASE).SNAPSHOT_OFFSET());
     }
 }

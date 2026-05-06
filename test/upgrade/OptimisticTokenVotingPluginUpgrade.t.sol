@@ -240,7 +240,11 @@ contract OptimisticTokenVotingPluginUpgradeTest is AragonTest {
         (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp) =
             optimisticPlugin.parseProposalId(proposalId);
 
-        assertEq(snapshotTimestamp, uint64(block.timestamp - 1), "snapshotTimestamp should be block.timestamp - 1");
+        assertEq(
+            snapshotTimestamp,
+            uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()),
+            "snapshotTimestamp should be block.timestamp - SNAPSHOT_OFFSET"
+        );
         assertEq(startDate, uint64(block.timestamp), "startDate should be block.timestamp");
         assertEq(endDate, uint64(block.timestamp + 4 days), "endDate should be startDate + duration");
         assertEq(counter, 0, "counter should be 0 for first proposal");
