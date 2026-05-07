@@ -13,3 +13,10 @@
 [submodule "lib/ens-contracts"]
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts.git
+[submodule "lib/just-foundry"]
+	path = lib/just-foundry
+	url = https://github.com/aragon/just-foundry.git
+	branch = feat/project-network-overrides
+[submodule "lib/openzeppelin-foundry-upgrades"]
+	path = lib/openzeppelin-foundry-upgrades
+	url = https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades

@@ -53,7 +53,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         // only used for GovernanceERC20 (when token is not passed)
         GovernanceERC20.MintSettings mintSettings;
         address taikoL1;
-        address taikoBridge;
+        address taikoERC20Vault;
         uint64 stdProposalMinDuration;
         address stdProposer;
         address emergencyProposer;
@@ -81,7 +81,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         if (address(_governanceERC20Base) == address(0) || address(_governanceWrappedERC20Base) == address(0)) {
             revert EmptyAddress();
         }
-        
+
         optimisticTokenVotingPluginBase = new OptimisticTokenVotingPlugin();
         governanceERC20Base = address(_governanceERC20Base);
         governanceWrappedERC20Base = address(_governanceWrappedERC20Base);
@@ -115,21 +115,23 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 // User already has a token. We need to wrap it in
                 // GovernanceWrappedERC20 in order to make the token
                 // include governance functionality.
-                GovernanceWrappedERC20(token).initialize(
-                    IERC20Upgradeable(installationParams.tokenSettings.addr),
-                    installationParams.tokenSettings.name,
-                    installationParams.tokenSettings.symbol
-                );
+                GovernanceWrappedERC20(token)
+                    .initialize(
+                        IERC20Upgradeable(installationParams.tokenSettings.addr),
+                        installationParams.tokenSettings.name,
+                        installationParams.tokenSettings.symbol
+                    );
             }
         } else {
             // Create a brand new token
             token = governanceERC20Base.clone();
-            GovernanceERC20(token).initialize(
-                IDAO(_dao),
-                installationParams.tokenSettings.name,
-                installationParams.tokenSettings.symbol,
-                installationParams.mintSettings
-            );
+            GovernanceERC20(token)
+                .initialize(
+                    IDAO(_dao),
+                    installationParams.tokenSettings.name,
+                    installationParams.tokenSettings.symbol,
+                    installationParams.mintSettings
+                );
         }
 
         helpers[0] = token;
@@ -144,14 +146,14 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                     installationParams.votingSettings,
                     IVotesUpgradeable(token),
                     installationParams.taikoL1,
-                    installationParams.taikoBridge
+                    installationParams.taikoERC20Vault
                 )
             )
         );
 
         // Prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions =
-            new PermissionLib.MultiTargetPermission[](installationParams.tokenSettings.addr != address(0) ? 5 : 6);
+            new PermissionLib.MultiTargetPermission[](installationParams.tokenSettings.addr != address(0) ? 6 : 7);
 
         // Request the permissions to be granted
 
@@ -188,7 +190,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
 
             // Proposer plugins can create proposals
             permissions[3] = PermissionLib.MultiTargetPermission({
-                operation: PermissionLib.Operation.Grant,
+                operation: PermissionLib.Operation.GrantWithCondition,
                 where: plugin,
                 who: installationParams.stdProposer,
                 condition: address(stdProposalCondition),
@@ -203,9 +205,18 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             permissionId: optimisticTokenVotingPluginBase.PROPOSER_PERMISSION_ID()
         });
 
+        // The DAO can update the L2 veto receiver
+        permissions[5] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            where: plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: optimisticTokenVotingPluginBase.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID()
+        });
+
         if (installationParams.tokenSettings.addr == address(0x0)) {
             // The DAO can mint ERC20 tokens
-            permissions[5] = PermissionLib.MultiTargetPermission({
+            permissions[6] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: token,
                 who: _dao,
@@ -237,7 +248,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         bool isGovernanceERC20 =
             _supportsErc20(token) && _supportsIVotes(token) && !_supportsIGovernanceWrappedERC20(token);
 
-        permissions = new PermissionLib.MultiTargetPermission[](isGovernanceERC20 ? 4 : 3);
+        permissions = new PermissionLib.MultiTargetPermission[](isGovernanceERC20 ? 5 : 4);
 
         // Set permissions to be Revoked.
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -264,13 +275,21 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
+        permissions[3] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: _payload.plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: optimisticTokenVotingPluginBase.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID()
+        });
+
         // Note: It no longer matters if proposers can still create proposals
 
         // Revocation of permission is necessary only if the deployed token is GovernanceERC20,
         // as GovernanceWrapped does not possess this permission. Only return the following
         // if it's type of GovernanceERC20, otherwise revoking this permission wouldn't have any effect.
         if (isGovernanceERC20) {
-            permissions[3] = PermissionLib.MultiTargetPermission({
+            permissions[4] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Revoke,
                 where: token,
                 who: _dao,
@@ -278,6 +297,48 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
                 permissionId: GovernanceERC20(token).MINT_PERMISSION_ID()
             });
         }
+    }
+
+    /// @inheritdoc IPluginSetup
+    /// @dev When updating from Build 1, pass the L2VetoReceiver address as `abi.encode(l2VetoReceiver)` in `_payload.data`.
+    ///      If data is empty, only the plugin permission is granted (backwards-compatible).
+    function prepareUpdate(address _dao, uint16 _currentBuild, SetupPayload calldata _payload)
+        external
+        view
+        override
+        returns (bytes memory initData, PreparedSetupData memory preparedSetupData)
+    {
+        if (_currentBuild == 1) {
+            bool hasReceiver = _payload.data.length > 0;
+            uint256 permCount = hasReceiver ? 2 : 1;
+
+            PermissionLib.MultiTargetPermission[] memory permissions =
+                new PermissionLib.MultiTargetPermission[](permCount);
+
+            permissions[0] = PermissionLib.MultiTargetPermission({
+                operation: PermissionLib.Operation.Grant,
+                where: _payload.plugin,
+                who: _dao,
+                condition: PermissionLib.NO_CONDITION,
+                permissionId: optimisticTokenVotingPluginBase.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID()
+            });
+
+            if (hasReceiver) {
+                address l2VetoReceiver = abi.decode(_payload.data, (address));
+
+                permissions[1] = PermissionLib.MultiTargetPermission({
+                    operation: PermissionLib.Operation.Grant,
+                    where: l2VetoReceiver,
+                    who: _dao,
+                    condition: PermissionLib.NO_CONDITION,
+                    permissionId: keccak256("SET_TRUSTED_L2_AGGREGATOR_PERMISSION")
+                });
+            }
+
+            preparedSetupData.permissions = permissions;
+        }
+
+        preparedSetupData.helpers = _payload.currentHelpers;
     }
 
     /// @inheritdoc IPluginSetup
@@ -303,7 +364,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         installationParams = abi.decode(_data, (InstallationParameters));
     }
 
-    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @notice Attempts to determine if the contract is an ERC20 token.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsErc20(address token) private view returns (bool) {
@@ -320,7 +381,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         return true;
     }
 
-    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @notice Attempts to determine if the contract supports IVotes.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsIVotes(address token) private view returns (bool) {
@@ -340,7 +401,7 @@ contract OptimisticTokenVotingPluginSetup is PluginSetup {
         return true;
     }
 
-    /// @notice Unsatisfiably determines if the contract is an ERC20 token.
+    /// @notice Attempts to determine if the contract supports IGovernanceWrappedERC20.
     /// @dev It's important to first check whether token is a contract prior to this call.
     /// @param token The token address
     function _supportsIGovernanceWrappedERC20(address token) private view returns (bool) {

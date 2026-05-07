@@ -18,6 +18,7 @@ import {IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intr
 import {IERC1822ProxiableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol";
 import {createProxyAndCall} from "../src/helpers/proxy.sol";
+import {ProposalIdCodec} from "../src/libs/ProposalIdCodec.sol";
 
 contract OptimisticTokenVotingPluginTest is AragonTest {
     DaoBuilder builder;
@@ -41,8 +42,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     event VetoCast(uint256 indexed proposalId, address indexed voter, uint256 votingPower);
     event ProposalExecuted(uint256 indexed proposalId);
     event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
+        uint32 minVetoRatio,
+        uint64 minDuration,
+        uint64 timelockPeriod,
+        uint64 l2AggregationGracePeriod,
+        uint64 l2InactivityPeriod,
+        bool skipL2
     );
+    event L2VetoesReceived(uint256 indexed proposalId, uint256 l2VetoTally);
     event Upgraded(address indexed implementation);
 
     function setUp() public {
@@ -71,7 +78,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         });
 
         vm.expectRevert(bytes("Initializable: contract is already initialized"));
-        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge);
+        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoERC20Vault);
     }
 
     // Initialize
@@ -87,7 +94,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         });
 
         vm.expectRevert(bytes("Initializable: contract is already initialized"));
-        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoBridge);
+        optimisticPlugin.initialize(dao, settings, votingToken, address(taikoL1), taikoERC20Vault);
     }
 
     function test_InitializeSetsTheRightValues() public {
@@ -105,7 +112,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -128,7 +135,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different minVetoRatio
         settings.minVetoRatio = uint32(RATIO_BASE / 5);
@@ -136,7 +143,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -153,7 +160,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different minDuration
         settings.minDuration = 25 days;
@@ -161,7 +168,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -179,7 +186,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different timelockPeriod
         settings.timelockPeriod = 14 days;
@@ -187,7 +194,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -205,7 +212,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different l2InactivityPeriod
         settings.l2InactivityPeriod = 30 minutes;
@@ -213,7 +220,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -231,7 +238,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different l2AggregationGracePeriod
         settings.l2AggregationGracePeriod = 5 days;
@@ -239,7 +246,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -257,7 +264,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different skipL2
         settings.skipL2 = true;
@@ -265,7 +272,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -283,7 +290,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 10 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different token with 23 eth supply
         votingToken = new GovernanceERC20Mock(address(dao));
@@ -294,7 +301,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -312,7 +319,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
         // Different taikoL1 contract
         taikoL1 = ITaikoL1(address(0x1234));
@@ -320,7 +327,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -338,9 +345,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(taikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(taikoERC20Vault), "Incorrect taikoERC20Vault");
 
-        // Different taikoBridge contract
+        // Different taikoERC20Vault contract
         address newTaikoBridge = address(0x5678);
         optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
@@ -365,7 +372,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(address(optimisticPlugin.votingToken()), address(votingToken), "Incorrect votingToken");
         assertEq(optimisticPlugin.totalVotingPower(block.timestamp - 1), 23 ether, "Incorrect token supply");
         assertEq(address(optimisticPlugin.taikoL1()), address(taikoL1), "Incorrect taikoL1");
-        assertEq(address(optimisticPlugin.taikoBridge()), address(newTaikoBridge), "Incorrect taikoBridge");
+        assertEq(address(optimisticPlugin.taikoERC20Vault()), address(newTaikoBridge), "Incorrect taikoERC20Vault");
     }
 
     function test_InitializeEmitsEvent() public {
@@ -386,7 +393,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -403,13 +410,13 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             skipL2: false
         });
         taikoL1 = ITaikoL1(address(0));
-        
+
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.EmptyAddress.selector));
         optimisticPlugin = OptimisticTokenVotingPlugin(
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -471,7 +478,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -504,25 +511,25 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     function test_BridgedVotingPowerReturnsTheRightValue() public {
         // No bridged tokens
         assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 0, "Incorrect bridged voting power");
-        assertEq(votingToken.getPastVotes(taikoBridge, block.timestamp - 1), 0, "Incorrect past votes");
+        assertEq(votingToken.getPastVotes(taikoERC20Vault, block.timestamp - 1), 0, "Incorrect past votes");
         assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 10 ether, "Incorrect past supply");
 
         // 1 bridged tokens
         builder = new DaoBuilder();
         (, optimisticPlugin,,, votingToken,,,) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 10 ether, "Incorrect bridged voting power");
-        assertEq(votingToken.getPastVotes(taikoBridge, block.timestamp - 1), 10 ether, "Incorrect past votes");
+        assertEq(votingToken.getPastVotes(taikoERC20Vault, block.timestamp - 1), 10 ether, "Incorrect past votes");
         assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 20 ether, "Incorrect past supply");
 
         // 2 bridged tokens
         builder = new DaoBuilder();
         (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
-            .withTokenHolder(taikoBridge, 1).build();
+            .withTokenHolder(taikoERC20Vault, 1).build();
 
         assertEq(optimisticPlugin.bridgedVotingPower(block.timestamp - 1), 1, "Incorrect bridged voting power");
-        assertEq(votingToken.getPastVotes(taikoBridge, block.timestamp - 1), 1, "Incorrect past votes");
+        assertEq(votingToken.getPastVotes(taikoERC20Vault, block.timestamp - 1), 1, "Incorrect past votes");
         assertEq(votingToken.getPastTotalSupply(block.timestamp - 1), 11 ether + 1, "Incorrect past supply");
     }
 
@@ -542,7 +549,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 1 bridged tokens
         builder = new DaoBuilder();
         (, optimisticPlugin,,, votingToken,,,) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         assertEq(
             optimisticPlugin.effectiveVotingPower(block.timestamp - 1, false),
@@ -558,7 +565,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 2 bridged tokens
         builder = new DaoBuilder();
         (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 1 ether)
-            .withTokenHolder(taikoBridge, 1234).build();
+            .withTokenHolder(taikoERC20Vault, 1234).build();
 
         assertEq(
             optimisticPlugin.effectiveVotingPower(block.timestamp - 1, false),
@@ -620,7 +627,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -651,7 +658,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
 
         // out of sync: still within the period
-        vm.warp(50 days);
+        vm.warp(50 days + 1 - optimisticPlugin.SNAPSHOT_OFFSET());
         (, optimisticPlugin,,, votingToken,,,) = builder.withL2InactivityPeriod(50 days).build();
         assertEq(optimisticPlugin.isL2Available(), true, "isL2Available should be true");
 
@@ -706,7 +713,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         votingToken.mint();
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
@@ -720,7 +727,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         votingToken.mint();
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
@@ -729,14 +736,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // Taiko Bridge now has voting power (should be ignored)
         // Paused L2
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withPausedTaikoL1().withTokenHolder(
-            taikoBridge, 10000 ether
+            taikoERC20Vault, 10000 ether
         ).withProposerOnOptimistic(alice).build();
 
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         votingToken.mint();
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
@@ -744,14 +751,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 4
         // Out of sync L2
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOutOfSyncTaikoL1().withTokenHolder(
-            taikoBridge, 10000 ether
+            taikoERC20Vault, 10000 ether
         ).withProposerOnOptimistic(alice).build();
 
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         votingToken.mint();
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
@@ -768,37 +775,37 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         votingToken.mint();
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         // 2
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
-            builder.withOkTaikoL1().withTokenHolder(taikoBridge, 0).withProposerOnOptimistic(alice).build();
+            builder.withOkTaikoL1().withTokenHolder(taikoERC20Vault, 0).withProposerOnOptimistic(alice).build();
 
         // Try to create
         actions = new IDAO.Action[](0);
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        votingToken.mintAndDelegate(taikoBridge, 10 ether);
-        vm.warp(block.timestamp + 1);
+        votingToken.mintAndDelegate(taikoERC20Vault, 10 ether);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
         // 2
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
-            builder.withOkTaikoL1().withTokenHolder(taikoBridge, 0).withProposerOnOptimistic(alice).build();
+            builder.withOkTaikoL1().withTokenHolder(taikoERC20Vault, 0).withProposerOnOptimistic(alice).build();
 
         // Try to create
         actions = new IDAO.Action[](0);
         vm.expectRevert(abi.encodeWithSelector(OptimisticTokenVotingPlugin.NoVotingPower.selector));
         optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        votingToken.mintAndDelegate(taikoBridge, 10 ether);
-        vm.warp(block.timestamp + 1);
+        votingToken.mintAndDelegate(taikoERC20Vault, 10 ether);
+        vm.warp(block.timestamp + optimisticPlugin.SNAPSHOT_OFFSET());
 
         // Now ok
         optimisticPlugin.createProposal("", actions, 0, 4 days);
@@ -862,7 +869,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalEndsAfterMinDurationOnlyL1Tokens() public {
-        vm.warp(50 days - 1);
+        vm.warp(50 days - optimisticPlugin.SNAPSHOT_OFFSET());
 
         // L2 Paused
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withPausedTaikoL1().build();
@@ -886,7 +893,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(_open, false, "Should not be open");
 
         // L2 out of sync
-        vm.warp(50 days - 1);
+        vm.warp(50 days - optimisticPlugin.SNAPSHOT_OFFSET());
 
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOutOfSyncTaikoL1().build();
 
@@ -910,7 +917,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_CreateProposalEndsAfterMinDurationWithL1L2Tokens() public {
         // 1
-        vm.warp(50 days - 1);
+        vm.warp(50 days - optimisticPlugin.SNAPSHOT_OFFSET());
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -933,9 +940,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 2
         // With tokens on the Taiko Bridge
-        vm.warp(50 days - 1);
+        vm.warp(50 days - optimisticPlugin.SNAPSHOT_OFFSET());
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
 
@@ -976,7 +983,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             createProxyAndCall(
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
-                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoBridge)
+                    OptimisticTokenVotingPlugin.initialize, (dao, settings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -992,17 +999,17 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         vm.warp(2 days);
         uint256 proposalId = optimisticPlugin.createProposal("", actions, 0, 10 days);
-        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 10 days), 0);
         assertEq(proposalId, expectedPid, "Should have created proposal 0");
 
         vm.warp(5 days);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 5 days);
-        expectedPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64) + 1;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 5 days), 1);
         assertEq(proposalId, expectedPid, "Should have created proposal 1");
 
         vm.warp(500 days);
         proposalId = optimisticPlugin.createProposal("", actions, 0, 5 days);
-        expectedPid = (uint256(block.timestamp) << 128 | uint256(block.timestamp + 5 days) << 64) + 2;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 5 days), 2);
         assertEq(proposalId, expectedPid, "Should have created proposal 2");
     }
 
@@ -1024,7 +1031,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_CreateProposalIndexesThePid() public {
-        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 10 days), 0);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         // 1
@@ -1033,20 +1040,20 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.proposalIds(0), expectedPid);
 
         // 2
-        expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 100 days) << 64 | 1;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 100 days), 1);
         assertEq(optimisticPlugin.proposalIds(1), 0);
         optimisticPlugin.createProposal("ipfs://meta", actions, 0, 100 days);
         assertEq(optimisticPlugin.proposalIds(1), expectedPid);
 
         // 3
-        expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 50 days) << 64 | 2;
+        expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 50 days), 2);
         assertEq(optimisticPlugin.proposalIds(2), 0);
         optimisticPlugin.createProposal("", actions, 0, 50 days);
         assertEq(optimisticPlugin.proposalIds(2), expectedPid);
     }
 
     function test_CreateProposalEmitsAnEvent() public {
-        uint256 expectedPid = uint256(block.timestamp) << 128 | uint256(block.timestamp + 10 days) << 64;
+        uint256 expectedPid = ProposalIdCodec.encode(uint64(block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()), uint64(block.timestamp), uint64(block.timestamp + 10 days), 0);
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         vm.expectEmit();
@@ -1063,13 +1070,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.warp(block.timestamp + 23456);
         uint256 proposalId2 = optimisticPlugin.createProposal("", actions, 0, 4 days);
 
-        (uint256 counter1, uint64 startDate1, uint64 endDate1) = optimisticPlugin.parseProposalId(proposalId1);
-        (uint256 counter2, uint64 startDate2, uint64 endDate2) = optimisticPlugin.parseProposalId(proposalId2);
+        (uint64 counter1, uint64 startDate1, uint64 endDate1, uint64 snapshotTimestamp1) = optimisticPlugin.parseProposalId(proposalId1);
+        (uint64 counter2, uint64 startDate2, uint64 endDate2, uint64 snapshotTimestamp2) = optimisticPlugin.parseProposalId(proposalId2);
 
         assertEq(counter1, 0, "Counter should be 0");
         assertEq(counter2, 1, "Counter should be 1");
         assertEq(startDate2 - startDate1, 23456, "Date diff should be +23456");
         assertEq(endDate2 - endDate1, 23456, "Date diff should be +23456");
+        assertEq(snapshotTimestamp2 - snapshotTimestamp1, 23456, "Snapshot diff should be +23456");
     }
 
     function test_GetProposalReturnsTheRightValuesL1OnlyAndL1L2() public {
@@ -1099,7 +1107,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 2 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 2 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, true, "L2 should be disabled"); // no bridge balance
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1116,7 +1124,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 2 days + 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 2 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 2 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, true, "L2 should be disabled"); // no bridge balance
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1127,9 +1135,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(actualFailSafeBitmap, failSafeBitmap, "Incorrect failsafe bitmap");
 
         // 2 - With L2 tokens
-        vm.warp(3 days - 1);
+        vm.warp(3 days - optimisticPlugin.SNAPSHOT_OFFSET());
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         vetoPeriod = 30 days;
 
@@ -1147,7 +1155,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://some-uri", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 3 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, false, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1164,7 +1172,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://some-uri", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 30 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 3 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, false, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1176,7 +1184,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 3 with L2 paused
 
-        vm.warp(3 days - 1);
+        vm.warp(3 days - optimisticPlugin.SNAPSHOT_OFFSET());
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withPausedTaikoL1().build();
         vetoPeriod = 15 days;
 
@@ -1194,7 +1202,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://my-uri", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 3 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1211,7 +1219,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://my-uri", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 3 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1223,7 +1231,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         // 4 with L2 out of sync
 
-        vm.warp(3 days - 1);
+        vm.warp(3 days - optimisticPlugin.SNAPSHOT_OFFSET());
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOutOfSyncTaikoL1().build();
 
         proposalId = optimisticPlugin.createProposal("ipfs://my-uri", actions, failSafeBitmap, vetoPeriod);
@@ -1235,7 +1243,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://my-uri", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 3 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1252,7 +1260,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "The proposal should not be executed");
         assertEq(metadataUri, "ipfs://my-uri", "Incorrect metadataUri");
         assertEq(parameters.vetoEndDate, 3 days + 15 days, "Incorrect vetoEndDate");
-        assertEq(parameters.snapshotTimestamp, 3 days - 1, "Incorrect snapshotTimestamp");
+        assertEq(parameters.snapshotTimestamp, 3 days - optimisticPlugin.SNAPSHOT_OFFSET(), "Incorrect snapshotTimestamp");
         assertEq(parameters.minVetoRatio, 100_000, "Incorrect minVetoRatio");
         assertEq(parameters.unavailableL2, true, "Incorrect unavailableL2");
         assertEq(vetoTally, 0, "The tally should be zero");
@@ -1345,7 +1353,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_CanVetoReturnsFalseForTheBridge() public {
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOkTaikoL1().withTokenHolder(alice, 10 ether)
-            .withTokenHolder(bob, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            .withTokenHolder(bob, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 10 days);
@@ -1357,7 +1365,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.canVeto(proposalId, bob), true, "Bob should be able to veto");
 
         // The bridge has voting power but cannot veto
-        assertEq(optimisticPlugin.canVeto(proposalId, taikoBridge), false, "The Bridge should not be able to veto");
+        assertEq(optimisticPlugin.canVeto(proposalId, taikoERC20Vault), false, "The Bridge should not be able to veto");
     }
 
     function test_CanVetoReturnsTrueOtherwise() public {
@@ -1435,7 +1443,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
     function test_VetoRevertsForTheBridge() public {
         (dao, optimisticPlugin,,, votingToken,,, taikoL1) = builder.withOkTaikoL1().withTokenHolder(alice, 10 ether)
-            .withTokenHolder(bob, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            .withTokenHolder(bob, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
@@ -1450,14 +1458,14 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(optimisticPlugin.hasVetoed(proposalId, bob), true, "Bob should have vetoed");
 
         // The Bridge has voting power but cannot veto
-        vm.startPrank(taikoBridge);
+        vm.startPrank(taikoERC20Vault);
         vm.expectRevert(
             abi.encodeWithSelector(
-                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, taikoBridge
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, taikoERC20Vault
             )
         );
         optimisticPlugin.veto(proposalId);
-        assertEq(optimisticPlugin.hasVetoed(proposalId, taikoBridge), false, "Th e Bridge should not have vetoed");
+        assertEq(optimisticPlugin.hasVetoed(proposalId, taikoERC20Vault), false, "Th e Bridge should not have vetoed");
     }
 
     function test_VetoRegistersAVetoForTheTokenHolderAndIncreasesTheTally() public {
@@ -1575,7 +1583,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3 vetoes required when L1+L2
 
         (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
-            .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
+            .withTokenHolder(taikoERC20Vault, 10 ether).withMinVetoRatio(700_000).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
@@ -1641,7 +1649,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // An ended proposal with L2 enabled has an additional grace period
 
         (, optimisticPlugin,,,,,,) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
@@ -1703,7 +1711,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3 vetoes required when L1+L2
 
         (, optimisticPlugin,,, votingToken,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
-            .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
+            .withTokenHolder(taikoERC20Vault, 10 ether).withMinVetoRatio(700_000).build();
         (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1768,7 +1776,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // An ended proposal with L2 skipped
 
         (, optimisticPlugin,,,,,,) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).withSkipL2().build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).withSkipL2().build();
         (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -1888,7 +1896,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 200/300 vs 200/400 scenario
         builder = new DaoBuilder();
         (, optimisticPlugin,,,,,,) = builder.withOkTaikoL1().withMinVetoRatio(510_000).withTokenHolder(alice, 100 ether)
-            .withTokenHolder(bob, 100 ether).withTokenHolder(carol, 100 ether).withTokenHolder(taikoBridge, 100 ether).build(
+            .withTokenHolder(bob, 100 ether).withTokenHolder(carol, 100 ether).withTokenHolder(taikoERC20Vault, 100 ether).build(
         );
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -2053,7 +2061,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         // 3 vetoes required when L1+L2
 
         (, optimisticPlugin,,,,,,) = builder.withTokenHolder(alice, 10 ether).withTokenHolder(bob, 10 ether)
-            .withTokenHolder(taikoBridge, 10 ether).withMinVetoRatio(700_000).build();
+            .withTokenHolder(taikoERC20Vault, 10 ether).withMinVetoRatio(700_000).build();
         (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
@@ -2207,14 +2215,16 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
     }
 
     function test_ExecuteRevertsWhenEndedBeforeGracePeriodOrExitWindow_L1L2Tokens() public {
-        // An ended proposal with L2 enabled has an additional grace period
+        // Grace period runs INSIDE the timelock (timelockPeriod >= l2AggregationGracePeriod).
+        // Execution requires both grace period AND timelock to be over.
+        // With grace=1d and timelock=7d, execution unlocks at vetoEndDate + 7d.
 
         (, optimisticPlugin,,,,,,) =
-            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoBridge, 10 ether).build();
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
 
         IDAO.Action[] memory actions = new IDAO.Action[](0);
         uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
-        (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
+        (,, uint32 timelockPeriod, , uint32 l2AggregationGracePeriod,) = optimisticPlugin.governanceSettings();
 
         (bool open, bool executed, OptimisticTokenVotingPlugin.ProposalParameters memory parameters,,,,) =
             optimisticPlugin.getProposal(proposalId);
@@ -2223,7 +2233,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
-        // ended
+        // Veto period just ended — both grace and timelock still active
         vm.warp(block.timestamp + 4 days);
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
@@ -2236,8 +2246,8 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
-        // Grace period almost over
-        vm.warp(block.timestamp + builder.l2AggregationGracePeriod() - 1);
+        // Grace period almost over (still inside timelock)
+        vm.warp(block.timestamp + l2AggregationGracePeriod - 1);
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
@@ -2249,7 +2259,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
-        // Grace period over
+        // Grace period just over, but timelock still active
         vm.warp(block.timestamp + 1);
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
@@ -2262,8 +2272,11 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
-        // Exit window almost over
-        vm.warp(block.timestamp + timelockPeriod - 1);
+        // Timelock almost over
+        // Current position: vetoEndDate + l2AggregationGracePeriod
+        // Need to reach: vetoEndDate + timelockPeriod
+        // Remaining: timelockPeriod - l2AggregationGracePeriod - 1
+        vm.warp(block.timestamp + (timelockPeriod - l2AggregationGracePeriod) - 1);
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticTokenVotingPlugin.ProposalExecutionForbidden.selector, proposalId)
         );
@@ -2275,7 +2288,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(executed, false, "Executed should be false");
         assertEq(parameters.unavailableL2, false, "unavailableL2 should be false");
 
-        // Exit window done
+        // Timelock done — execution unlocks
         vm.warp(block.timestamp + 1);
         optimisticPlugin.execute(proposalId);
 
@@ -2332,6 +2345,100 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         vm.expectEmit();
         emit ProposalExecuted(proposalId);
         optimisticPlugin.execute(proposalId);
+    }
+
+    function test_ExecuteUnlocksAtVetoEndPlusTimelock_L1L2() public {
+        // With L2 available, execution unlocks at vetoEndDate + timelockPeriod.
+        // The grace period is nested inside the timelock and does not extend the total duration.
+
+        (, optimisticPlugin,,,,,,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+        (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
+
+        // Warp to exactly vetoEndDate + timelockPeriod - 1: still locked
+        vm.warp(block.timestamp + 4 days + timelockPeriod - 1);
+        assertFalse(optimisticPlugin.canExecute(proposalId), "Should not be executable 1 second before timelock ends");
+
+        // Warp 1 more second: unlocked
+        vm.warp(block.timestamp + 1);
+        assertTrue(optimisticPlugin.canExecute(proposalId), "Should be executable once timelock expires");
+
+        optimisticPlugin.execute(proposalId);
+        (, bool executed,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertTrue(executed, "Proposal should be executed");
+    }
+
+    function test_ExecuteUnlocksAtVetoEndPlusTimelock_L1Only() public {
+        // With L2 unavailable, execution also unlocks at vetoEndDate + timelockPeriod.
+        // Same formula, no grace period to consider.
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+        (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
+
+        // Warp to exactly vetoEndDate + timelockPeriod - 1: still locked
+        vm.warp(block.timestamp + 4 days + timelockPeriod - 1);
+        assertFalse(optimisticPlugin.canExecute(proposalId), "Should not be executable 1 second before timelock ends");
+
+        // Warp 1 more second: unlocked
+        vm.warp(block.timestamp + 1);
+        assertTrue(optimisticPlugin.canExecute(proposalId), "Should be executable once timelock expires");
+    }
+
+    function test_L2GracePeriodBlocksExecutionWhileOpen() public {
+        // Even though the timelock hasn't expired, the grace period independently blocks execution
+        // while L2 bridged vetoes can still arrive.
+
+        (, optimisticPlugin,,,,,,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+        (,, , , uint32 l2AggregationGracePeriod,) = optimisticPlugin.governanceSettings();
+
+        // Warp to vetoEndDate + gracePeriod - 1: grace still open
+        vm.warp(block.timestamp + 4 days + l2AggregationGracePeriod - 1);
+        assertFalse(optimisticPlugin.canExecute(proposalId), "Should not be executable during grace period");
+
+        // Grace period closed, but timelock still active
+        vm.warp(block.timestamp + 1);
+        assertFalse(optimisticPlugin.canExecute(proposalId), "Should not be executable - timelock still active");
+    }
+
+    function test_L2GracePeriodAndTimelockShareEndWhenEqual() public {
+        // When timelockPeriod == l2AggregationGracePeriod, both expire at the same time.
+
+        dao.grant(
+            address(optimisticPlugin), alice, optimisticPlugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
+        );
+        optimisticPlugin.updateOptimisticGovernanceSettings(
+            OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
+                minVetoRatio: uint32(RATIO_BASE / 10),
+                minDuration: 4 days,
+                timelockPeriod: 1 days,
+                l2InactivityPeriod: 10 minutes,
+                l2AggregationGracePeriod: 1 days,
+                skipL2: false
+            })
+        );
+
+        (, optimisticPlugin,,,,,,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether)
+                .withTimelock(1 days).withL2AggregationGracePeriod(1 days).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        // 1 second before both expire
+        vm.warp(block.timestamp + 4 days + 1 days - 1);
+        assertFalse(optimisticPlugin.canExecute(proposalId), "Should not be executable before grace+timelock expire");
+
+        // Both expire simultaneously
+        vm.warp(block.timestamp + 1);
+        assertTrue(optimisticPlugin.canExecute(proposalId), "Should be executable when grace and timelock expire together");
     }
 
     // Update settings
@@ -2447,6 +2554,35 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
     }
 
+    function test_UpdateOptimisticGovernanceSettingsRevertsWhenTimelockLessThanGracePeriod() public {
+        dao.grant(
+            address(optimisticPlugin), alice, optimisticPlugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
+        );
+
+        // timelockPeriod < l2AggregationGracePeriod should revert
+        OptimisticTokenVotingPlugin.OptimisticGovernanceSettings memory newSettings = OptimisticTokenVotingPlugin
+            .OptimisticGovernanceSettings({
+            minVetoRatio: uint32(RATIO_BASE / 10),
+            minDuration: 4 days,
+            timelockPeriod: 1 days,
+            l2InactivityPeriod: 10 minutes,
+            l2AggregationGracePeriod: 2 days,
+            skipL2: false
+        });
+        vm.expectRevert(
+            abi.encodeWithSelector(OptimisticTokenVotingPlugin.TimelockPeriodOutOfBounds.selector, 2 days, 1 days)
+        );
+        optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
+
+        // Equal values should succeed
+        newSettings.timelockPeriod = 2 days;
+        optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
+
+        // timelockPeriod > l2AggregationGracePeriod should succeed
+        newSettings.timelockPeriod = 10 days;
+        optimisticPlugin.updateOptimisticGovernanceSettings(newSettings);
+    }
+
     function test_UpdateOptimisticGovernanceSettingsEmitsAnEventWhenSuccessful() public {
         dao.grant(
             address(optimisticPlugin), alice, optimisticPlugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
@@ -2466,6 +2602,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 15 days,
+            timelockPeriod: 8 days,
             l2InactivityPeriod: 10 minutes,
             l2AggregationGracePeriod: 2 days,
             skipL2: false
@@ -2478,9 +2615,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         newSettings = OptimisticTokenVotingPlugin.OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 19 days,
-            timelockPeriod: 8 days,
+            timelockPeriod: 20 days,
             l2InactivityPeriod: 50 minutes,
-            l2AggregationGracePeriod: 20 days,
+            l2AggregationGracePeriod: 5 days,
             skipL2: true
         });
 
@@ -2490,8 +2627,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: uint32(RATIO_BASE / 5),
             minDuration: 19 days,
+            timelockPeriod: 20 days,
             l2InactivityPeriod: 50 minutes,
-            l2AggregationGracePeriod: 20 days,
+            l2AggregationGracePeriod: 5 days,
             skipL2: true
         });
 
@@ -2511,7 +2649,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
         assertEq(minVetoRatio, uint32(RATIO_BASE / 10));
         assertEq(minDuration, 4 days);
         assertEq(l2InactivityPeriod, 10 minutes);
-        assertEq(l2AggregationGracePeriod, 2 days);
+        assertEq(l2AggregationGracePeriod, 1 days);
         assertEq(skipL2, false);
 
         // Deploy a new optimisticPlugin instance
@@ -2519,9 +2657,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             .OptimisticGovernanceSettings({
             minVetoRatio: uint32(RATIO_BASE / 2),
             minDuration: 0,
-            timelockPeriod: 8 days,
+            timelockPeriod: 73 days,
             l2InactivityPeriod: 15 minutes,
-            l2AggregationGracePeriod: 73 days,
+            l2AggregationGracePeriod: 8 days,
             skipL2: true
         });
 
@@ -2530,7 +2668,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
                 address(OPTIMISTIC_BASE),
                 abi.encodeCall(
                     OptimisticTokenVotingPlugin.initialize,
-                    (dao, newSettings, votingToken, address(taikoL1), taikoBridge)
+                    (dao, newSettings, votingToken, address(taikoL1), taikoERC20Vault)
                 )
             )
         );
@@ -2539,8 +2677,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             optimisticPlugin.governanceSettings();
         assertEq(minVetoRatio, uint32(RATIO_BASE / 2));
         assertEq(minDuration, 0);
+        assertEq(timelockPeriod, 73 days);
         assertEq(l2InactivityPeriod, 15 minutes);
-        assertEq(l2AggregationGracePeriod, 73 days);
+        assertEq(l2AggregationGracePeriod, 8 days);
         assertEq(skipL2, true);
 
         // updated settings
@@ -2553,7 +2692,7 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             minDuration: 15 days,
             timelockPeriod: 8 days,
             l2InactivityPeriod: 0,
-            l2AggregationGracePeriod: 1234 minutes,
+            l2AggregationGracePeriod: 1 days,
             skipL2: false
         });
 
@@ -2563,8 +2702,9 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
             optimisticPlugin.governanceSettings();
         assertEq(minVetoRatio, uint32(RATIO_BASE / 5));
         assertEq(minDuration, 15 days);
+        assertEq(timelockPeriod, 8 days);
         assertEq(l2InactivityPeriod, 0);
-        assertEq(l2AggregationGracePeriod, 1234 minutes);
+        assertEq(l2AggregationGracePeriod, 1 days);
         assertEq(skipL2, false);
     }
 
@@ -2636,6 +2776,248 @@ contract OptimisticTokenVotingPluginTest is AragonTest {
 
         assertEq(optimisticPlugin.implementation(), address(_newImplementation));
     }
+
+    // receiveL2Vetoes
+
+    function _setupL2VetoReceiver(address receiver) internal {
+        dao.grant(address(optimisticPlugin), alice, optimisticPlugin.UPDATE_L2_VETO_RECEIVER_PERMISSION_ID());
+        optimisticPlugin.setL2VetoReceiver(receiver);
+    }
+
+    function _createProposalWithL2(uint64 duration) internal returns (uint256 proposalId) {
+        // Rebuild with bridge tokens so L2 is available
+        (dao, optimisticPlugin,,, votingToken,,,) =
+            builder.withTokenHolder(alice, 10 ether).withTokenHolder(taikoERC20Vault, 10 ether).build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, duration);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenCallerNotReceiver() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+
+        vm.expectRevert(OptimisticTokenVotingPlugin.UnauthorizedL2VetoReceiver.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenProposalDoesNotExist() public {
+        _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        uint256 nonexistentId = 999;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, nonexistentId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(nonexistentId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesSucceedsWhileProposalOpen() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        vm.expectEmit();
+        emit L2VetoesReceived(proposalId, 1 ether);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 1 ether, "Veto tally should be updated");
+    }
+
+    function test_ReceiveL2VetoesSucceedsDuringGracePeriod() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Move past vetoEndDate but within grace period
+        vm.warp(block.timestamp + 4 days);
+
+        (bool open,,,,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(open, false, "Proposal should no longer be open");
+
+        vm.stopPrank();
+
+        optimisticPlugin.receiveL2Vetoes(proposalId, 2 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 2 ether, "Veto tally should be updated during grace period");
+    }
+
+    function test_ReceiveL2VetoesSucceedsAtGracePeriodBoundary() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Move to exactly 1 second before grace period ends
+        vm.warp(block.timestamp + 4 days + builder.l2AggregationGracePeriod() - 1);
+
+        vm.stopPrank();
+
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 1 ether, "Should succeed at boundary");
+    }
+
+    function test_ReceiveL2VetoesRevertsAfterGracePeriod() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Move past grace period
+        vm.warp(block.timestamp + 4 days + builder.l2AggregationGracePeriod());
+
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenProposalExecuted() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Wait for full duration + grace period + timelock to make executable
+        (,, uint32 timelockPeriod,,,) = optimisticPlugin.governanceSettings();
+        vm.warp(block.timestamp + 4 days + builder.l2AggregationGracePeriod() + timelockPeriod);
+
+        optimisticPlugin.execute(proposalId);
+
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenL2Unavailable() public {
+        // Build with L2 unavailable (skipL2)
+        (dao, optimisticPlugin,,, votingToken,,,) = builder.withSkipL2().build();
+
+        IDAO.Action[] memory actions = new IDAO.Action[](0);
+        uint256 proposalId = optimisticPlugin.createProposal("ipfs://", actions, 0, 4 days);
+
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimisticTokenVotingPlugin.ProposalVetoingForbidden.selector, proposalId, address(this)
+            )
+        );
+        optimisticPlugin.receiveL2Vetoes(proposalId, 1 ether);
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenTallyNotIncreased() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // Zero tally on fresh proposal (previousL2Tally == 0)
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyNotIncreased.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 0);
+
+        // Set initial tally
+        optimisticPlugin.receiveL2Vetoes(proposalId, 3 ether);
+
+        // Equal tally
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyNotIncreased.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 3 ether);
+
+        // Lower tally
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyNotIncreased.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 2 ether);
+    }
+
+    function test_ReceiveL2VetoesReplacesExistingL2Tally() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // First tally
+        optimisticPlugin.receiveL2Vetoes(proposalId, 3 ether);
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 3 ether, "First tally");
+
+        // Second tally replaces (not adds)
+        optimisticPlugin.receiveL2Vetoes(proposalId, 5 ether);
+        (,,, vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 5 ether, "Tally should be replaced, not added");
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenTallyExceedsVaultBalance() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // Vault has 10 ether — tally exceeding it should revert
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyExceedsVaultBalance.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 10 ether + 1);
+    }
+
+    function test_ReceiveL2VetoesSucceedsAtExactVaultBalance() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // Tally exactly equal to vault balance should succeed
+        optimisticPlugin.receiveL2Vetoes(proposalId, 10 ether);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, 10 ether, "Tally should match vault balance");
+    }
+
+    function test_ReceiveL2VetoesRevertsWhenIncrementedTallyExceedsVaultBalance() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        vm.stopPrank();
+
+        // First tally within bounds
+        optimisticPlugin.receiveL2Vetoes(proposalId, 5 ether);
+
+        // Second tally exceeds vault balance
+        vm.expectRevert(OptimisticTokenVotingPlugin.L2VetoTallyExceedsVaultBalance.selector);
+        optimisticPlugin.receiveL2Vetoes(proposalId, 10 ether + 1);
+    }
+
+    function test_ReceiveL2VetoesAddsToL1Vetoes() public {
+        uint256 proposalId = _createProposalWithL2(4 days);
+        _setupL2VetoReceiver(address(this));
+
+        // Alice vetoes on L1
+        optimisticPlugin.veto(proposalId);
+
+        (,, IOptimisticTokenVoting.ProposalParameters memory params,,,,) = optimisticPlugin.getProposal(proposalId);
+        uint256 aliceVotingPower = votingToken.getPastVotes(alice, params.snapshotTimestamp);
+
+        (,,, uint256 vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, aliceVotingPower, "Should have Alice's L1 veto");
+
+        vm.stopPrank();
+
+        // L2 vetoes arrive
+        optimisticPlugin.receiveL2Vetoes(proposalId, 2 ether);
+
+        (,,, vetoTally,,,) = optimisticPlugin.getProposal(proposalId);
+        assertEq(vetoTally, aliceVotingPower + 2 ether, "Should combine L1 + L2 vetoes");
+    }
+
+    // Upgrade
 
     function test_UpgradeToAndCallSucceedsWhenCalledFromUpgrader() public {
         dao.grant(address(optimisticPlugin), alice, optimisticPlugin.UPGRADE_PLUGIN_PERMISSION_ID());

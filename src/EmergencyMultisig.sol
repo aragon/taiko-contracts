@@ -13,7 +13,7 @@ import {OptimisticTokenVotingPlugin} from "./OptimisticTokenVotingPlugin.sol";
 import {SignerList} from "./SignerList.sol";
 import {ISignerList} from "./interfaces/ISignerList.sol";
 
-/// @title Multisig - Release 1, Build 1
+/// @title EmergencyMultisig - Release 1, Build 1
 /// @author Aragon Association - 2022-2024
 /// @notice The on-chain multisig governance plugin in which a proposal passes if X out of Y approvals are met.
 contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, ProposalUpgradeable {
@@ -23,7 +23,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     /// @param executed Whether the proposal is executed or not.
     /// @param approvals The number of approvals casted.
     /// @param parameters The proposal-specific approve settings at the time of the proposal creation.
-    /// @param approvers The approves casted by the approvers.
+    /// @param approvers The approvals casted by the approvers.
     /// @param encryptedPayloadURI The IPFS URI where a JSON with the encrypted payload is pinned
     /// @param publicMetadataUriHash The hash of the metadata IPFS URI to be created on the optimistic proposal
     /// @param destinationActionsHash The hash of the serialized list of final actions to be eventually executed
@@ -236,7 +236,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
 
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // As the list can never become more than type(uint16).max(due to addAddresses check)
+        // As the list can never become more than type(uint16).max (due to addAddresses check)
         // It's safe to use unchecked as it would never overflow.
         unchecked {
             proposal_.approvals += 1;
@@ -269,7 +269,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
     /// @return executed Whether the proposal is executed or not.
     /// @return approvals The number of approvals casted.
     /// @return parameters The parameters of the proposal vote.
-    /// @return encryptedPayloadURI The URI at which the corresponding encrypted data data can be found.
+    /// @return encryptedPayloadURI The URI at which the corresponding encrypted data can be found.
     /// @return publicMetadataUriHash The hash of the metadata IPFS URI to create on the optimistic plugin if the proposal passes.
     /// @return destinationActionsHash The hash of the actions to be executed by the destination plugin after the proposal passes.
     /// @return destinationPlugin The address of the plugin where the proposal will be forwarded to when executed.
@@ -344,7 +344,7 @@ contract EmergencyMultisig is IEmergencyMultisig, PluginUUPSUpgradeable, Proposa
             _metadataUri,
             _actions,
             0, // allowFailureMap, no single action may fail
-            0 // no duration, immediate executioon
+            0 // no duration, immediate execution
         );
     }
 

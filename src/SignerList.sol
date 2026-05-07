@@ -177,7 +177,7 @@ contract SignerList is ISignerList, Addresslist, ERC165Upgradeable, DaoAuthoriza
                     resIdx++;
                 }
             }
-            // Skip non-listed accounts othersise
+            // Skip non-listed accounts otherwise
 
             unchecked {
                 accIdx++;

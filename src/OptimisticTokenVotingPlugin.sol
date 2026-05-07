@@ -13,6 +13,7 @@ import {IOptimisticTokenVoting} from "./interfaces/IOptimisticTokenVoting.sol";
 import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
 import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds} from "@aragon/osx/plugins/utils/Ratio.sol";
+import {ProposalIdCodec} from "./libs/ProposalIdCodec.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {ITaikoL1} from "./adapted-dependencies/ITaikoL1.sol";
 
@@ -67,18 +68,6 @@ contract OptimisticTokenVotingPlugin is
         uint256 aggregatedL2Balance;
     }
 
-    /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param vetoEndDate The end date of the proposal vote.
-    /// @param snapshotTimestamp The timestamp prior to the proposal creation.
-    /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
-    /// @param unavailableL2 True if the L2 was unavailable when the proposal was created.
-    struct ProposalParameters {
-        uint64 vetoEndDate;
-        uint64 snapshotTimestamp;
-        uint32 minVetoRatio;
-        bool unavailableL2;
-    }
-
     /// @notice The ID of the permission required to create a proposal.
     bytes32 public constant PROPOSER_PERMISSION_ID = keccak256("PROPOSER_PERMISSION");
 
@@ -86,11 +75,22 @@ contract OptimisticTokenVotingPlugin is
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
+    /// @notice The ID of the permission required to call the `setL2VetoReceiver` function.
+    bytes32 public constant UPDATE_L2_VETO_RECEIVER_PERMISSION_ID = keccak256("UPDATE_L2_VETO_RECEIVER_PERMISSION");
+
+    /// @notice Lookback (in seconds) applied at proposal creation to derive the snapshot timestamp.
+    /// @dev Equals Taiko's `TIMESTAMP_MAX_OFFSET` (6144s = 12 * 512), the inclusive maximum drift
+    /// between an L2 block's timestamp and the L1 proposal timestamp that anchors it, plus one extra
+    /// second so the snapshot is strictly less than the worst-case L2 `block.timestamp` at proposal
+    /// creation (OZ `Votes.getPastVotes` requires `timepoint < clock()`). See:
+    /// https://github.com/taikoxyz/taiko-mono/blob/main/packages/protocol/docs/Derivation.md#constants
+    uint64 public constant SNAPSHOT_OFFSET = 6145;
+
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable public votingToken;
 
-    /// @notice The address of the L2 token bridge, to determine the L2 balance bridged to the L2 on proposal creation.
-    address public taikoBridge;
+    /// @notice The address of the ERC20Vault holding bridged TAIKO tokens on L1.
+    address public taikoERC20Vault;
 
     /// @notice Taiko L1 contract to check the status from.
     ITaikoL1 public taikoL1;
@@ -105,6 +105,10 @@ contract OptimisticTokenVotingPlugin is
     /// @notice A mapping to enumerate proposal ID's by index
     mapping(uint256 => uint256) public proposalIds;
 
+    /// @notice The address of the L2VetoReceiver contract that can submit L2 vetoes.
+    /// @dev There shouldn't be live proposals when this value is modified
+    address public l2VetoReceiver;
+
     /// @notice Emitted when the vetoing settings are updated.
     /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal, as a fraction of 1_000_000.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
@@ -112,7 +116,12 @@ contract OptimisticTokenVotingPlugin is
     /// @param l2AggregationGracePeriod The amount of extra seconds to allow for L2 veto bridging after `vetoEndDate` is reached.
     /// @param skipL2 Defines wether the plugin should ignore the voting power bridged to the L2, in terms of the token supply and L2 votes accepted.
     event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio, uint64 minDuration, uint64 l2AggregationGracePeriod, uint64 l2InactivityPeriod, bool skipL2
+        uint32 minVetoRatio,
+        uint64 minDuration,
+        uint64 timelockPeriod,
+        uint64 l2AggregationGracePeriod,
+        uint64 l2InactivityPeriod,
+        bool skipL2
     );
 
     /// @notice Emitted when a veto is cast by a voter.
@@ -120,6 +129,16 @@ contract OptimisticTokenVotingPlugin is
     /// @param voter The voter casting the veto.
     /// @param votingPower The voting power behind this veto.
     event VetoCast(uint256 indexed proposalId, address indexed voter, uint256 votingPower);
+
+    /// @notice Emitted when L2 vetoes are received from the L2VetoReceiver.
+    /// @param proposalId The ID of the proposal.
+    /// @param l2VetoTally The L2 veto tally received.
+    event L2VetoesReceived(uint256 indexed proposalId, uint256 l2VetoTally);
+
+    /// @notice Emitted when the L2VetoReceiver address is updated.
+    /// @param oldReceiver The previous receiver address.
+    /// @param newReceiver The new receiver address.
+    event L2VetoReceiverUpdated(address oldReceiver, address newReceiver);
 
     /// @notice Thrown if the given address is empty
     error EmptyAddress();
@@ -133,6 +152,11 @@ contract OptimisticTokenVotingPlugin is
     /// @param limit The limit value.
     /// @param actual The actual value.
     error MinDurationOutOfBounds(uint64 limit, uint64 actual);
+
+    /// @notice Thrown if the timelock period is less than the grace period.
+    /// @param limit The limit value.
+    /// @param actual The actual value.
+    error TimelockPeriodOutOfBounds(uint64 limit, uint64 actual);
 
     /// @notice Thrown if an account is not allowed to cast a veto. This can be because the challenge period
     /// - has not started,
@@ -150,6 +174,15 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Thrown if the voting power is zero
     error NoVotingPower();
 
+    /// @notice Thrown if caller is not the authorized L2VetoReceiver.
+    error UnauthorizedL2VetoReceiver();
+
+    /// @notice Thrown if the new L2 veto tally is not greater than the previous one.
+    error L2VetoTallyNotIncreased();
+
+    /// @notice Thrown if the L2 veto tally exceeds the bridged voting power held in the vault.
+    error L2VetoTallyExceedsVaultBalance();
+
     /// @notice Disables the initializers on the implementation contract to prevent it from being left uninitialized.
     constructor() {
         _disableInitializers();
@@ -161,13 +194,13 @@ contract OptimisticTokenVotingPlugin is
     /// @param _governanceSettings The vetoing settings.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     /// @param _taikoL1 The address of the contract where the protocol status can be checked.
-    /// @param _taikoBridge The address of the contract that can bridge voting vetoes back.
+    /// @param _taikoERC20Vault The address of the ERC20Vault holding bridged TAIKO tokens.
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IVotesUpgradeable _token,
         address _taikoL1,
-        address _taikoBridge
+        address _taikoERC20Vault
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
@@ -175,7 +208,7 @@ contract OptimisticTokenVotingPlugin is
 
         votingToken = _token;
         taikoL1 = ITaikoL1(_taikoL1);
-        taikoBridge = _taikoBridge;
+        taikoERC20Vault = _taikoERC20Vault;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({definingContract: address(_token)});
@@ -200,8 +233,15 @@ contract OptimisticTokenVotingPlugin is
     }
 
     /// @inheritdoc IOptimisticTokenVoting
+    /// @dev TODO: TaikoToken must be upgraded so `getPastVotes(taikoERC20Vault, ts)` returns the
+    /// vault's real historical voting power. The current TaikoToken overrides `getPastVotes` to
+    /// return 0 for non-voting accounts (the vault is in that list and self-delegates), which
+    /// makes this function always return 0. Consequences while unfixed: in `createProposal`,
+    /// `_enableL2` is always false, so L2 vetoes are never aggregated; and `effectiveVotingPower`
+    /// (when called with `_includeL2VotingPower = false`) does not subtract the vault balance.
+    /// See docs/CROSSCHAIN_VETO_DESIGN.md and docs/FIX_VAULT_VP.md.
     function bridgedVotingPower(uint256 _timestamp) public view returns (uint256) {
-        return votingToken.getPastVotes(taikoBridge, _timestamp);
+        return votingToken.getPastVotes(taikoERC20Vault, _timestamp);
     }
 
     /// @inheritdoc IOptimisticTokenVoting
@@ -226,9 +266,11 @@ contract OptimisticTokenVotingPlugin is
             return false;
         }
 
-        try taikoL1.getLastVerifiedBlock() returns (uint64, bytes32, bytes32, uint64 verifiedAt) {
-            // verifiedAt < (block.timestamp - l2InactivityPeriod), written as a sum
-            if ((verifiedAt + governanceSettings.l2InactivityPeriod) < block.timestamp) return false;
+        try taikoL1.getCoreState() returns (ITaikoL1.CoreState memory coreState) {
+            // lastFinalizedTimestamp < (block.timestamp - l2InactivityPeriod), written as a sum
+            if ((coreState.lastFinalizedTimestamp + governanceSettings.l2InactivityPeriod) < block.timestamp) {
+                return false;
+            }
         } catch {
             // Assume that L2 is not available if we can't read properly
             return false;
@@ -272,7 +314,7 @@ contract OptimisticTokenVotingPlugin is
         }
 
         // The bridge cannot vote directly. It must use a dedicated function.
-        if (_voter == taikoBridge) {
+        if (_voter == taikoERC20Vault) {
             return false;
         }
 
@@ -327,10 +369,11 @@ contract OptimisticTokenVotingPlugin is
     /// @return metadataURI The IPFS URI at which the metadata is pinned.
     /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
     /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
+    /// @inheritdoc IOptimisticTokenVoting
     function getProposal(uint256 _proposalId)
         external
         view
-        virtual
+        override
         returns (
             bool open,
             bool executed,
@@ -359,13 +402,14 @@ contract OptimisticTokenVotingPlugin is
         uint256 _allowFailureMap,
         uint64 _duration
     ) external auth(PROPOSER_PERMISSION_ID) returns (uint256 proposalId) {
-        uint256 snapshotTimestamp;
+        uint64 snapshotTimestamp;
+
         unchecked {
-            snapshotTimestamp = block.timestamp - 1; // The snapshot timestamp must in the past to protect the transaction against backrunning transactions causing census changes.
+            snapshotTimestamp = (block.timestamp - SNAPSHOT_OFFSET).toUint64();
         }
 
         // Checks
-        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoBridge, snapshotTimestamp) > 0;
+        bool _enableL2 = isL2Available() && votingToken.getPastVotes(taikoERC20Vault, snapshotTimestamp) > 0;
         if (effectiveVotingPower(snapshotTimestamp, _enableL2) == 0) {
             revert NoVotingPower();
         }
@@ -373,26 +417,39 @@ contract OptimisticTokenVotingPlugin is
         if (_duration < governanceSettings.minDuration) {
             revert DurationOutOfBounds({limit: governanceSettings.minDuration, actual: _duration});
         }
-        uint64 _now = block.timestamp.toUint64();
-        uint64 _vetoEndDate = _now + _duration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`.
 
-        proposalId = _createProposal({
-            _creator: _msgSender(),
-            _metadata: _metadata,
-            _startDate: _now,
-            _endDate: _vetoEndDate,
-            _actions: _actions,
-            _allowFailureMap: _allowFailureMap
-        });
-        // Index the ID to make it enumerable. Proposal ID's contain timestamps and cannot be iterated
+        // Create proposal and emit event via helper to avoid stack too deep
+        proposalId = _createProposal(snapshotTimestamp, _duration, _metadata, _actions, _allowFailureMap);
+
+        // Index the ID to make it enumerable
         proposalIds[proposalCount() - 1] = proposalId;
 
         // Store proposal related information
-        Proposal storage proposal_ = proposals[proposalId];
+        _storeProposalData(proposalId, _metadata, snapshotTimestamp, _enableL2, _duration, _allowFailureMap, _actions);
+
+        // Emergency proposal shortcut: Execute right away.
+        if (_duration == 0) {
+            proposals[proposalId].executed = true;
+            _executeProposal(dao(), proposalId, proposals[proposalId].actions, proposals[proposalId].allowFailureMap);
+        }
+    }
+
+    /// @dev Helper to store proposal data, avoiding stack too deep
+    function _storeProposalData(
+        uint256 _proposalId,
+        bytes calldata _metadata,
+        uint64 _snapshotTimestamp,
+        bool _enableL2,
+        uint64 _duration,
+        uint256 _allowFailureMap,
+        IDAO.Action[] calldata _actions
+    ) internal {
+        Proposal storage proposal_ = proposals[_proposalId];
 
         proposal_.metadataURI = _metadata;
-        proposal_.parameters.vetoEndDate = _vetoEndDate;
-        proposal_.parameters.snapshotTimestamp = snapshotTimestamp.toUint64();
+        proposal_.parameters.vetoStartDate = block.timestamp.toUint64();
+        proposal_.parameters.vetoEndDate = (block.timestamp + _duration).toUint64();
+        proposal_.parameters.snapshotTimestamp = _snapshotTimestamp;
         proposal_.parameters.minVetoRatio = minVetoRatio();
 
         // We skip the L2 bridging grace period if the L2 was down on creation or if
@@ -409,13 +466,6 @@ contract OptimisticTokenVotingPlugin is
             unchecked {
                 ++i;
             }
-        }
-
-        // Emergency proposal shortcut: Execute right away.
-        // Bypass the veto phase, the L2 grace period and the Exit Window
-        if (_duration == 0) {
-            proposals[proposalId].executed = true;
-            _executeProposal(dao(), proposalId, proposals[proposalId].actions, proposals[proposalId].allowFailureMap);
         }
     }
 
@@ -452,6 +502,49 @@ contract OptimisticTokenVotingPlugin is
         _executeProposal(dao(), _proposalId, proposals[_proposalId].actions, proposals[_proposalId].allowFailureMap);
     }
 
+    /// @inheritdoc IOptimisticTokenVoting
+    function receiveL2Vetoes(uint256 _proposalId, uint256 _l2VetoTally) external override {
+        if (msg.sender != l2VetoReceiver) {
+            revert UnauthorizedL2VetoReceiver();
+        }
+
+        Proposal storage proposal_ = proposals[_proposalId];
+
+        // Proposal must exist
+        if (proposal_.parameters.snapshotTimestamp == 0) {
+            revert ProposalVetoingForbidden(_proposalId, msg.sender);
+        }
+
+        // Proposal must still accept L2 vetoes (open or in grace period)
+        if (proposal_.executed || !_proposalL2VetoAggregationOpen(proposal_)) {
+            revert ProposalVetoingForbidden(_proposalId, msg.sender);
+        }
+
+        // New tally must be strictly greater (prevents replays and tally reduction)
+        if (_l2VetoTally <= proposal_.aggregatedL2Balance) revert L2VetoTallyNotIncreased();
+
+        // L2 tally cannot exceed the bridged voting power held in the vault at snapshot
+        if (_l2VetoTally > bridgedVotingPower(proposal_.parameters.snapshotTimestamp)) {
+            revert L2VetoTallyExceedsVaultBalance();
+        }
+
+        // Update the total veto tally: remove old L2 contribution, add new one
+        proposal_.vetoTally = proposal_.vetoTally - proposal_.aggregatedL2Balance + _l2VetoTally;
+
+        // Update the L2 tally
+        proposal_.aggregatedL2Balance = _l2VetoTally;
+
+        emit L2VetoesReceived(_proposalId, _l2VetoTally);
+    }
+
+    /// @notice Sets the L2VetoReceiver address.
+    /// @param _l2VetoReceiver The new L2VetoReceiver address.
+    function setL2VetoReceiver(address _l2VetoReceiver) external auth(UPDATE_L2_VETO_RECEIVER_PERMISSION_ID) {
+        address oldReceiver = l2VetoReceiver;
+        l2VetoReceiver = _l2VetoReceiver;
+        emit L2VetoReceiverUpdated(oldReceiver, _l2VetoReceiver);
+    }
+
     /// @notice Updates the governance settings.
     /// @param _governanceSettings The new governance settings.
     function updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings)
@@ -465,45 +558,39 @@ contract OptimisticTokenVotingPlugin is
     /// @notice Splits the components behind the given proposal ID
     /// @param _proposalId The ID to split
     function parseProposalId(uint256 _proposalId)
-        external
+        public
         pure
-        returns (uint256 counter, uint64 startDate, uint64 endDate)
+        returns (uint64 counter, uint64 startDate, uint64 endDate, uint64 snapshotTimestamp)
     {
-        counter = _proposalId & type(uint64).max;
-        startDate = uint64(_proposalId >> 128) & type(uint64).max;
-        endDate = uint64(_proposalId >> 64) & type(uint64).max;
-    }
-
-    /// @dev Creates a new proposal ID, containing the start and end timestamps
-    function _makeProposalId(uint64 _startDate, uint64 _endDate) internal returns (uint256 proposalId) {
-        proposalId = uint256(_startDate) << 128 | uint256(_endDate) << 64;
-        proposalId |= _createProposalId();
+        return ProposalIdCodec.decode(_proposalId);
     }
 
     /// @notice Internal function to create a proposal.
+    /// @param _snapshotTimestamp The timestamp for the voting power snapshot.
+    /// @param _duration The duration of the proposal in seconds.
     /// @param _metadata The proposal metadata.
-    /// @param _startDate The start date of the proposal in seconds.
-    /// @param _endDate The end date of the proposal in seconds.
-    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     /// @param _actions The actions that will be executed after the proposal passes.
+    /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     /// @return proposalId The ID of the proposal.
     function _createProposal(
-        address _creator,
+        uint64 _snapshotTimestamp,
+        uint64 _duration,
         bytes calldata _metadata,
-        uint64 _startDate,
-        uint64 _endDate,
         IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap
-    ) internal override returns (uint256 proposalId) {
-        // Returns an autoincremental number with the start and end dates
-        proposalId = _makeProposalId(_startDate, _endDate);
+    ) internal returns (uint256 proposalId) {
+        uint64 startDate = block.timestamp.toUint64();
+        uint64 endDate = startDate + _duration;
+
+        // Returns an autoincremental number with the snapshot, start and end dates
+        proposalId = ProposalIdCodec.encode(_snapshotTimestamp, startDate, endDate, uint64(_createProposalId()));
 
         emit ProposalCreated({
             proposalId: proposalId,
-            creator: _creator,
+            creator: _msgSender(),
             metadata: _metadata,
-            startDate: _startDate,
-            endDate: _endDate,
+            startDate: startDate,
+            endDate: endDate,
             actions: _actions,
             allowFailureMap: _allowFailureMap
         });
@@ -528,11 +615,18 @@ contract OptimisticTokenVotingPlugin is
             revert MinDurationOutOfBounds({limit: 365 days, actual: _governanceSettings.minDuration});
         }
 
+        if (_governanceSettings.timelockPeriod < _governanceSettings.l2AggregationGracePeriod) {
+            revert TimelockPeriodOutOfBounds({
+                limit: _governanceSettings.l2AggregationGracePeriod, actual: _governanceSettings.timelockPeriod
+            });
+        }
+
         governanceSettings = _governanceSettings;
 
         emit OptimisticGovernanceSettingsUpdated({
             minVetoRatio: _governanceSettings.minVetoRatio,
             minDuration: _governanceSettings.minDuration,
+            timelockPeriod: _governanceSettings.timelockPeriod,
             l2AggregationGracePeriod: _governanceSettings.l2AggregationGracePeriod,
             l2InactivityPeriod: _governanceSettings.l2InactivityPeriod,
             skipL2: _governanceSettings.skipL2
@@ -579,19 +673,15 @@ contract OptimisticTokenVotingPlugin is
             block.timestamp.toUint64() < proposal_.parameters.vetoEndDate + governanceSettings.l2AggregationGracePeriod;
     }
 
-    /// @notice Internal function to check if a passed proposal is on the exit window perios.
+    /// @notice Internal function to check if a passed proposal is on the exit window period.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal cannot be executed because the exit window hasn't elapsed yet
     function _proposalInExitWindow(Proposal storage proposal_) internal view virtual returns (bool) {
         uint64 exitWindowTimestamp = proposal_.parameters.vetoEndDate + governanceSettings.timelockPeriod;
 
-        if (!proposal_.parameters.unavailableL2) {
-            exitWindowTimestamp += governanceSettings.l2AggregationGracePeriod;
-        }
-
         return block.timestamp.toUint64() < exitWindowTimestamp;
     }
 
     /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
-    uint256[44] private __gap;
+    uint256[43] private __gap;
 }

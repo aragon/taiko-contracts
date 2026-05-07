@@ -2,19 +2,21 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "./script" }]
+ffi = true
+build_info = true
+extra_output = ["storageLayout"]
+fs_permissions = [{ access = "read", path = "./script" }, { access = "read-write", path = "./proposals" }, { access = "read-write", path = "./deployments" }, { access = "read", path = "./out" }]
 evm_version = "cancun"
 optimizer = true
 optimizer-runs = 200
 solc = "0.8.17"
 via_ir = false
 
-[rpc_endpoints]
-holesky = "https://eth-holesky.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-sepolia = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-
 [etherscan]
-holesly = { key = "${ETHERSCAN_API_KEY}" }
-sepolia = { key = "${ETHERSCAN_API_KEY}" }
-mainnet = { key = "${ETHERSCAN_API_KEY}" }
+taiko-hoodi = { key = "${ETHERSCAN_API_KEY}", chain = 167013, url = "https://api.etherscan.io/v2/api?chainid=167013" }
+taiko-mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 167000, url = "https://api.etherscan.io/v2/api?chainid=167000" }
+
+[invariant]
+runs = 1024
+depth = 128
+fail_on_revert = false

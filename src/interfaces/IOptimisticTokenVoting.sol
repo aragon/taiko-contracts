@@ -9,6 +9,20 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 /// @author Aragon Association - 2022-2023
 /// @notice The interface of an optimistic governance plugin.
 interface IOptimisticTokenVoting {
+    /// @notice A container for the proposal parameters at the time of proposal creation.
+    /// @param vetoEndDate The end date of the proposal veto period
+    /// @param snapshotTimestamp The timestamp prior to the proposal creation.
+    /// @param minVetoRatio The minimum veto ratio needed to defeat the proposal.
+    /// @param unavailableL2 True if the L2 was unavailable when the proposal was created.
+    /// @param vetoStartDate The start date of the proposal veto.
+    struct ProposalParameters {
+        uint64 vetoEndDate;
+        uint64 snapshotTimestamp;
+        uint32 minVetoRatio;
+        bool unavailableL2;
+        uint64 vetoStartDate;
+    }
+
     /// @notice getter function for the voting token.
     /// @dev public function also useful for registering interfaceId and for distinguishing from majority voting interface.
     /// @return The token used for voting.
@@ -86,4 +100,31 @@ interface IOptimisticTokenVoting {
     /// @notice Executes a proposal.
     /// @param _proposalId The ID of the proposal to be executed.
     function execute(uint256 _proposalId) external;
+
+    /// @notice Returns all information for a proposal vote by its ID.
+    /// @param _proposalId The ID of the proposal.
+    /// @return open Whether the proposal is open or not.
+    /// @return executed Whether the proposal is executed or not.
+    /// @return parameters The parameters of the proposal vote.
+    /// @return vetoTally The current voting power used to veto the proposal.
+    /// @return metadataURI The IPFS URI at which the metadata is pinned.
+    /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
+    /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
+    function getProposal(uint256 _proposalId)
+        external
+        view
+        returns (
+            bool open,
+            bool executed,
+            ProposalParameters memory parameters,
+            uint256 vetoTally,
+            bytes memory metadataURI,
+            IDAO.Action[] memory actions,
+            uint256 allowFailureMap
+        );
+
+    /// @notice Receives aggregated L2 vetoes from the L2VetoReceiver.
+    /// @param _proposalId The ID of the proposal.
+    /// @param _vetoTally The total L2 veto voting power to add.
+    function receiveL2Vetoes(uint256 _proposalId, uint256 _vetoTally) external;
 }

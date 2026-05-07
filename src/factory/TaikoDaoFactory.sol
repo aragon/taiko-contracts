@@ -25,7 +25,7 @@ contract TaikoDaoFactory {
     /// @notice The struct containing all the parameters to deploy the DAO
     /// @param tokenAddress The address of the IVotes compatible ERC20 token contract to use for the voting power
     /// @param taikoL1ContractAddress The contract where the status of the L1 can be retrieved
-    /// @param taikoBridgeAddress The address of the bridge. NOTE: will be using the vault instead
+    /// @param taikoERC20VaultAddress The address of the ERC20Vault holding bridged TAIKO tokens
     /// @param l2InactivityPeriod How many seconds until the lack of L2 blocks is considered as an inactive L2
     /// @param l2AggregationGracePeriod How many additional seconds will be allowed for L2 sourced vetoes to be relayed
     /// @param skipL2 Whether L2 votes should be ignored for vetoing
@@ -48,7 +48,7 @@ contract TaikoDaoFactory {
         // Taiko contract settings
         IVotesUpgradeable tokenAddress;
         address taikoL1ContractAddress;
-        address taikoBridgeAddress;
+        address taikoERC20VaultAddress;
         uint32 timelockPeriod;
         uint32 l2InactivityPeriod;
         uint32 l2AggregationGracePeriod;
@@ -204,7 +204,7 @@ contract TaikoDaoFactory {
 
             signerList.updateSettings(SignerList.Settings(encryptionRegistry, uint16(settings.multisigMembers.length)));
 
-            // Revoke the remporary permission
+            // Revoke the temporary permission
             dao.revoke(address(signerList), address(this), UPDATE_SIGNER_LIST_SETTINGS_PERMISSION_ID);
         }
 
@@ -316,7 +316,7 @@ contract TaikoDaoFactory {
                     existingTokenSettings,
                     unusedMintSettings,
                     settings.taikoL1ContractAddress,
-                    settings.taikoBridgeAddress,
+                    settings.taikoERC20VaultAddress,
                     settings.minStdProposalDuration,
                     stdProposer,
                     emergencyProposer

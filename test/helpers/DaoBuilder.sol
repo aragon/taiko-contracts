@@ -12,7 +12,7 @@ import {createProxyAndCall} from "../../src/helpers/proxy.sol";
 import {RATIO_BASE} from "@aragon/osx/plugins/utils/Ratio.sol";
 import {TaikoL1Mock, TaikoL1PausedMock, TaikoL1WithOldLastBlock, TaikoL1Incompatible} from "../mocks/TaikoL1Mock.sol";
 import {ITaikoL1} from "../../src/adapted-dependencies/ITaikoL1.sol";
-import {ALICE_ADDRESS, TAIKO_BRIDGE_ADDRESS} from "../constants.sol";
+import {ALICE_ADDRESS, TAIKO_ERC20_VAULT_ADDRESS} from "../constants.sol";
 import {GovernanceERC20Mock} from "../mocks/GovernanceERC20Mock.sol";
 
 contract DaoBuilder is Test {
@@ -35,7 +35,7 @@ contract DaoBuilder is Test {
     }
 
     address public owner = ALICE_ADDRESS;
-    address public taikoBridge = TAIKO_BRIDGE_ADDRESS;
+    address public taikoERC20Vault = TAIKO_ERC20_VAULT_ADDRESS;
 
     TaikoL1Status public taikoL1Status = TaikoL1Status.Standard;
     address[] public multisigMembers;
@@ -46,7 +46,7 @@ contract DaoBuilder is Test {
     uint32 public minDuration = 4 days;
     uint32 public timelockPeriod = 7 days;
     uint32 public l2InactivityPeriod = 10 minutes;
-    uint32 public l2AggregationGracePeriod = 2 days;
+    uint32 public l2AggregationGracePeriod = 1 days;
     bool public skipL2 = false;
 
     bool public onlyListed = true;
@@ -130,8 +130,8 @@ contract DaoBuilder is Test {
         return this;
     }
 
-    function withTaikoBridge(address newTaikoBridge) public returns (DaoBuilder) {
-        taikoBridge = newTaikoBridge;
+    function withTaikoERC20Vault(address _taikoERC20Vault) public returns (DaoBuilder) {
+        taikoERC20Vault = _taikoERC20Vault;
         return this;
     }
 
@@ -225,7 +225,7 @@ contract DaoBuilder is Test {
                     address(OPTIMISTIC_BASE),
                     abi.encodeCall(
                         OptimisticTokenVotingPlugin.initialize,
-                        (dao, targetContractSettings, votingToken, address(taikoL1), taikoBridge)
+                        (dao, targetContractSettings, votingToken, address(taikoL1), taikoERC20Vault)
                     )
                 )
             );
@@ -311,10 +311,12 @@ contract DaoBuilder is Test {
         vm.label(address(multisig), "Multisig");
         vm.label(address(emergencyMultisig), "EmergencyMultisig");
         vm.label(address(taikoL1), "TaikoL1");
-        vm.label(address(taikoBridge), "TaikoBridge");
+        vm.label(address(taikoERC20Vault), "TaikoERC20Vault");
 
-        // Moving forward to avoid proposal creations failing or getVotes() giving inconsistent values
+        // Moving forward to avoid proposal creations failing or getVotes() giving inconsistent values.
+        // Must match the snapshot offset used by OptimisticTokenVotingPlugin.createProposal so the
+        // just-minted token checkpoints are visible at `block.timestamp - SNAPSHOT_OFFSET`.
         vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 1);
+        vm.warp(block.timestamp + OptimisticTokenVotingPlugin(OPTIMISTIC_BASE).SNAPSHOT_OFFSET());
     }
 }

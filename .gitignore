@@ -9,12 +9,10 @@ out/
 # Ignores development broadcast logs
 /broadcast/**
 
-# Docs
-docs/
-
 # Dotenv file
 .env
 .env.test
+.just/
 
 lcov.info*
 report/
@@ -23,5 +21,12 @@ report/
 *.tree
 logs/*
 
+# Temp folders
+tmp/
+
 # Draw.io backup files
 *.drawio.bkp
+
+# Generated proposal actions
+proposals/
+deployments/

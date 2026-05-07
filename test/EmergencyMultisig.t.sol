@@ -946,8 +946,8 @@ contract EmergencyMultisigTest is AragonTest {
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // 2
-        vm.startPrank(taikoBridge);
-        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoBridge));
+        vm.startPrank(taikoERC20Vault);
+        vm.expectRevert(abi.encodeWithSelector(EmergencyMultisig.ProposalCreationForbidden.selector, taikoERC20Vault));
         eMultisig.createProposal("", 0, 0, optimisticPlugin, false);
 
         // It reverts if listed before but not now
@@ -1897,7 +1897,7 @@ contract EmergencyMultisigTest is AragonTest {
         emit Executed(0);
 
         // It A ProposalCreated event is emitted on the destination plugin
-        uint256 targetPid = (block.timestamp << 128) | (block.timestamp << 64);
+        uint256 targetPid = ((block.timestamp - optimisticPlugin.SNAPSHOT_OFFSET()) << 192) | (block.timestamp << 128) | (block.timestamp << 64);
         vm.expectEmit();
         emit ProposalCreated(
             targetPid,
